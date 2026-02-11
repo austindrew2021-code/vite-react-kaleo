@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { gsap } from 'gsap';
+import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { Twitter, MessageCircle, Send, Mail, FileText, Shield, Trophy } from 'lucide-react';
 

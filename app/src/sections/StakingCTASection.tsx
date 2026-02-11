@@ -1,9 +1,12 @@
+// @ts-nocheck
 import { useEffect, useRef } from 'react';
-import { gsap } from 'gsap';
+import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { ArrowRight, ExternalLink, TrendingUp } from 'lucide-react';
+import { ArrowRight, ExternalLink, TrendingUp, Clock } from 'lucide-react';
 import { useConnectModal } from '@rainbow-me/rainbowkit';
 import { useAccount } from 'wagmi';
+import { usePresaleStore } from '../store/presaleStore';
+import { PRESALE_CONFIG } from '../config/presaleConfig';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -13,6 +16,7 @@ export function StakingCTASection() {
   const bgRef = useRef<HTMLDivElement>(null);
   const { isConnected } = useAccount();
   const { openConnectModal } = useConnectModal();
+  const { currentStage, totalRaised } = usePresaleStore();
 
   useEffect(() => {
     const section = sectionRef.current;
@@ -32,7 +36,6 @@ export function StakingCTASection() {
         }
       });
 
-      // Entrance (0% - 30%)
       scrollTl
         .fromTo(card, 
           { x: '60vw', rotate: -8, scale: 0.94, opacity: 0 }, 
@@ -54,8 +57,7 @@ export function StakingCTASection() {
           { y: 0, opacity: 1, ease: 'none' },
           0.2
         )
-        .to({}, { duration: 0.4 }) // Settle (30% - 70%)
-        // Exit (70% - 100%)
+        .to({}, { duration: 0.4 })
         .fromTo(card, 
           { y: 0, opacity: 1 }, 
           { y: '-18vh', opacity: 0, ease: 'power2.in' },
@@ -66,7 +68,6 @@ export function StakingCTASection() {
           { opacity: 0.7, ease: 'power2.in' },
           0.7
         );
-
     }, section);
 
     return () => ctx.revert();
@@ -77,6 +78,8 @@ export function StakingCTASection() {
       openConnectModal();
     }
   };
+
+  const currentPrice = PRESALE_CONFIG.STAGES[currentStage - 1]?.price || PRESALE_CONFIG.STAGES[0].price;
 
   return (
     <section 
@@ -118,14 +121,35 @@ export function StakingCTASection() {
             </div>
           </div>
 
+          {/* Presale Status */}
+          <div className="cta-headline flex items-center justify-center gap-2 mb-4">
+            <span className="px-3 py-1 rounded-full bg-[#2BFFF1]/10 border border-[#2BFFF1]/30 text-[#2BFFF1] text-xs font-medium flex items-center gap-1">
+              <Clock className="w-3 h-3" />
+              Presale Live - Stage {currentStage}
+            </span>
+          </div>
+
           {/* Headline */}
-          <h2 className="cta-headline text-[clamp(28px,3.5vw,40px)] font-bold text-[#F4F6FA] mb-4 leading-tight">
-            Start leverage <span className="text-[#2BFFF1]">trading</span> today
+          <h2 className="cta-headline text-[clamp(26px,3.5vw,36px)] font-bold text-[#F4F6FA] mb-4 leading-tight">
+            Don't miss <span className="text-[#2BFFF1]">Stage {currentStage}</span> pricing
           </h2>
+
+          {/* Price Info */}
+          <div className="cta-body p-4 rounded-xl bg-white/5 border border-white/10 mb-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[#A7B0B7] text-sm">Current Price</span>
+              <span className="text-[#2BFFF1] font-bold">${currentPrice.toFixed(5)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[#A7B0B7] text-sm">Total Raised</span>
+              <span className="text-[#F4F6FA] font-medium">${totalRaised.toLocaleString()}</span>
+            </div>
+          </div>
 
           {/* Body */}
           <p className="cta-body text-[#A7B0B7] text-[clamp(14px,1.2vw,16px)] mb-8 leading-relaxed">
-            Connect your wallet, buy Kaleo, and start leverage trading any Pump.fun memecoin with up to 100x leverage.
+            Connect your wallet and secure your Kaleo tokens at the current stage price. 
+            Price increases when each stage sells out.
           </p>
 
           {/* Features */}
@@ -147,14 +171,14 @@ export function StakingCTASection() {
               onClick={handleConnect}
               className="neon-button px-8 py-4 text-base font-semibold flex items-center gap-2"
             >
-              {isConnected ? 'Buy Kaleo' : 'Connect Wallet'}
+              {isConnected ? 'Buy Kaleo Now' : 'Connect Wallet'}
               <ArrowRight className="w-5 h-5" />
             </button>
             <a 
-              href="#docs"
+              href="#whitepaper"
               className="text-[#A7B0B7] hover:text-[#2BFFF1] text-sm font-medium transition-colors flex items-center gap-2 px-4 py-4"
             >
-              View Contracts
+              Read White Paper
               <ExternalLink className="w-4 h-4" />
             </a>
           </div>
