@@ -1,26 +1,23 @@
 import { getDefaultConfig } from '@rainbow-me/rainbowkit';
 import {
-  mainnet,
-  base,
   arbitrum,
+  base,
+  mainnet,
   optimism,
   polygon,
+  sepolia,
 } from 'wagmi/chains';
-import { http } from 'wagmi';
-
-const alchemyKey = import.meta.env.VITE_ALCHEMY_KEY;
-const walletConnectProjectId = import.meta.env.VITE_WALLET_CONNECT_PROJECT_ID;
 
 export const config = getDefaultConfig({
-  appName: 'Kaleo - Memecoin Leverage Platform',
-  projectId: walletConnectProjectId || '69b686259ac98fa35d4188e56796ca47',
-  chains: [mainnet, base, arbitrum, optimism, polygon],
-  transports: {
-    [mainnet.id]: http(alchemyKey || 'https://eth-mainnet.g.alchemy.com/v2/7iiXgQQtGUhyi7a-fC0Sd'),
-    [base.id]: http(),
-    [arbitrum.id]: http(),
-    [optimism.id]: http(),
-    [polygon.id]: http(),
-  },
+  appName: 'Kaleo - Token Presale',
+  projectId: 'kaleo_presale_2024',
+  chains: [
+    mainnet,
+    polygon,
+    optimism,
+    arbitrum,
+    base,
+    sepolia,
+  ],
   ssr: false,
 });
