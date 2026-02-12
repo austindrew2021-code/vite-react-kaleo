@@ -7,24 +7,33 @@ import {
   polygon,
 } from 'wagmi/chains';
 import { http } from 'wagmi';
+import { WalletConnectConnector } from '@wagmi/connectors/walletConnect';
+import { injected } from '@wagmi/connectors';
 
-const alchemyKey = import.meta.env.VITE_ALCHEMY_KEY;
-const walletConnectProjectId = import.meta.env.VITE_WALLET_CONNECT_PROJECT_ID;
+// Debug log
+console.log('WalletConnect Project ID:', import.meta.env.VITE_WALLET_CONNECT_PROJECT_ID);
 
-// Debug log - remove after testing
-console.log('WalletConnect Project ID from env:', walletConnectProjectId);
-console.log('RPC URL from env:', import.meta.env.VITE_RPC_URL);
+const projectId = import.meta.env.VITE_WALLET_CONNECT_PROJECT_ID || '69b686259ac98fa35d4188e56796ca47'; // fallback for local testing only
 
 export const config = getDefaultConfig({
   appName: 'Kaleo - Memecoin Leverage Platform',
-  projectId: walletConnectProjectId || '69b686259ac98fa35d4188e56796ca47', // fallback only for local testing
-  chains: [mainnet, base, arbitrum, optimism, polygon],
+  projectId,
+  chains: [polygon, mainnet, base, arbitrum, optimism],
   transports: {
-    [mainnet.id]: http(alchemyKey || 'https://eth-mainnet.g.alchemy.com/v2/7iiXgQQtGUhyi7a-fC0Sd'),
-    [base.id]: http(),
-    [arbitrum.id]: http(),
-    [optimism.id]: http(),
-    [polygon.id]: http(),
+    [polygon.id]: http(import.meta.env.VITE_RPC_URL || 'https://polygon-rpc.com'),
+    [mainnet.id]: http(import.meta.env.VITE_RPC_URL || 'https://ethereum.publicnode.com'),
+    [base.id]: http('https://mainnet.base.org'),
+    [arbitrum.id]: http('https://arb1.arbitrum.io/rpc'),
+    [optimism.id]: http('https://mainnet.optimism.io'),
   },
+  connectors: [
+    new WalletConnectConnector({
+      options: {
+        projectId,
+        showQrModal: true,
+      },
+    }),
+    injected(),
+  ],
   ssr: false,
 });
