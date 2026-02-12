@@ -7,13 +7,14 @@ import {
   polygon,
 } from 'wagmi/chains';
 import { http } from 'wagmi';
-import { WalletConnectConnector } from '@wagmi/connectors/walletConnect';
+import { WalletConnectConnector } from '@walletconnect/ethereum-provider';
 import { injected } from '@wagmi/connectors';
 
-// Debug log
+// Debug logs – remove after testing
 console.log('WalletConnect Project ID:', import.meta.env.VITE_WALLET_CONNECT_PROJECT_ID);
+console.log('RPC URL:', import.meta.env.VITE_RPC_URL);
 
-const projectId = import.meta.env.VITE_WALLET_CONNECT_PROJECT_ID || '69b686259ac98fa35d4188e56796ca47'; // fallback for local testing only
+const projectId = import.meta.env.VITE_WALLET_CONNECT_PROJECT_ID || '69b686259ac98fa35d4188e56796ca47'; // fallback only for local testing
 
 export const config = getDefaultConfig({
   appName: 'Kaleo - Memecoin Leverage Platform',
