@@ -7,8 +7,6 @@ import {
   polygon,
 } from 'wagmi/chains';
 import { http } from 'wagmi';
-import WalletConnectConnector from '@walletconnect/ethereum-provider'; // correct default import
-import { injected } from '@wagmi/connectors';
 
 // Debug logs - remove after modal works
 console.log('WalletConnect Project ID loaded:', import.meta.env.VITE_WALLET_CONNECT_PROJECT_ID || 'MISSING');
@@ -28,7 +26,6 @@ export const config = getDefaultConfig({
     [arbitrum.id]: http('https://arb1.arbitrum.io/rpc'),
     [optimism.id]: http('https://mainnet.optimism.io'),
   },
-  // No explicit 'connectors' array needed here - RainbowKit v2 auto-configures WalletConnect + injected when projectId is provided
   ssr: false,
 });
 
