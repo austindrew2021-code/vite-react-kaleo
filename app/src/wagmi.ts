@@ -7,13 +7,13 @@ import {
   polygon,
 } from 'wagmi/chains';
 import { http } from 'wagmi';
-import { createWalletConnectConnector } from '@walletconnect/ethereum-provider'; // correct import for v2
+import WalletConnectConnector from '@walletconnect/ethereum-provider'; // correct default import
 import { injected } from '@wagmi/connectors';
 
-// Debug logs - remove after confirming modal works
+// Debug logs - remove after modal works
 console.log('WalletConnect Project ID loaded:', import.meta.env.VITE_WALLET_CONNECT_PROJECT_ID || 'MISSING');
 console.log('RPC URL loaded:', import.meta.env.VITE_RPC_URL || 'MISSING');
-console.log('All VITE env vars:', Object.keys(import.meta.env).filter(key => key.startsWith('VITE_')));
+console.log('VITE env vars present:', Object.keys(import.meta.env).filter(k => k.startsWith('VITE_')));
 
 const projectId = import.meta.env.VITE_WALLET_CONNECT_PROJECT_ID || '69b686259ac98fa35d4188e56796ca47';
 
@@ -28,10 +28,9 @@ export const config = getDefaultConfig({
     [arbitrum.id]: http('https://arb1.arbitrum.io/rpc'),
     [optimism.id]: http('https://mainnet.optimism.io'),
   },
-  // Connectors are configured automatically by RainbowKit in v2 when projectId is provided
-  // Explicit connectors are optional - the above should suffice for WalletConnect + injected
+  // No explicit 'connectors' array needed here - RainbowKit v2 auto-configures WalletConnect + injected when projectId is provided
   ssr: false,
 });
 
-// Optional: Log config for debugging
-console.log('Wagmi config initialized with projectId:', projectId);
+// Optional extra debug
+console.log('Wagmi config created with projectId:', projectId);
