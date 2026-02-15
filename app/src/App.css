@@ -80,3 +80,32 @@ img {
     scroll-behavior: auto !important;
   }
 }
+/* GPU acceleration + smooth mobile scrolling */
+html, body {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: none;
+  touch-action: pan-y;
+}
+
+.pinned-section {
+  will-change: transform;
+  transform: translate3d(0,0,0);
+  backface-visibility: hidden;
+}
+
+/* Extra mobile smoothness */
+@media (max-width: 768px) {
+  .pinned-section {
+    transform: translateZ(0);
+  }
+}
+
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
