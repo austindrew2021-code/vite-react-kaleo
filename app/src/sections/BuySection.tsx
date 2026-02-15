@@ -35,6 +35,8 @@ export function BuySection() {
           end: '+=130%',
           pin: true,
           scrub: 0.6,
+          anticipatePin: 1,
+          fastScrollEnd: true,
         }
       });
 
@@ -115,7 +117,7 @@ export function BuySection() {
     <section 
       ref={sectionRef} 
       id="buy"
-      className="section-pinned z-20 flex items-center justify-center"
+      className="pinned-section min-h-screen z-20 flex items-center justify-center relative"
     >
       {/* Background Image */}
       <div 
@@ -130,7 +132,7 @@ export function BuySection() {
         <div className="absolute inset-0 bg-gradient-to-b from-[#05060B]/80 via-[#05060B]/50 to-[#05060B]/85" />
       </div>
 
-      {/* Main Card - Centered properly */}
+      {/* Main Card */}
       <div 
         ref={cardRef}
         className="glass-card relative w-[min(92vw,520px)] rounded-[28px] overflow-hidden p-8"
