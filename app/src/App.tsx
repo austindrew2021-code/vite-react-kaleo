@@ -26,17 +26,23 @@ const queryClient = new QueryClient();
 
 function App() {
   useEffect(() => {
-    // Force GPU acceleration globally (helps mobile smoothness)
+    // Eliminate micro-lag on mobile
+    gsap.ticker.lagSmoothing(0);
+
+    // Force GPU + smooth touch
     gsap.set('body, html, main, section.pinned-section', {
       willChange: 'transform',
       transform: 'translate3d(0,0,0)',
       backfaceVisibility: 'hidden',
     });
 
-    // Kill previous ScrollTriggers to prevent memory leaks
+    // Normalize scroll for mobile (prevents jitter)
+    ScrollTrigger.normalizeScroll(true);
+
+    // Kill old triggers
     ScrollTrigger.getAll().forEach(st => st.kill());
 
-    // Pin major sections individually with optimized settings
+    // Pin only major sections — avoid overlap fights
     const pinnedSections = document.querySelectorAll('.pinned-section');
 
     pinnedSections.forEach((section, index) => {
@@ -46,45 +52,44 @@ function App() {
         end: 'bottom top',
         pin: true,
         pinSpacing: false,
-        anticipatePin: 1,           // Prevents jank on mobile
-        fastScrollEnd: true,         // Smoother quick scrolls
-        scrub: 0.4,                  // Faster response, less lag
+        anticipatePin: 1,
+        fastScrollEnd: true,
+        scrub: 0.2,                 // Faster, smoother response
+        preventOverlaps: true,      // Prevents fighting between pins
+        invalidateOnRefresh: true,
         id: `pin-${index}`,
       });
     });
 
-    // Lightweight global snap (only near section boundaries)
+    // Lightweight directional snap
     ScrollTrigger.create({
       start: 'top top',
       end: 'bottom bottom',
       snap: {
-        snapTo: (progress: number) => {
-          // Snap only near 0%, 25%, 50%, 75%, 100% (adjust as needed)
+        snapTo: (progress) => {
           const targets = [0, 0.25, 0.5, 0.75, 1];
           const closest = targets.reduce((prev, curr) =>
             Math.abs(curr - progress) < Math.abs(prev - progress) ? curr : prev
           );
-          // Only snap if very close (prevents constant micro-snaps)
           return Math.abs(closest - progress) < 0.08 ? closest : progress;
         },
-        duration: { min: 0.18, max: 0.45 }, // Faster on mobile
-        delay: 0.05,
+        duration: { min: 0.15, max: 0.4 },
+        delay: 0.03,
         ease: 'power2.out',
         directional: true,
       },
       invalidateOnRefresh: true,
     });
 
-    // Refresh on resize (debounced to prevent spam)
-    let resizeTimer: NodeJS.Timeout;
+    // Debounced refresh
+    let resizeTimer;
     const handleResize = () => {
       clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(() => ScrollTrigger.refresh(), 150);
+      resizeTimer = setTimeout(() => ScrollTrigger.refresh(), 120);
     };
     window.addEventListener('resize', handleResize);
     window.addEventListener('orientationchange', handleResize);
 
-    // Cleanup
     return () => {
       ScrollTrigger.getAll().forEach(st => st.kill());
       window.removeEventListener('resize', handleResize);
@@ -104,13 +109,8 @@ function App() {
           })}
         >
           <div className="relative bg-[#05060B] min-h-screen">
-            {/* Noise Overlay */}
             <div className="noise-overlay" />
-            
-            {/* Navigation */}
             <Navigation />
-            
-            {/* Main Content */}
             <main className="relative">
               <HeroSection />
               <PresaleProgress />
