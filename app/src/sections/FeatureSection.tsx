@@ -19,18 +19,95 @@ export function FeatureSection() {
 
     if (!section || !card || !phone) return;
 
-    const ctx = gsap.context(() => {
-      gsap.fromTo(card, { y: '8vh', opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, ease: 'power2.out', scrollTrigger: { trigger: section, start: 'top 80%', toggleActions: 'play none none reverse' } });
-      gsap.fromTo('.feature-headline', { x: '-6vw', opacity: 0 }, { x: 0, opacity: 1, duration: 0.6, ease: 'power2.out', scrollTrigger: { trigger: section, start: 'top 75%', toggleActions: 'play none none reverse' } });
-      gsap.fromTo(phone, { x: '10vw', scale: 0.98, opacity: 0 }, { x: 0, scale: 1, opacity: 1, duration: 0.8, ease: 'power2.out', scrollTrigger: { trigger: section, start: 'top 70%', toggleActions: 'play none none reverse' } });
+    // Initial quick fade-in on load (draw-in effect)
+    gsap.fromTo(section, 
+      { opacity: 0, y: 40 },
+      { opacity: 1, y: 0, duration: 0.6, ease: 'power2.out' }
+    );
 
+    const ctx = gsap.context(() => {
+      // Card entrance
+      gsap.fromTo(card,
+        { y: '8vh', opacity: 0 },
+        {
+          y: 0,
+          opacity: 1,
+          duration: 0.8,
+          ease: 'power2.out',
+          scrollTrigger: {
+            trigger: section,
+            start: 'top 85%', // earlier trigger for quicker feel
+            toggleActions: 'play none none reverse'
+          }
+        }
+      );
+
+      // Headline entrance + subtle hover glow
+      gsap.fromTo('.feature-headline',
+        { x: '-6vw', opacity: 0 },
+        {
+          x: 0,
+          opacity: 1,
+          duration: 0.6,
+          ease: 'power2.out',
+          scrollTrigger: {
+            trigger: section,
+            start: 'top 80%',
+            toggleActions: 'play none none reverse'
+          }
+        }
+      );
+
+      // Phone mockup entrance
+      gsap.fromTo(phone,
+        { x: '10vw', scale: 0.98, opacity: 0 },
+        {
+          x: 0,
+          scale: 1,
+          opacity: 1,
+          duration: 0.8,
+          ease: 'power2.out',
+          scrollTrigger: {
+            trigger: section,
+            start: 'top 75%',
+            toggleActions: 'play none none reverse'
+          }
+        }
+      );
+
+      // Arc stroke animation
       if (arc) {
         const length = arc.getTotalLength();
         gsap.set(arc, { strokeDasharray: length, strokeDashoffset: length });
-        gsap.to(arc, { strokeDashoffset: 0, duration: 1.2, ease: 'power2.out', scrollTrigger: { trigger: section, start: 'top 60%', toggleActions: 'play none none reverse' } });
+        gsap.to(arc, {
+          strokeDashoffset: 0,
+          duration: 1.2,
+          ease: 'power2.out',
+          scrollTrigger: {
+            trigger: section,
+            start: 'top 70%',
+            toggleActions: 'play none none reverse'
+          }
+        });
       }
 
-      gsap.fromTo('.feature-bullet', { x: -20, opacity: 0 }, { x: 0, opacity: 1, duration: 0.4, stagger: 0.1, ease: 'power2.out', scrollTrigger: { trigger: section, start: 'top 65%', toggleActions: 'play none none reverse' } });
+      // Bullet points stagger (quick, smooth draw-in)
+      gsap.fromTo('.feature-bullet',
+        { x: -20, opacity: 0 },
+        {
+          x: 0,
+          opacity: 1,
+          duration: 0.4,
+          stagger: 0.08,
+          ease: 'power2.out',
+          scrollTrigger: {
+            trigger: section,
+            start: 'top 70%',
+            toggleActions: 'play none none reverse'
+          }
+        }
+      );
+
     }, section);
 
     return () => ctx.revert();
@@ -43,33 +120,52 @@ export function FeatureSection() {
   ];
 
   return (
-    <section 
-  ref={sectionRef} 
-  id="features"
-  className="pinned-section fade-in-section min-h-screen relative py-[10vh] z-40"
->
+    <section
+      ref={sectionRef}
+      id="features"
+      className="pinned-section fade-in-section min-h-screen relative py-[10vh] z-40 overflow-hidden"
+    >
+      {/* Background Image – eager load to prevent flash */}
       <div className="absolute inset-0 w-full h-full">
-        <img src="/feature_city_bg_04.jpg" alt="Cyberpunk city" className="w-full h-full object-cover" loading="eager" />
+        <img
+          src="/feature_city_bg_04.jpg"
+          alt="Cyberpunk city"
+          className="w-full h-full object-cover"
+          loading="eager"
+        />
         <div className="absolute inset-0 bg-gradient-to-b from-[#05060B]/80 via-[#05060B]/60 to-[#05060B]/90" />
       </div>
 
-      <div ref={cardRef} className="glass-card relative mx-auto w-[min(92vw,1180px)] rounded-[28px] overflow-hidden min-h-[70vh]" style={{ opacity: 0 }}>
+      {/* Main Card – centered on all screens */}
+      <div
+        ref={cardRef}
+        className="glass-card relative mx-auto w-[min(92vw,1180px)] rounded-[28px] overflow-hidden min-h-[70vh]"
+        style={{ opacity: 0 }}
+      >
         <div className="flex flex-col lg:flex-row h-full">
+          {/* Left Content */}
           <div className="flex-1 p-[6%] flex flex-col justify-center">
             <div className="flex items-center gap-2 mb-4">
               <span className="px-3 py-1 rounded-full bg-[#2BFFF1]/10 border border-[#2BFFF1]/30 text-[#2BFFF1] text-xs font-medium">
                 Pump.fun Integration
               </span>
             </div>
-            <h2 className="feature-headline text-[clamp(30px,3.6vw,48px)] font-bold text-[#F4F6FA] mb-6">
+
+            <h2 className="feature-headline text-[clamp(30px,3.6vw,48px)] font-bold text-[#F4F6FA] mb-6 transition-colors hover:text-[#2BFFF1]">
               Trade <span className="text-[#2BFFF1]">any memecoin</span> with leverage
             </h2>
+
             <p className="text-[#A7B0B7] text-[clamp(14px,1.2vw,16px)] mb-8 leading-relaxed max-w-[420px]">
               Connect your wallet and start leverage trading any memecoin from Pump.fun instantly. No waiting, no restrictions.
             </p>
+
+            {/* Feature Bullets */}
             <div className="space-y-4 mb-8">
               {features.map((feature, index) => (
-                <div key={index} className="feature-bullet flex items-center gap-3">
+                <div
+                  key={index}
+                  className="feature-bullet flex items-center gap-3 transition-transform hover:scale-105"
+                >
                   <div className="w-10 h-10 rounded-lg bg-[#2BFFF1]/10 border border-[#2BFFF1]/30 flex items-center justify-center">
                     <feature.icon className="w-5 h-5 text-[#2BFFF1]" />
                   </div>
@@ -77,19 +173,55 @@ export function FeatureSection() {
                 </div>
               ))}
             </div>
-            <a href="#buy" className="neon-button w-fit px-6 py-3 text-sm font-semibold flex items-center gap-2">
+
+            {/* CTA */}
+            <a
+              href="#buy"
+              className="neon-button w-fit px-6 py-3 text-sm font-semibold flex items-center gap-2 hover:gap-3 transition-all"
+            >
               Start Trading
               <ArrowRight className="w-4 h-4" />
             </a>
           </div>
 
-          <div ref={phoneRef} className="flex-1 relative flex items-center justify-center p-[6%]" style={{ opacity: 0 }}>
-            <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 400 500" fill="none">
-              <path ref={arcRef} d="M 50 250 Q 200 50 350 250 Q 200 450 50 250" stroke="#2BFFF1" strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.6" />
+          {/* Right Image with Neon Arc */}
+          <div
+            ref={phoneRef}
+            className="flex-1 relative flex items-center justify-center p-[6%]"
+            style={{ opacity: 0 }}
+          >
+            {/* Neon Arc SVG */}
+            <svg
+              className="absolute inset-0 w-full h-full pointer-events-none"
+              viewBox="0 0 400 500"
+              fill="none"
+            >
+              <path
+                ref={arcRef}
+                d="M 50 250 Q 200 50 350 250 Q 200 450 50 250"
+                stroke="#2BFFF1"
+                strokeWidth="2"
+                fill="none"
+                strokeLinecap="round"
+                opacity="0.6"
+              />
             </svg>
+
+            {/* Phone Mockup */}
             <div className="relative z-10">
-              <img src="/feature_phone_mockup.jpg" alt="Trading app mockup" className="w-full max-w-[280px] rounded-2xl shadow-2xl" loading="eager" />
-              <div className="absolute -inset-4 rounded-3xl opacity-40 blur-2xl -z-10" style={{ background: 'radial-gradient(ellipse at center, rgba(43,255,241,0.4) 0%, transparent 70%)' }} />
+              <img
+                src="/feature_phone_mockup.jpg"
+                alt="Trading app mockup"
+                className="w-full max-w-[280px] rounded-2xl shadow-2xl"
+                loading="eager"
+              />
+              {/* Glow effect */}
+              <div
+                className="absolute -inset-4 rounded-3xl opacity-40 blur-2xl -z-10"
+                style={{
+                  background: 'radial-gradient(ellipse at center, rgba(43,255,241,0.4) 0%, transparent 70%)'
+                }}
+              />
             </div>
           </div>
         </div>
