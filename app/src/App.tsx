@@ -26,20 +26,22 @@ const queryClient = new QueryClient();
 
 function App() {
   useEffect(() => {
-    gsap.ticker.lagSmoothing(0); // remove micro-lag
+    // Remove micro-lag on mobile touch
+    gsap.ticker.lagSmoothing(0);
 
-    // GPU hints
-    gsap.set('body, html, main, .content-wrapper', {
+    // GPU + smooth rendering hints
+    gsap.set('body, html, main.content-wrapper, section', {
       willChange: 'transform',
       transform: 'translate3d(0,0,0)',
       backfaceVisibility: 'hidden',
     });
 
-    ScrollTrigger.normalizeScroll(true); // smooth touch
+    ScrollTrigger.normalizeScroll(true); // smooth touch behavior
 
+    // Clean up old triggers
     ScrollTrigger.getAll().forEach(st => st.kill());
 
-    // Pin ONE long wrapper instead of many sections
+    // Pin the entire content wrapper once (prevents multiple pin conflicts)
     ScrollTrigger.create({
       trigger: '.content-wrapper',
       start: 'top top',
@@ -53,44 +55,26 @@ function App() {
       invalidateOnRefresh: true,
     });
 
-    // Very gentle snap – almost no forced movement
-    ScrollTrigger.create({
-      start: 'top top',
-      end: 'bottom bottom',
-      snap: {
-        snapTo: (progress: number) => {
-          const targets = [0, 0.25, 0.5, 0.75, 1];
-          const closest = targets.reduce((prev, curr) =>
-            Math.abs(curr - progress) < Math.abs(prev - progress) ? curr : prev
-          );
-          return Math.abs(closest - progress) < 0.02 ? closest : progress;
-        },
-        duration: { min: 0.6, max: 1.2 }, // slower, more natural
-        delay: 0.15,
-        ease: 'power3.out',
-        directional: true,
-      },
-      invalidateOnRefresh: true,
-    });
-
-    // Fade-in for sections
+    // Quick, smooth fade-in for all sections (like original site feel)
     gsap.utils.toArray('.fade-in-section').forEach((el: any) => {
       gsap.fromTo(el,
-        { opacity: 0, y: 60 },
+        { opacity: 0, y: 40 },
         {
           opacity: 1,
           y: 0,
-          duration: 1,
-          ease: 'power3.out',
+          duration: 0.6,               // fast fade
+          ease: 'power2.out',
           scrollTrigger: {
             trigger: el,
-            start: 'top 92%',
+            start: 'top 85%',          // early trigger
             toggleActions: 'play none none reverse',
+            once: false,
           }
         }
       );
     });
 
+    // Debounced refresh
     let resizeTimer: NodeJS.Timeout | undefined;
     const handleResize = () => {
       if (resizeTimer) clearTimeout(resizeTimer);
@@ -111,20 +95,19 @@ function App() {
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider 
-  theme={darkTheme({
-    accentColor: '#2BFFF1',
-    accentColorForeground: '#05060B',
-    borderRadius: 'large',
-    fontStack: 'system',
-  })}
-  modalSize="compact"          // smaller modal = better mobile fit
-  coolMode={true}              // optional nice visual effect
->
+          theme={darkTheme({
+            accentColor: '#2BFFF1',
+            accentColorForeground: '#05060B',
+            borderRadius: 'large',
+            fontStack: 'system',
+          })}
+          modalSize="compact"
+        >
           <div className="relative bg-[#05060B] min-h-screen">
             <div className="noise-overlay" />
             <Navigation />
 
-            {/* Single pinned wrapper for all content */}
+            {/* Single pinned wrapper – free scroll inside */}
             <main className="content-wrapper relative min-h-screen">
               <HeroSection />
               <PresaleProgress />
