@@ -26,42 +26,34 @@ const queryClient = new QueryClient();
 
 function App() {
   useEffect(() => {
-    // Eliminate micro-lag on mobile touch
-    gsap.ticker.lagSmoothing(0);
+    gsap.ticker.lagSmoothing(0); // remove micro-lag
 
-    // Force GPU rendering + smooth touch scroll
-    gsap.set('body, html, main, section.pinned-section', {
+    // GPU hints
+    gsap.set('body, html, main, .content-wrapper', {
       willChange: 'transform',
       transform: 'translate3d(0,0,0)',
       backfaceVisibility: 'hidden',
     });
 
-    // Normalize scroll behavior for mobile (prevents jitter/jump)
-    ScrollTrigger.normalizeScroll(true);
+    ScrollTrigger.normalizeScroll(true); // smooth touch
 
-    // Kill any old triggers
     ScrollTrigger.getAll().forEach(st => st.kill());
 
-    // Pin major sections with overlap prevention
-    const pinnedSections = document.querySelectorAll('.pinned-section');
-
-    pinnedSections.forEach((section, index) => {
-      ScrollTrigger.create({
-        trigger: section,
-        start: 'top top',
-        end: 'bottom top',
-        pin: true,
-        pinSpacing: false,
-        anticipatePin: 1,
-        fastScrollEnd: true,
-        scrub: 0.2,                    // Very fast response → feels natural
-        preventOverlaps: true,         // Prevents fighting between pins
-        invalidateOnRefresh: true,
-        id: `pin-${index}`,
-      });
+    // Pin ONE long wrapper instead of many sections
+    ScrollTrigger.create({
+      trigger: '.content-wrapper',
+      start: 'top top',
+      end: 'bottom bottom',
+      pin: true,
+      pinSpacing: false,
+      anticipatePin: 1,
+      fastScrollEnd: true,
+      scrub: 0.25,
+      preventOverlaps: true,
+      invalidateOnRefresh: true,
     });
 
-    // Much gentler snap — only triggers when very close to section boundary
+    // Very gentle snap – almost no forced movement
     ScrollTrigger.create({
       start: 'top top',
       end: 'bottom bottom',
@@ -71,36 +63,34 @@ function App() {
           const closest = targets.reduce((prev, curr) =>
             Math.abs(curr - progress) < Math.abs(prev - progress) ? curr : prev
           );
-          // Only snap if extremely close (prevents forced jumps)
-          return Math.abs(closest - progress) < 0.03 ? closest : progress;
+          return Math.abs(closest - progress) < 0.02 ? closest : progress;
         },
-        duration: { min: 0.4, max: 0.8 },  // Slower, more natural feel
-        delay: 0.1,
+        duration: { min: 0.6, max: 1.2 }, // slower, more natural
+        delay: 0.15,
         ease: 'power3.out',
         directional: true,
       },
       invalidateOnRefresh: true,
     });
 
-    // Fade-in animations for all major sections (smooth & early trigger)
+    // Fade-in for sections
     gsap.utils.toArray('.fade-in-section').forEach((el: any) => {
       gsap.fromTo(el,
         { opacity: 0, y: 60 },
         {
           opacity: 1,
           y: 0,
-          duration: 1.2,
+          duration: 1,
           ease: 'power3.out',
           scrollTrigger: {
             trigger: el,
-            start: 'top 90%',           // Start fading earlier
+            start: 'top 92%',
             toggleActions: 'play none none reverse',
           }
         }
       );
     });
 
-    // Debounced refresh on resize/orientation change
     let resizeTimer: NodeJS.Timeout | undefined;
     const handleResize = () => {
       if (resizeTimer) clearTimeout(resizeTimer);
@@ -131,7 +121,9 @@ function App() {
           <div className="relative bg-[#05060B] min-h-screen">
             <div className="noise-overlay" />
             <Navigation />
-            <main className="relative">
+
+            {/* Single pinned wrapper for all content */}
+            <main className="content-wrapper relative min-h-screen">
               <HeroSection />
               <PresaleProgress />
               <BuySection />
