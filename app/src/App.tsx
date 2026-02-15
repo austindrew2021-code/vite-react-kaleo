@@ -94,6 +94,7 @@ function App() {
             {/* Main Content */}
             <main className="relative">
               <HeroSection />
+              <PresaleProgress />
               <BuySection />
               <StatsSection />
               <FeatureSection />
