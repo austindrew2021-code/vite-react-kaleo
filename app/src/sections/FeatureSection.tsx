@@ -43,7 +43,11 @@ export function FeatureSection() {
   ];
 
   return (
-    <section ref={sectionRef} id="features" className="pinned-section fade-in-section min-h-screen relative py-[10vh] z-40">
+    <section 
+  ref={sectionRef} 
+  id="features"
+  className="pinned-section fade-in-section min-h-screen relative py-[10vh] z-40"
+>
       <div className="absolute inset-0 w-full h-full">
         <img src="/feature_city_bg_04.jpg" alt="Cyberpunk city" className="w-full h-full object-cover" loading="eager" />
         <div className="absolute inset-0 bg-gradient-to-b from-[#05060B]/80 via-[#05060B]/60 to-[#05060B]/90" />
