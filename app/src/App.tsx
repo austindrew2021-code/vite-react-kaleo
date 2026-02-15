@@ -101,13 +101,14 @@ function App() {
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider 
-          theme={darkTheme({
-            accentColor: '#2BFFF1',
-            accentColorForeground: '#05060B',
-            borderRadius: 'large',
-            fontStack: 'system',
-          })}
-        >
+  theme={darkTheme({
+    accentColor: '#2BFFF1',
+    accentColorForeground: '#05060B',
+    borderRadius: 'large',
+    fontStack: 'system',
+  })}
+  modalSize="compact" // Makes modal smaller + better mobile fit
+>
           <div className="relative bg-[#05060B] min-h-screen">
             <div className="noise-overlay" />
             <Navigation />
