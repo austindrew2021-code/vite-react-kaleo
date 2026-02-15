@@ -109,9 +109,21 @@ export function FeatureSection() {
   }, []);
 
   const features = [
-    { icon: Rocket, text: 'Trade any Pump.fun memecoin' },
-    { icon: TrendingUp, text: 'Up to 100x leverage' },
-    { icon: Shield, text: 'Liquidation protection' },
+    { 
+      icon: Rocket, 
+      text: 'Trade any Pump.fun memecoin',
+      image: '/thumb_pump.jpg'  // ← comma was missing here
+    },
+    { 
+      icon: TrendingUp, 
+      text: 'Up to 100x leverage',
+      image: '/thumb_leverage.jpg'
+    },
+    { 
+      icon: Shield, 
+      text: 'Liquidation protection',
+      image: '/thumb_security.jpg'
+    },
   ];
 
   return (
