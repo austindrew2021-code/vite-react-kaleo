@@ -44,7 +44,10 @@ export function FeaturesGridSection() {
   ];
 
   return (
-    <section ref={sectionRef} className="pinned-section fade-in-section min-h-screen relative py-[10vh] z-40">
+    <section 
+  ref={sectionRef} 
+  className="pinned-section fade-in-section min-h-screen relative py-[10vh] z-40"
+>
       <div className="absolute inset-0 w-full h-full">
         <img src="/grid_city_bg_05.jpg" alt="Cyberpunk city" className="w-full h-full object-cover" loading="eager" />
         <div className="absolute inset-0 bg-gradient-to-b from-[#05060B]/90 via-[#05060B]/70 to-[#05060B]/90" />
