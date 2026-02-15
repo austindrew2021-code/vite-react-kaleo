@@ -11,7 +11,6 @@ export function StatsSection() {
   const bgRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
 
-  // Mock data for leverage platform
   const stats = {
     raised: 2840000,
     goal: 5000000,
@@ -43,7 +42,6 @@ export function StatsSection() {
         }
       });
 
-      // Entrance (0% - 30%)
       scrollTl
         .fromTo(panel, 
           { x: '-60vw', rotate: 8, opacity: 0 }, 
@@ -65,8 +63,7 @@ export function StatsSection() {
           { y: 0, opacity: 1, ease: 'none' },
           0.18
         )
-        .to({}, { duration: 0.4 }) // Settle (30% - 70%)
-        // Exit (70% - 100%)
+        .to({}, { duration: 0.4 })
         .fromTo(panel, 
           { x: 0, rotate: 4, opacity: 1 }, 
           { x: '55vw', opacity: 0, ease: 'power2.in' },
@@ -83,7 +80,6 @@ export function StatsSection() {
           0.7
         );
 
-      // Progress bar animation
       if (progressBar) {
         gsap.fromTo(progressBar,
           { width: '0%' },
@@ -124,9 +120,8 @@ export function StatsSection() {
   return (
     <section 
       ref={sectionRef} 
-      className="pinned-section min-h-screen z-30 flex items-center justify-center relative"
+      className="pinned-section fade-in-section min-h-screen z-30 flex items-center justify-center relative"
     >
-      {/* Background Image */}
       <div 
         ref={bgRef}
         className="absolute inset-0 w-full h-full"
@@ -139,9 +134,7 @@ export function StatsSection() {
         <div className="absolute inset-0 bg-gradient-to-b from-[#05060B]/70 via-[#05060B]/40 to-[#05060B]/80" />
       </div>
 
-      {/* Stacked Cards Container */}
       <div className="relative">
-        {/* Back Stack Cards */}
         <div 
           className="stack-card absolute glass-card rounded-[28px] overflow-hidden"
           style={{ 
@@ -163,15 +156,12 @@ export function StatsSection() {
           }}
         />
 
-        {/* Main Panel */}
         <div 
           ref={panelRef}
-          className="glass-card relative w-[min(92vw,600px)] rounded-[28px] overflow-hidden p-8"
+          className="glass-card relative w-[min(92vw,600px)] rounded-[28px] overflow-hidden p-8 mx-auto"
           style={{ transform: 'rotate(4deg)', opacity: 0 }}
         >
-          {/* Content */}
           <div className="relative">
-            {/* Big Number */}
             <div className="stats-number mb-2 text-center">
               <h2 className="text-[clamp(36px,5vw,56px)] font-bold text-[#2BFFF1] leading-none">
                 {formatCurrency(stats.raised)}
@@ -184,7 +174,6 @@ export function StatsSection() {
               </p>
             </div>
 
-            {/* Progress Bar */}
             <div className="stats-content mb-6">
               <div className="flex justify-between text-sm mb-2">
                 <span className="text-[#A7B0B7]">Presale Progress</span>
@@ -203,7 +192,6 @@ export function StatsSection() {
               </div>
             </div>
 
-            {/* Stats Grid */}
             <div className="stats-content grid grid-cols-2 gap-3 mb-6">
               <div className="p-4 rounded-xl bg-white/5 border border-white/10">
                 <div className="flex items-center gap-2 text-[#A7B0B7] text-sm mb-1">
@@ -235,12 +223,10 @@ export function StatsSection() {
               </div>
             </div>
 
-            {/* Description */}
             <p className="stats-content text-[#A7B0B7] text-sm mb-6 leading-relaxed text-center">
               Join thousands of leverage traders. All trading fees fund weekly leverage trading contests with massive prizes.
             </p>
 
-            {/* CTAs */}
             <div className="stats-content flex items-center justify-center gap-4">
               <a 
                 href="#buy"
