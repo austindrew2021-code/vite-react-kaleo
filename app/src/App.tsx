@@ -26,17 +26,23 @@ const queryClient = new QueryClient();
 
 function App() {
   useEffect(() => {
-    // Force GPU acceleration globally (helps mobile smoothness)
+    // Eliminate micro-lag on mobile touch
+    gsap.ticker.lagSmoothing(0);
+
+    // Force GPU rendering + smooth touch scroll
     gsap.set('body, html, main, section.pinned-section', {
       willChange: 'transform',
       transform: 'translate3d(0,0,0)',
       backfaceVisibility: 'hidden',
     });
 
-    // Kill previous ScrollTriggers to prevent memory leaks
+    // Normalize scroll behavior for mobile (prevents jitter/jump)
+    ScrollTrigger.normalizeScroll(true);
+
+    // Kill any old triggers
     ScrollTrigger.getAll().forEach(st => st.kill());
 
-    // Optimized pinning + snapping for major sections
+    // Pin major sections with overlap prevention
     const pinnedSections = document.querySelectorAll('.pinned-section');
 
     pinnedSections.forEach((section, index) => {
@@ -48,12 +54,14 @@ function App() {
         pinSpacing: false,
         anticipatePin: 1,
         fastScrollEnd: true,
-        scrub: 0.4,
+        scrub: 0.2,                    // Very fast response → feels natural
+        preventOverlaps: true,         // Prevents fighting between pins
+        invalidateOnRefresh: true,
         id: `pin-${index}`,
       });
     });
 
-    // Global smooth snapping (only near section boundaries)
+    // Much gentler snap — only triggers when very close to section boundary
     ScrollTrigger.create({
       start: 'top top',
       end: 'bottom bottom',
@@ -63,26 +71,44 @@ function App() {
           const closest = targets.reduce((prev, curr) =>
             Math.abs(curr - progress) < Math.abs(prev - progress) ? curr : prev
           );
-          return Math.abs(closest - progress) < 0.08 ? closest : progress;
+          // Only snap if extremely close (prevents forced jumps)
+          return Math.abs(closest - progress) < 0.03 ? closest : progress;
         },
-        duration: { min: 0.18, max: 0.45 },
-        delay: 0.05,
-        ease: 'power2.out',
+        duration: { min: 0.4, max: 0.8 },  // Slower, more natural feel
+        delay: 0.1,
+        ease: 'power3.out',
         directional: true,
       },
       invalidateOnRefresh: true,
     });
 
-    // Refresh on resize (debounced to prevent spam) - explicit type fixes TS error
+    // Fade-in animations for all major sections (smooth & early trigger)
+    gsap.utils.toArray('.fade-in-section').forEach((el: any) => {
+      gsap.fromTo(el,
+        { opacity: 0, y: 60 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 1.2,
+          ease: 'power3.out',
+          scrollTrigger: {
+            trigger: el,
+            start: 'top 90%',           // Start fading earlier
+            toggleActions: 'play none none reverse',
+          }
+        }
+      );
+    });
+
+    // Debounced refresh on resize/orientation change
     let resizeTimer: NodeJS.Timeout | undefined;
     const handleResize = () => {
       if (resizeTimer) clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(() => ScrollTrigger.refresh(), 150);
+      resizeTimer = setTimeout(() => ScrollTrigger.refresh(), 120);
     };
     window.addEventListener('resize', handleResize);
     window.addEventListener('orientationchange', handleResize);
 
-    // Cleanup
     return () => {
       ScrollTrigger.getAll().forEach(st => st.kill());
       window.removeEventListener('resize', handleResize);
@@ -103,13 +129,8 @@ function App() {
           })}
         >
           <div className="relative bg-[#05060B] min-h-screen">
-            {/* Noise Overlay */}
             <div className="noise-overlay" />
-            
-            {/* Navigation */}
             <Navigation />
-            
-            {/* Main Content */}
             <main className="relative">
               <HeroSection />
               <PresaleProgress />
