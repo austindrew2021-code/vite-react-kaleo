@@ -1,8 +1,16 @@
+/* ==========================================================================
+   Tailwind & Font Imports
+   ========================================================================== */
+
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ==========================================================================
+   Root Variables & Base Layer
+   ========================================================================== */
 
 @layer base {
   :root {
@@ -27,149 +35,41 @@
     --ring: 175 100% 58%;
     --radius: 0.875rem;
   }
-}
 
-@layer base {
   * {
     @apply border-border;
   }
+
   html {
     scroll-behavior: smooth;
+    font-size: 16px;
   }
+
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: 'Inter', sans-serif;
+    font-family: 'Inter', system-ui, sans-serif;
     background-color: #05060B;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
     overflow-x: hidden;
   }
+
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Space Grotesk', sans-serif;
     letter-spacing: -0.02em;
     line-height: 1.1;
   }
+
   code, .mono {
     font-family: 'IBM Plex Mono', monospace;
   }
 }
 
-@layer components {
-  .glass-card {
-    background: rgba(11, 14, 20, 0.72);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 28px 80px rgba(0, 0, 0, 0.55);
-  }
-  
-  .neon-button {
-    background: #2BFFF1;
-    color: #05060B;
-    border-radius: 14px;
-    box-shadow: 0 10px 30px rgba(43, 255, 241, 0.22);
-    font-weight: 600;
-    transition: all 0.3s ease;
-  }
-  
-  .neon-button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 14px 40px rgba(43, 255, 241, 0.35);
-  }
-  
-  .neon-button:active {
-    transform: translateY(0);
-  }
-  
-  .neon-glow {
-    box-shadow: 0 0 20px rgba(43, 255, 241, 0.3),
-                0 0 40px rgba(43, 255, 241, 0.2),
-                0 0 60px rgba(43, 255, 241, 0.1);
-  }
-  
-  .text-gradient {
-    background: linear-gradient(135deg, #2BFFF1 0%, #1DD8CC 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-  
-  .noise-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    z-index: 9999;
-    opacity: 0.04;
-    mix-blend-mode: overlay;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-  }
-  
-  .section-pinned {
-    position: relative;
-    width: 100vw;
-    height: 100vh;
-    overflow: hidden;
-  }
-  
-  .bg-deep {
-    background-color: #05060B;
-  }
-  
-  .bg-lifted {
-    background-color: #0B0E14;
-  }
-  
-  .text-primary-light {
-    color: #F4F6FA;
-  }
-  
-  .text-secondary-light {
-    color: #A7B0B7;
-  }
-  
-  .accent-teal {
-    color: #2BFFF1;
-  }
-  
-  .border-glow {
-    border: 1px solid rgba(43, 255, 241, 0.3);
-  }
-  
-  .input-glass {
-    background: rgba(11, 14, 20, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 14px;
-    color: #F4F6FA;
-    transition: all 0.3s ease;
-  }
-  
-  .input-glass:focus {
-    outline: none;
-    border-color: rgba(43, 255, 241, 0.5);
-    box-shadow: 0 0 20px rgba(43, 255, 241, 0.15);
-  }
-}
+/* ==========================================================================
+   Scrollbar Customization
+   ========================================================================== */
 
-@layer utilities {
-  .animation-delay-100 {
-    animation-delay: 100ms;
-  }
-  .animation-delay-200 {
-    animation-delay: 200ms;
-  }
-  .animation-delay-300 {
-    animation-delay: 300ms;
-  }
-  .animation-delay-400 {
-    animation-delay: 400ms;
-  }
-  .animation-delay-500 {
-    animation-delay: 500ms;
-  }
-}
-
-/* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
 }
@@ -187,7 +87,51 @@
   background: #2BFFF1;
 }
 
-/* RainbowKit custom styles */
+/* ==========================================================================
+   Selection & Focus
+   ========================================================================== */
+
+::selection {
+  background: rgba(43, 255, 241, 0.3);
+  color: #F4F6FA;
+}
+
+*:focus-visible {
+  outline: 2px solid #2BFFF1;
+  outline-offset: 2px;
+}
+
+/* ==========================================================================
+   Reduced Motion & Responsive Typography
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (max-width: 768px) {
+  html {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  html {
+    font-size: 13px;
+  }
+}
+
+/* ==========================================================================
+   RainbowKit Deep Overrides
+   ========================================================================== */
+
 [data-rk] {
   --rk-colors-accentColor: #2BFFF1 !important;
   --rk-colors-accentColorForeground: #05060B !important;
