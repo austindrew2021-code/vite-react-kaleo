@@ -100,6 +100,7 @@ function App() {
               <FeaturesGridSection />
               <StakingCTASection />
               <FooterSection />
+              <RoadmapSection />
             </main>
           </div>
         </RainbowKitProvider>
