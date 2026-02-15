@@ -2,28 +2,6 @@ import { useEffect, useState } from 'react';
 import { useAccount, useBalance } from 'wagmi';
 import { formatEther } from 'viem';
 import { gsap } from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
-
-gsap.registerPlugin(ScrollTrigger);
-
-// Replace with your real presale contract address + ABI when ready
-const PRESALE_CONTRACT = '0xYourPresaleContractAddressHere' as const;
-const PRESALE_ABI = [
-  {
-    name: 'totalRaised',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ name: '', type: 'uint256' }],
-  } as const,
-  {
-    name: 'userPurchases',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [{ name: 'user', type: 'address' }],
-    outputs: [{ name: '', type: 'uint256' }],
-  } as const,
-] as const;
 
 const STAGES = [
   { min: 0, max: 10, price: 0.0042, name: 'Stage 1' },
@@ -35,27 +13,14 @@ export function PresaleProgress() {
   const { address, isConnected } = useAccount();
   const { data: balance } = useBalance({ address });
 
-  // Real contract data (uncomment when contract is live)
-  // const { data: totalRaisedRaw } = useReadContract({
-  //   address: PRESALE_CONTRACT,
-  //   abi: PRESALE_ABI,
-  //   functionName: 'totalRaised',
-  // });
-  // const { data: userPurchasesRaw } = useReadContract({
-  //   address: PRESALE_CONTRACT,
-  //   abi: PRESALE_ABI,
-  //   functionName: 'userPurchases',
-  //   args: address ? [address] : undefined,
-  // });
-
-  const [raised, setRaised] = useState(0); // fallback + demo simulation
+  const [raised, setRaised] = useState(0);
   const hardCap = 200;
   const progress = Math.min((raised / hardCap) * 100, 100);
 
-  // Demo simulation – replace with contract polling or event listener in production
+  // Demo simulation – replace with real contract polling later
   useEffect(() => {
     const interval = setInterval(() => {
-      setRaised((prev) => prev + Math.random() * 0.1); // demo only
+      setRaised(prev => prev + Math.random() * 0.1);
     }, 10000);
 
     return () => clearInterval(interval);
@@ -63,18 +28,15 @@ export function PresaleProgress() {
 
   // Quick fade-in on load
   useEffect(() => {
-    gsap.fromTo('.progress-container', 
+    gsap.fromTo('.progress-container',
       { opacity: 0, y: 40 },
       { opacity: 1, y: 0, duration: 0.6, ease: 'power2.out' }
     );
   }, []);
 
   const currentStage = STAGES.find(
-    (s) => raised >= s.min && raised < s.max
+    s => raised >= s.min && raised < s.max
   ) || STAGES[STAGES.length - 1];
-
-  const totalRaisedDisplay = raised.toFixed(2);
-  const userTokensDisplay = '0.00'; // Replace with real: userPurchasesRaw ? Number(formatEther(userPurchasesRaw)).toFixed(2) : '0.00'
 
   return (
     <section className="pinned-section fade-in-section min-h-screen flex items-center justify-center bg-gradient-to-b from-black to-gray-900 relative overflow-hidden">
@@ -85,11 +47,11 @@ export function PresaleProgress() {
             {currentStage.name} – {currentStage.price} ETH/KLEO
           </span>
           <span className="text-white font-medium text-lg">
-            Raised: <span className="text-cyan-300">{totalRaisedDisplay}</span> / {hardCap} ETH
+            Raised: <span className="text-cyan-300">{raised.toFixed(2)}</span> / {hardCap} ETH
           </span>
         </div>
 
-        {/* Progress Bar – animated fill */}
+        {/* Progress Bar */}
         <div className="w-full bg-gray-800/80 rounded-full h-6 mb-8 overflow-hidden shadow-inner">
           <div
             className="bg-gradient-to-r from-cyan-500 via-cyan-400 to-purple-600 h-full rounded-full transition-all duration-1000 ease-out"
@@ -102,7 +64,7 @@ export function PresaleProgress() {
           <div className="text-center text-base text-gray-300 space-y-3 bg-gray-800/40 rounded-xl p-5 border border-cyan-500/20">
             <div className="flex justify-center items-center gap-3">
               <span>Your purchases:</span>
-              <span className="text-cyan-400 font-bold text-xl">{userTokensDisplay} KLEO</span>
+              <span className="text-cyan-400 font-bold text-xl">0.00 KLEO</span>
             </div>
             <div className="flex justify-center items-center gap-3">
               <span>Wallet balance:</span>
