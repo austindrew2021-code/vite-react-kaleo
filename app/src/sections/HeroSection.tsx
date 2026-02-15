@@ -68,9 +68,9 @@ export function HeroSection() {
 
   return (
     <section 
-      ref={sectionRef} 
-      className="pinned-section fade-in-section min-h-screen z-10 flex items-center justify-center relative"
-    >
+  ref={sectionRef} 
+  className="pinned-section fade-in-section min-h-screen z-10 flex items-center justify-center relative"
+>
       <div 
         ref={bgRef}
         className="absolute inset-0 w-full h-full"
