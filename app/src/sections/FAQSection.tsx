@@ -1,9 +1,14 @@
+import { useEffect } from 'react';
+import { gsap } from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+
+gsap.registerPlugin(ScrollTrigger);
 
 export function FAQSection() {
   const faqs = [
@@ -29,25 +34,44 @@ export function FAQSection() {
     },
   ];
 
+  useEffect(() => {
+    // Quick stagger fade-in for FAQ items when section enters view
+    gsap.fromTo('.faq-item', 
+      { opacity: 0, y: 30 },
+      {
+        opacity: 1,
+        y: 0,
+        duration: 0.6,
+        stagger: 0.1,
+        ease: 'power2.out',
+        scrollTrigger: {
+          trigger: '.faq-section',
+          start: 'top 85%',
+          toggleActions: 'play none none reverse',
+        }
+      }
+    );
+  }, []);
+
   return (
-    <section className="py-20 bg-gradient-to-b from-black to-gray-900">
+    <section className="pinned-section fade-in-section py-20 bg-gradient-to-b from-black to-gray-900">
       <div className="container mx-auto px-6">
         <h2 className="text-5xl font-bold text-center mb-16 bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent">
           Frequently Asked Questions
         </h2>
 
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-3xl mx-auto faq-section">
           <Accordion type="single" collapsible className="space-y-4">
             {faqs.map((faq, idx) => (
-              <AccordionItem 
-                key={idx} 
+              <AccordionItem
+                key={idx}
                 value={`item-${idx}`}
-                className="border border-cyan-500/20 rounded-xl overflow-hidden bg-gray-900/40 backdrop-blur-sm"
+                className="faq-item border border-cyan-500/20 rounded-xl overflow-hidden bg-gray-900/60 backdrop-blur-sm transition-all duration-300 hover:border-cyan-400/40"
               >
-                <AccordionTrigger className="px-6 py-5 text-left text-white hover:text-cyan-400 transition-colors">
+                <AccordionTrigger className="px-6 py-5 text-left text-white hover:text-cyan-300 transition-colors font-medium">
                   {faq.question}
                 </AccordionTrigger>
-                <AccordionContent className="px-6 pb-5 text-gray-300">
+                <AccordionContent className="px-6 pb-6 text-gray-300 leading-relaxed">
                   {faq.answer}
                 </AccordionContent>
               </AccordionItem>
