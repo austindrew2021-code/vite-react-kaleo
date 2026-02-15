@@ -4,7 +4,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog'; // shadcn/ui dialog
+} from '@/components/ui/dialog';
 
 export function WhitePaperSection() {
   return (
@@ -23,7 +23,6 @@ export function WhitePaperSection() {
         </DialogHeader>
 
         <div className="prose prose-invert prose-cyan max-w-none space-y-6">
-          {/* Paste your full whitepaper markdown/text here */}
           <h2 className="text-2xl font-semibold mt-8">1. Introduction</h2>
           <p>Kaleo is a next-generation memecoin leverage platform built on Polygon...</p>
 
@@ -38,7 +37,6 @@ export function WhitePaperSection() {
           <h2 className="text-2xl font-semibold mt-8">3. Roadmap</h2>
           {/* ... add roadmap content */}
 
-          {/* Add more sections as needed */}
           <p className="text-sm text-gray-400 mt-12">
             © 2026 Kaleo Team. All rights reserved.
           </p>
