@@ -32,7 +32,7 @@ export function RoadmapSection() {
   ];
 
   return (
-    <section className="py-20 bg-gradient-to-b from-black to-gray-900">
+    <section className="pinned-section min-h-screen py-20 bg-gradient-to-b from-black to-gray-900">
       <div className="container mx-auto px-6">
         <h2 className="text-5xl font-bold text-center mb-16 bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent">
           Roadmap
