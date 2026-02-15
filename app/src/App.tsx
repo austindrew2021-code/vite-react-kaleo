@@ -26,22 +26,19 @@ const queryClient = new QueryClient();
 
 function App() {
   useEffect(() => {
-    // Remove micro-lag on mobile touch
     gsap.ticker.lagSmoothing(0);
 
-    // GPU + smooth rendering hints
     gsap.set('body, html, main.content-wrapper, section', {
       willChange: 'transform',
       transform: 'translate3d(0,0,0)',
       backfaceVisibility: 'hidden',
     });
 
-    ScrollTrigger.normalizeScroll(true); // smooth touch behavior
+    ScrollTrigger.normalizeScroll(true);
 
-    // Clean up old triggers
     ScrollTrigger.getAll().forEach(st => st.kill());
 
-    // Pin the entire content wrapper once (prevents multiple pin conflicts)
+    // Pin single wrapper – no per-section pinning conflicts
     ScrollTrigger.create({
       trigger: '.content-wrapper',
       start: 'top top',
@@ -55,18 +52,18 @@ function App() {
       invalidateOnRefresh: true,
     });
 
-    // Quick, smooth fade-in for all sections (like original site feel)
+    // Quick fade-in for all sections (0.6s, early trigger)
     gsap.utils.toArray('.fade-in-section').forEach((el: any) => {
       gsap.fromTo(el,
         { opacity: 0, y: 40 },
         {
           opacity: 1,
           y: 0,
-          duration: 0.6,               // fast fade
+          duration: 0.6,
           ease: 'power2.out',
           scrollTrigger: {
             trigger: el,
-            start: 'top 85%',          // early trigger
+            start: 'top 85%',
             toggleActions: 'play none none reverse',
             once: false,
           }
@@ -83,10 +80,22 @@ function App() {
     window.addEventListener('resize', handleResize);
     window.addEventListener('orientationchange', handleResize);
 
+    // Modal open/close body lock
+    const handleModalChange = () => {
+      if (document.querySelector('.rk-modal-backdrop')) {
+        document.body.classList.add('modal-open');
+      } else {
+        document.body.classList.remove('modal-open');
+      }
+    };
+    const observer = new MutationObserver(handleModalChange);
+    observer.observe(document.body, { childList: true, subtree: true });
+
     return () => {
       ScrollTrigger.getAll().forEach(st => st.kill());
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('orientationchange', handleResize);
+      observer.disconnect();
       if (resizeTimer) clearTimeout(resizeTimer);
     };
   }, []);
@@ -107,7 +116,6 @@ function App() {
             <div className="noise-overlay" />
             <Navigation />
 
-            {/* Single pinned wrapper – free scroll inside */}
             <main className="content-wrapper relative min-h-screen">
               <HeroSection />
               <PresaleProgress />
