@@ -28,44 +28,20 @@ export function StakingCTASection() {
           start: 'top top',
           end: '+=120%',
           pin: true,
-          scrub: 0.6,
+          scrub: 0.25,
           anticipatePin: 1,
           fastScrollEnd: true,
         }
       });
 
       scrollTl
-        .fromTo(card, 
-          { x: '60vw', rotate: -8, scale: 0.94, opacity: 0 }, 
-          { x: 0, rotate: -4, scale: 1, opacity: 1, ease: 'none' },
-          0
-        )
-        .fromTo('.cta-headline', 
-          { y: '4vh', opacity: 0 }, 
-          { y: 0, opacity: 1, ease: 'none' },
-          0.1
-        )
-        .fromTo('.cta-body', 
-          { y: '3vh', opacity: 0 }, 
-          { y: 0, opacity: 1, ease: 'none' },
-          0.16
-        )
-        .fromTo('.cta-button', 
-          { y: '3vh', opacity: 0 }, 
-          { y: 0, opacity: 1, ease: 'none' },
-          0.2
-        )
+        .fromTo(card, { x: '60vw', rotate: -8, scale: 0.94, opacity: 0 }, { x: 0, rotate: -4, scale: 1, opacity: 1, ease: 'none' }, 0)
+        .fromTo('.cta-headline', { y: '4vh', opacity: 0 }, { y: 0, opacity: 1, ease: 'none' }, 0.1)
+        .fromTo('.cta-body', { y: '3vh', opacity: 0 }, { y: 0, opacity: 1, ease: 'none' }, 0.16)
+        .fromTo('.cta-button', { y: '3vh', opacity: 0 }, { y: 0, opacity: 1, ease: 'none' }, 0.2)
         .to({}, { duration: 0.4 })
-        .fromTo(card, 
-          { y: 0, opacity: 1 }, 
-          { y: '-18vh', opacity: 0, ease: 'power2.in' },
-          0.7
-        )
-        .fromTo(bg, 
-          { opacity: 1 }, 
-          { opacity: 0.7, ease: 'power2.in' },
-          0.7
-        );
+        .fromTo(card, { y: 0, opacity: 1 }, { y: '-18vh', opacity: 0, ease: 'power2.in' }, 0.7)
+        .fromTo(bg, { opacity: 1 }, { opacity: 0.7, ease: 'power2.in' }, 0.7);
 
     }, section);
 
@@ -73,38 +49,18 @@ export function StakingCTASection() {
   }, []);
 
   const handleConnect = () => {
-    if (!isConnected && openConnectModal) {
-      openConnectModal();
-    }
+    if (!isConnected && openConnectModal) openConnectModal();
   };
 
   return (
-    <section 
-      ref={sectionRef} 
-      className="pinned-section fade-in-section min-h-screen z-50 flex items-center justify-center relative"
-    >
-      <div 
-        ref={bgRef}
-        className="absolute inset-0 w-full h-full"
-      >
-        <img 
-          src="/final_city_bg_06.jpg" 
-          alt="Cyberpunk city"
-          className="w-full h-full object-cover"
-        />
+    <section ref={sectionRef} className="pinned-section fade-in-section min-h-screen z-50 flex items-center justify-center relative">
+      <div ref={bgRef} className="absolute inset-0 w-full h-full">
+        <img src="/final_city_bg_06.jpg" alt="Cyberpunk city" className="w-full h-full object-cover" loading="eager" />
         <div className="absolute inset-0 bg-gradient-to-b from-[#05060B]/80 via-[#05060B]/50 to-[#05060B]/90" />
       </div>
 
-      <div 
-        ref={cardRef}
-        className="glass-card relative w-[min(92vw,520px)] rounded-[28px] overflow-hidden p-8 mx-auto"
-        style={{ transform: 'rotate(-4deg)', opacity: 0 }}
-      >
-        <div className="absolute inset-0 rounded-[28px] pointer-events-none"
-          style={{
-            background: 'radial-gradient(ellipse at 50% 0%, rgba(43,255,241,0.1) 0%, transparent 60%)'
-          }}
-        />
+      <div ref={cardRef} className="glass-card relative w-[min(92vw,520px)] rounded-[28px] overflow-hidden p-8 mx-auto" style={{ transform: 'rotate(-4deg)', opacity: 0 }}>
+        <div className="absolute inset-0 rounded-[28px] pointer-events-none" style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(43,255,241,0.1) 0%, transparent 60%)' }} />
 
         <div className="relative text-center">
           <div className="flex items-center justify-center mb-4">
@@ -122,29 +78,17 @@ export function StakingCTASection() {
           </p>
 
           <div className="cta-body flex flex-wrap justify-center gap-2 mb-8">
-            <span className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[#A7B0B7] text-xs">
-              100x Leverage
-            </span>
-            <span className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[#A7B0B7] text-xs">
-              Pump.fun Integration
-            </span>
-            <span className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[#A7B0B7] text-xs">
-              Fee Contests
-            </span>
+            <span className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[#A7B0B7] text-xs">100x Leverage</span>
+            <span className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[#A7B0B7] text-xs">Pump.fun Integration</span>
+            <span className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[#A7B0B7] text-xs">Fee Contests</span>
           </div>
 
           <div className="cta-button flex flex-col sm:flex-row items-center justify-center gap-4">
-            <button
-              onClick={handleConnect}
-              className="neon-button px-8 py-4 text-base font-semibold flex items-center gap-2"
-            >
+            <button onClick={handleConnect} className="neon-button px-8 py-4 text-base font-semibold flex items-center gap-2">
               {isConnected ? 'Buy Kaleo' : 'Connect Wallet'}
               <ArrowRight className="w-5 h-5" />
             </button>
-            <a 
-              href="#docs"
-              className="text-[#A7B0B7] hover:text-[#2BFFF1] text-sm font-medium transition-colors flex items-center gap-2 px-4 py-4"
-            >
+            <a href="#docs" className="text-[#A7B0B7] hover:text-[#2BFFF1] text-sm font-medium transition-colors flex items-center gap-2 px-4 py-4">
               View Contracts
               <ExternalLink className="w-4 h-4" />
             </a>
