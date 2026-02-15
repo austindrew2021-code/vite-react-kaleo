@@ -99,7 +99,7 @@ export function Navigation() {
       <ConnectButton
         label="Connect Wallet"
         showBalance={false}
-        chainStatus="none"
+        chainStatus="icon"
         accountStatus="address"
       />
     </nav>

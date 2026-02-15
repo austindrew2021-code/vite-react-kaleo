@@ -1,98 +1,218 @@
-import { useState } from 'react';
-import { useAccount, useBalance, useWriteContract } from 'wagmi';
+import { useCallback, useEffect } from 'react';
+import {
+  useAccount,
+  useBalance,
+  useChainId,
+  useSendTransaction,
+  useSwitchChain,
+  useWaitForTransactionReceipt,
+} from 'wagmi';
 import { parseEther, formatEther } from 'viem';
-
-// Mock presale contract ABI - in production, replace with actual contract
-const PRESALE_ABI = [
-  {
-    inputs: [],
-    name: 'totalRaised',
-    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'tokenPrice',
-    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'hardCap',
-    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [{ internalType: 'uint256', name: 'amount', type: 'uint256' }],
-    name: 'buyTokens',
-    outputs: [],
-    stateMutability: 'payable',
-    type: 'function',
-  },
-] as const;
-
-const PRESALE_CONTRACT = '0x0000000000000000000000000000000000000000' as const;
+import {
+  usePresaleStore,
+  getCurrentStage,
+  getStageProgress,
+  getOverallProgress,
+  PRESALE_WALLET,
+  PRESALE_STAGES,
+  HARD_CAP_ETH,
+  LISTING_PRICE,
+} from '../store/presaleStore';
+import { SEPOLIA_CHAIN_ID } from '../wagmi';
 
 export function usePresale() {
   const { address, isConnected } = useAccount();
+  const chainId = useChainId();
   const { data: ethBalance } = useBalance({ address });
-  
-  // Mock data for demo purposes
-  const [presaleData] = useState({
-    totalRaised: BigInt(2840000000000000000000), // 2840 ETH
-    tokenPrice: BigInt(4200000000000000), // 0.0042 ETH per token
-    hardCap: BigInt(5000000000000000000000), // 5000 ETH
+  const { switchChain } = useSwitchChain();
+
+  const {
+    totalRaised,
+    addRaised,
+    addPurchase,
+    txHash,
+    txStatus,
+    txError,
+    setTxHash,
+    setTxStatus,
+    setTxError,
+    resetTx,
+  } = usePresaleStore();
+
+  // ── Send transaction hook ─────────────────────────────────────────────
+  const {
+    sendTransaction,
+    data: sendTxHash,
+    isPending: isSending,
+    isError: isSendError,
+    error: sendError,
+  } = useSendTransaction();
+
+  // ── Wait for confirmation ─────────────────────────────────────────────
+  const {
+    isLoading: isConfirming,
+    isSuccess: isConfirmed,
+  } = useWaitForTransactionReceipt({
+    hash: sendTxHash,
   });
 
-  const { writeContract, isPending, isSuccess, isError, error } = useWriteContract();
-
-  const buyTokens = async (ethAmount: string) => {
-    if (!isConnected || !address) return;
-    
-    try {
-      writeContract({
-        address: PRESALE_CONTRACT,
-        abi: PRESALE_ABI,
-        functionName: 'buyTokens',
-        args: [parseEther(ethAmount)],
-        value: parseEther(ethAmount),
-      });
-    } catch (err) {
-      console.error('Buy tokens error:', err);
+  // ── Sync tx hash into store ───────────────────────────────────────────
+  useEffect(() => {
+    if (sendTxHash) {
+      setTxHash(sendTxHash);
+      setTxStatus('confirming');
     }
-  };
+  }, [sendTxHash, setTxHash, setTxStatus]);
 
-  const calculateTokenAmount = (ethAmount: string): string => {
-    if (!ethAmount || isNaN(parseFloat(ethAmount))) return '0';
-    const eth = parseEther(ethAmount);
-    const tokens = (eth * BigInt(1000000)) / presaleData.tokenPrice;
-    return (Number(tokens) / 1000000).toFixed(2);
-  };
+  // ── Handle send error ─────────────────────────────────────────────────
+  useEffect(() => {
+    if (isSendError && sendError) {
+      const msg = sendError.message?.includes('User rejected')
+        ? 'Transaction rejected by user'
+        : sendError.message?.includes('insufficient funds')
+          ? 'Insufficient Sepolia ETH balance'
+          : 'Transaction failed. Please try again.';
+      setTxStatus('error');
+      setTxError(msg);
+    }
+  }, [isSendError, sendError, setTxStatus, setTxError]);
 
-  const progressPercentage = Number(
-    (presaleData.totalRaised * BigInt(100)) / presaleData.hardCap
+  // ── Handle confirmation ───────────────────────────────────────────────
+  useEffect(() => {
+    if (isConfirmed && sendTxHash) {
+      setTxStatus('success');
+
+      // Record the purchase using stored ethAmount
+      const ethAmount = usePresaleStore.getState().ethAmount;
+      const eth = parseFloat(ethAmount);
+      if (!isNaN(eth) && eth > 0) {
+        const stage = getCurrentStage(totalRaised);
+        const kleoReceived = eth / stage.priceEth;
+
+        addRaised(eth);
+        addPurchase({
+          ethSpent: eth,
+          kleoReceived,
+          stage: stage.stage,
+          priceEth: stage.priceEth,
+          txHash: sendTxHash,
+          timestamp: Date.now(),
+        });
+      }
+    }
+  }, [isConfirmed, sendTxHash, totalRaised, addRaised, addPurchase, setTxStatus]);
+
+  // ── Derived stage data ────────────────────────────────────────────────
+  const currentStage = getCurrentStage(totalRaised);
+  const stageProgress = getStageProgress(totalRaised);
+  const overallProgress = getOverallProgress(totalRaised);
+  const isOnSepolia = chainId === SEPOLIA_CHAIN_ID;
+
+  const nextStage =
+    currentStage.stage < 12
+      ? PRESALE_STAGES[currentStage.stage] // next stage (0-indexed + 1)
+      : null;
+
+  // ── Calculate KLEO from ETH input ─────────────────────────────────────
+  const calculateTokenAmount = useCallback(
+    (ethAmount: string): string => {
+      if (!ethAmount || isNaN(parseFloat(ethAmount))) return '0';
+      const eth = parseFloat(ethAmount);
+      if (eth <= 0) return '0';
+      const tokens = eth / currentStage.priceEth;
+      return tokens.toLocaleString('en-US', {
+        maximumFractionDigits: 0,
+      });
+    },
+    [currentStage.priceEth]
   );
 
-  const raisedETH = formatEther(presaleData.totalRaised);
-  const hardCapETH = formatEther(presaleData.hardCap);
-  const tokenPriceETH = formatEther(presaleData.tokenPrice);
+  // ── Switch to Sepolia ─────────────────────────────────────────────────
+  const switchToSepolia = useCallback(() => {
+    switchChain({ chainId: SEPOLIA_CHAIN_ID });
+  }, [switchChain]);
+
+  // ── Buy tokens (real Sepolia ETH transfer) ────────────────────────────
+  const buyTokens = useCallback(
+    async (ethAmount: string) => {
+      if (!isConnected || !address) {
+        setTxError('Please connect your wallet first');
+        return;
+      }
+
+      if (!isOnSepolia) {
+        setTxError('Please switch to Sepolia network');
+        switchToSepolia();
+        return;
+      }
+
+      const eth = parseFloat(ethAmount);
+      if (isNaN(eth) || eth <= 0) {
+        setTxError('Please enter a valid ETH amount');
+        return;
+      }
+
+      // Check balance
+      if (ethBalance && eth > parseFloat(formatEther(ethBalance.value))) {
+        setTxError('Insufficient Sepolia ETH balance');
+        return;
+      }
+
+      // Reset previous tx state
+      resetTx();
+      setTxStatus('pending');
+
+      try {
+        sendTransaction({
+          to: PRESALE_WALLET,
+          value: parseEther(ethAmount),
+        });
+      } catch (err) {
+        setTxStatus('error');
+        setTxError('Failed to initiate transaction');
+      }
+    },
+    [
+      isConnected,
+      address,
+      isOnSepolia,
+      ethBalance,
+      switchToSepolia,
+      resetTx,
+      setTxStatus,
+      setTxError,
+      sendTransaction,
+    ]
+  );
 
   return {
+    // Connection
     isConnected,
     address,
+    isOnSepolia,
     ethBalance: ethBalance ? formatEther(ethBalance.value) : '0',
+
+    // Actions
     buyTokens,
-    isPending,
-    isSuccess,
-    isError,
-    error,
+    switchToSepolia,
     calculateTokenAmount,
-    progressPercentage,
-    raisedETH,
-    hardCapETH,
-    tokenPriceETH,
+    resetTx,
+
+    // Transaction state
+    txHash,
+    txStatus,
+    txError,
+    isSending,
+    isConfirming,
+
+    // Presale data
+    currentStage,
+    nextStage,
+    stageProgress,
+    overallProgress,
+    totalRaised,
+    hardCapEth: HARD_CAP_ETH,
+    listingPrice: LISTING_PRICE,
+    stages: PRESALE_STAGES,
   };
 }

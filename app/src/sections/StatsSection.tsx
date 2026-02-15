@@ -2,6 +2,12 @@ import { useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { ArrowRight, TrendingUp, Users, Trophy, Zap } from 'lucide-react';
+import {
+  usePresaleStore,
+  getCurrentStage,
+  getOverallProgress,
+  HARD_CAP_ETH,
+} from '../store/presaleStore';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -11,15 +17,14 @@ export function StatsSection() {
   const bgRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
 
-  const stats = {
-    raised: 2840000,
-    goal: 5000000,
-    traders: 1247,
-    volume24h: 15800000,
-    maxLeverage: 100,
-  };
+  const { totalRaised, purchases } = usePresaleStore();
+  const currentStage = getCurrentStage(totalRaised);
+  const overallProgress = getOverallProgress(totalRaised);
 
-  const progressPercentage = (stats.raised / stats.goal) * 100;
+  // Derive unique buyers from purchase count (localStorage-scoped)
+  const totalBuyers = purchases.length;
+
+  const progressPercentage = overallProgress;
 
   useEffect(() => {
     const section = sectionRef.current;
@@ -108,27 +113,11 @@ export function StatsSection() {
     return () => ctx.revert();
   }, [progressPercentage]);
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  };
-
-  const formatVolume = (value: number) => {
-    if (value >= 1000000) {
-      return `$${(value / 1000000).toFixed(1)}M`;
-    }
-    return formatCurrency(value);
-  };
-
   const statItems = [
-    { icon: Users, label: 'Traders', value: stats.traders.toLocaleString() },
-    { icon: TrendingUp, label: '24h Volume', value: formatVolume(stats.volume24h) },
-    { icon: Zap, label: 'Max Leverage', value: `${stats.maxLeverage}x`, highlight: true },
-    { icon: Trophy, label: 'Contests', value: 'Live', highlight: true },
+    { icon: Users, label: 'Purchases', value: totalBuyers.toLocaleString() },
+    { icon: TrendingUp, label: 'Current Stage', value: `${currentStage.stage}/12` },
+    { icon: Zap, label: 'Price/KLEO', value: `${currentStage.priceEth} ETH`, highlight: true },
+    { icon: Trophy, label: 'Discount', value: `${currentStage.discount}%`, highlight: true },
   ];
 
   return (
@@ -179,12 +168,12 @@ export function StatsSection() {
             {/* Big Number */}
             <div className="stats-number mb-4 text-center">
               <h2 className="text-[clamp(32px,5vw,56px)] font-bold text-[#2BFFF1] leading-none">
-                {formatCurrency(stats.raised)}
+                {totalRaised.toFixed(4)} ETH
               </h2>
             </div>
 
             <div className="stats-content mb-6 text-center">
-              <p className="text-[#F4F6FA] text-lg font-medium">Raised in presale</p>
+              <p className="text-[#F4F6FA] text-lg font-medium">Raised in Presale</p>
             </div>
 
             {/* Progress Bar */}
@@ -202,7 +191,7 @@ export function StatsSection() {
               </div>
               <div className="flex justify-between text-xs mt-2 text-[#A7B0B7]">
                 <span>0</span>
-                <span>Goal: {formatCurrency(stats.goal)}</span>
+                <span>Hard Cap: {HARD_CAP_ETH.toLocaleString()} ETH</span>
               </div>
             </div>
 
