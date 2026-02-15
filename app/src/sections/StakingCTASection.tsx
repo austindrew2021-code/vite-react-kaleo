@@ -34,7 +34,6 @@ export function StakingCTASection() {
         }
       });
 
-      // Entrance (0% - 30%)
       scrollTl
         .fromTo(card, 
           { x: '60vw', rotate: -8, scale: 0.94, opacity: 0 }, 
@@ -56,8 +55,7 @@ export function StakingCTASection() {
           { y: 0, opacity: 1, ease: 'none' },
           0.2
         )
-        .to({}, { duration: 0.4 }) // Settle (30% - 70%)
-        // Exit (70% - 100%)
+        .to({}, { duration: 0.4 })
         .fromTo(card, 
           { y: 0, opacity: 1 }, 
           { y: '-18vh', opacity: 0, ease: 'power2.in' },
@@ -83,9 +81,8 @@ export function StakingCTASection() {
   return (
     <section 
       ref={sectionRef} 
-      className="pinned-section min-h-screen z-50 flex items-center justify-center relative"
+      className="pinned-section fade-in-section min-h-screen z-50 flex items-center justify-center relative"
     >
-      {/* Background Image */}
       <div 
         ref={bgRef}
         className="absolute inset-0 w-full h-full"
@@ -98,39 +95,32 @@ export function StakingCTASection() {
         <div className="absolute inset-0 bg-gradient-to-b from-[#05060B]/80 via-[#05060B]/50 to-[#05060B]/90" />
       </div>
 
-      {/* Final CTA Card */}
       <div 
         ref={cardRef}
-        className="glass-card relative w-[min(92vw,520px)] rounded-[28px] overflow-hidden p-8"
+        className="glass-card relative w-[min(92vw,520px)] rounded-[28px] overflow-hidden p-8 mx-auto"
         style={{ transform: 'rotate(-4deg)', opacity: 0 }}
       >
-        {/* Card Glow */}
         <div className="absolute inset-0 rounded-[28px] pointer-events-none"
           style={{
             background: 'radial-gradient(ellipse at 50% 0%, rgba(43,255,241,0.1) 0%, transparent 60%)'
           }}
         />
 
-        {/* Content */}
         <div className="relative text-center">
-          {/* Icon */}
           <div className="flex items-center justify-center mb-4">
             <div className="w-14 h-14 rounded-2xl bg-[#2BFFF1]/10 border border-[#2BFFF1]/30 flex items-center justify-center">
               <TrendingUp className="w-7 h-7 text-[#2BFFF1]" />
             </div>
           </div>
 
-          {/* Headline */}
           <h2 className="cta-headline text-[clamp(28px,3.5vw,40px)] font-bold text-[#F4F6FA] mb-4 leading-tight">
             Start leverage <span className="text-[#2BFFF1]">trading</span> today
           </h2>
 
-          {/* Body */}
           <p className="cta-body text-[#A7B0B7] text-[clamp(14px,1.2vw,16px)] mb-8 leading-relaxed">
             Connect your wallet, buy Kaleo, and start leverage trading any Pump.fun memecoin with up to 100x leverage.
           </p>
 
-          {/* Features */}
           <div className="cta-body flex flex-wrap justify-center gap-2 mb-8">
             <span className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[#A7B0B7] text-xs">
               100x Leverage
@@ -143,7 +133,6 @@ export function StakingCTASection() {
             </span>
           </div>
 
-          {/* CTAs */}
           <div className="cta-button flex flex-col sm:flex-row items-center justify-center gap-4">
             <button
               onClick={handleConnect}
