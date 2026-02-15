@@ -23,10 +23,7 @@ export function HeroSection() {
       const loadTl = gsap.timeline();
       
       loadTl
-        .fromTo(bg, 
-          { opacity: 0 }, 
-          { opacity: 1, duration: 0.6 }
-        )
+        .fromTo(bg, { opacity: 0 }, { opacity: 1, duration: 0.6 })
         .fromTo(card, 
           { y: '18vh', scale: 0.96, opacity: 0 }, 
           { y: 0, scale: 1, opacity: 1, duration: 0.9, ease: 'power3.out' },
@@ -54,27 +51,15 @@ export function HeroSection() {
           start: 'top top',
           end: '+=130%',
           pin: true,
-          scrub: 0.6,
+          scrub: 0.25,
           anticipatePin: 1,
           fastScrollEnd: true,
-          onLeaveBack: () => {
-            gsap.set(card, { x: 0, opacity: 1 });
-            gsap.set(bg, { scale: 1, opacity: 1 });
-          }
         }
       });
 
       scrollTl
-        .fromTo(card, 
-          { x: 0, opacity: 1 }, 
-          { x: '-55vw', opacity: 0, ease: 'power2.in' },
-          0.7
-        )
-        .fromTo(bg, 
-          { scale: 1, opacity: 1 }, 
-          { scale: 1.06, opacity: 0.6, ease: 'power2.in' },
-          0.7
-        );
+        .fromTo(card, { x: 0, opacity: 1 }, { x: '-55vw', opacity: 0, ease: 'power2.in' }, 0.7)
+        .fromTo(bg, { scale: 1, opacity: 1 }, { scale: 1.06, opacity: 0.6, ease: 'power2.in' }, 0.7);
 
     }, section);
 
@@ -95,6 +80,7 @@ export function HeroSection() {
           src="/hero_city_bg.jpg" 
           alt="Cyberpunk city"
           className="w-full h-full object-cover"
+          loading="eager"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-[#05060B]/60 via-transparent to-[#05060B]/80" />
       </div>
@@ -105,9 +91,7 @@ export function HeroSection() {
         style={{ opacity: 0 }}
       >
         <div className="absolute inset-0 rounded-[28px] pointer-events-none"
-          style={{
-            background: 'radial-gradient(ellipse at 30% 20%, rgba(43,255,241,0.08) 0%, transparent 50%)'
-          }}
+          style={{ background: 'radial-gradient(ellipse at 30% 20%, rgba(43,255,241,0.08) 0%, transparent 50%)' }}
         />
 
         <div ref={contentRef} className="relative flex flex-col lg:flex-row">
@@ -145,17 +129,11 @@ export function HeroSection() {
             </div>
 
             <div className="flex items-center gap-4">
-              <a 
-                href="#buy"
-                className="hero-cta neon-button px-6 py-3 text-sm font-semibold flex items-center gap-2"
-              >
+              <a href="#buy" className="hero-cta neon-button px-6 py-3 text-sm font-semibold flex items-center gap-2">
                 Buy Kaleo
                 <ArrowRight className="w-4 h-4" />
               </a>
-              <a 
-                href="#features"
-                className="hero-cta text-[#A7B0B7] hover:text-[#2BFFF1] text-sm font-medium transition-colors flex items-center gap-1"
-              >
+              <a href="#features" className="hero-cta text-[#A7B0B7] hover:text-[#2BFFF1] text-sm font-medium transition-colors flex items-center gap-1">
                 Learn More
                 <ArrowRight className="w-4 h-4" />
               </a>
@@ -167,6 +145,7 @@ export function HeroSection() {
               src="/hero_card_person.jpg" 
               alt="Neon portrait"
               className="absolute inset-0 w-full h-full object-cover"
+              loading="eager"
             />
             <div className="absolute inset-0 bg-gradient-to-r from-[#0B0E14] via-transparent to-transparent" />
           </div>
