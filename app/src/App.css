@@ -1,29 +1,28 @@
 /* App-specific styles */
 
-/* Ensure smooth scrolling */
-html {
+/* Core smooth scrolling and touch behavior */
+html, body {
   scroll-behavior: smooth;
-}
-
-/* Hide scrollbar for cleaner look but keep functionality */
-body {
+  -webkit-overflow-scrolling: touch; /* iOS momentum scroll */
+  overscroll-behavior: none;
+  touch-action: pan-y;
   scrollbar-width: thin;
   scrollbar-color: #1a1f2e #05060B;
 }
 
-/* Selection color */
+/* Selection highlight */
 ::selection {
   background: rgba(43, 255, 241, 0.3);
   color: #F4F6FA;
 }
 
-/* Focus styles */
+/* Focus outline for accessibility */
 *:focus-visible {
   outline: 2px solid #2BFFF1;
   outline-offset: 2px;
 }
 
-/* Button reset */
+/* Button and link resets */
 button {
   cursor: pointer;
   border: none;
@@ -31,7 +30,6 @@ button {
   font-family: inherit;
 }
 
-/* Link reset */
 a {
   text-decoration: none;
   color: inherit;
@@ -42,6 +40,8 @@ img {
   max-width: 100%;
   height: auto;
   display: block;
+  loading: lazy;
+  image-rendering: -webkit-optimize-contrast;
 }
 
 /* Prevent text selection on interactive elements */
@@ -50,10 +50,31 @@ img {
   -webkit-user-select: none;
 }
 
-/* GPU acceleration for animations */
+/* GPU acceleration for pinned/animated elements */
+.pinned-section,
 .gpu-accelerated {
-  transform: translateZ(0);
   will-change: transform;
+  transform: translate3d(0,0,0);
+  backface-visibility: hidden;
+}
+
+/* Extra mobile smoothness for pinned sections */
+@media (max-width: 768px) {
+  .pinned-section {
+    transform: translateZ(0);
+  }
+}
+
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Responsive typography */
@@ -69,72 +90,45 @@ img {
   }
 }
 
-/* Reduced motion */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-}
-/* GPU acceleration + smooth mobile scrolling */
-html, body {
-  scroll-behavior: smooth;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: none;
-  touch-action: pan-y;
+/* Prevent scroll bleed when modal is open */
+body.modal-open {
+  overflow: hidden !important;
+  height: 100vh !important;
 }
 
-.pinned-section {
-  will-change: transform;
-  transform: translate3d(0,0,0);
-  backface-visibility: hidden;
-}
-
-/* Extra mobile smoothness */
-@media (max-width: 768px) {
-  .pinned-section {
-    transform: translateZ(0);
-  }
-}
-
-/* Respect reduced motion preference */
-@media (prefers-reduced-motion: reduce) {
-  * {
-    transition-duration: 0.01ms !important;
-    animation-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-}
-
-/* RainbowKit modal fixes – center + mobile full-screen */
+/* RainbowKit modal fixes – center, full visibility, scrollable inside */
 .rk-modal-content {
   position: fixed !important;
   top: 50% !important;
   left: 50% !important;
   transform: translate(-50%, -50%) !important;
-  max-width: 95vw !important;
+  max-width: 96vw !important;
   max-height: 90vh !important;
-  overflow-y: auto !important;
   margin: 0 !important;
+  border-radius: 16px !important;
+  overflow-y: auto !important;
+  z-index: 9999 !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
 }
 
 .rk-modal-backdrop {
-  backdrop-filter: blur(8px) !important;
+  backdrop-filter: blur(12px) !important;
+  background: rgba(0, 0, 0, 0.6) !important;
+  z-index: 9998 !important;
 }
 
 @media (max-width: 768px) {
   .rk-modal-content {
     width: 96vw !important;
     height: auto !important;
+    top: 50% !important;
+    transform: translate(-50%, -50%) !important;
     border-radius: 16px !important;
   }
-  
-  img {
-  image-rendering: -webkit-optimize-contrast;
-  loading: lazy;
-  }
-  }
+}
+
+/* Optional: Improve large background image loading */
+main img {
+  object-fit: cover;
+  object-position: center;
+}
