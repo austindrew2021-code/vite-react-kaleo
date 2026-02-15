@@ -29,6 +29,8 @@ export function StakingCTASection() {
           end: '+=120%',
           pin: true,
           scrub: 0.6,
+          anticipatePin: 1,
+          fastScrollEnd: true,
         }
       });
 
@@ -81,7 +83,7 @@ export function StakingCTASection() {
   return (
     <section 
       ref={sectionRef} 
-      className="section-pinned z-50 flex items-center justify-center"
+      className="pinned-section min-h-screen z-50 flex items-center justify-center relative"
     >
       {/* Background Image */}
       <div 
