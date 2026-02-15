@@ -132,4 +132,9 @@ html, body {
     height: auto !important;
     border-radius: 16px !important;
   }
-}
+  
+  img {
+  image-rendering: -webkit-optimize-contrast;
+  loading: lazy;
+  }
+  }
