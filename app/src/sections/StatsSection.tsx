@@ -75,9 +75,9 @@ export function StatsSection() {
 
   return (
     <section 
-      ref={sectionRef} 
-      className="pinned-section fade-in-section min-h-screen z-30 flex items-center justify-center relative"
-    >
+  ref={sectionRef} 
+  className="pinned-section fade-in-section min-h-screen z-30 flex items-center justify-center relative"
+>
       <div ref={bgRef} className="absolute inset-0 w-full h-full">
         <img 
           src="/stats_city_bg_03.jpg" 
