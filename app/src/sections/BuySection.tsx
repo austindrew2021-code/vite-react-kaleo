@@ -89,10 +89,10 @@ export function BuySection() {
 
   return (
     <section 
-      ref={sectionRef} 
-      id="buy"
-      className="pinned-section fade-in-section min-h-screen z-20 flex items-center justify-center relative"
-    >
+  ref={sectionRef} 
+  id="buy"
+  className="pinned-section fade-in-section min-h-screen z-20 flex items-center justify-center relative"
+>
       <div ref={bgRef} className="absolute inset-0 w-full h-full">
         <img 
           src="/stage_city_bg_02.jpg" 
