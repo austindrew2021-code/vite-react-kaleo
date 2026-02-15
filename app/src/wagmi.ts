@@ -8,7 +8,7 @@ import {
 } from 'wagmi/chains';
 import { http } from 'wagmi';
 
-// Debug logs - remove after modal works
+// Debug logs – keep these for now to verify env vars in console
 console.log('WalletConnect Project ID loaded:', import.meta.env.VITE_WALLET_CONNECT_PROJECT_ID || 'MISSING');
 console.log('RPC URL loaded:', import.meta.env.VITE_RPC_URL || 'MISSING');
 console.log('VITE env vars present:', Object.keys(import.meta.env).filter(k => k.startsWith('VITE_')));
@@ -29,5 +29,8 @@ export const config = getDefaultConfig({
   ssr: false,
 });
 
-// Optional extra debug
+// Optional extra debug – confirms config is created
 console.log('Wagmi config created with projectId:', projectId);
+
+// Optional: Log available chains (useful for debugging chain switching later)
+console.log('Available chains:', config.chains.map(c => `${c.name} (ID: ${c.id})`));
