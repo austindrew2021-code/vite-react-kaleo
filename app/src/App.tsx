@@ -14,6 +14,9 @@ import { FeatureSection } from './sections/FeatureSection';
 import { FeaturesGridSection } from './sections/FeaturesGridSection';
 import { StakingCTASection } from './sections/StakingCTASection';
 import { FooterSection } from './sections/FooterSection';
+import { PresaleProgress } from './sections/PresaleProgress';
+import { RoadmapSection } from './sections/RoadmapSection';
+// WhitePaperSection is triggered from Navigation, no need to import here
 
 import '@rainbow-me/rainbowkit/styles.css';
 import './App.css';
@@ -100,8 +103,8 @@ function App() {
               <FeatureSection />
               <FeaturesGridSection />
               <StakingCTASection />
-              <FooterSection />
               <RoadmapSection />
+              <FooterSection />
             </main>
           </div>
         </RainbowKitProvider>
