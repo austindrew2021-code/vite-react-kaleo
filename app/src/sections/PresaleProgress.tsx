@@ -1,25 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useAccount, useBalance, useReadContract } from 'wagmi';
+import { useAccount, useBalance } from 'wagmi';
 import { formatEther } from 'viem';
-
-// Replace with your real presale contract address + ABI
-const PRESALE_CONTRACT = '0xYourPresaleContractAddressHere' as const;
-const PRESALE_ABI = [
-  {
-    name: 'totalRaised',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ name: '', type: 'uint256' }],
-  } as const,
-  {
-    name: 'userPurchases',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [{ name: 'user', type: 'address' }],
-    outputs: [{ name: '', type: 'uint256' }],
-  } as const,
-] as const;
 
 const STAGES = [
   { min: 0, max: 10, price: 0.0042, name: 'Stage 1' },
@@ -31,40 +12,21 @@ export function PresaleProgress() {
   const { address, isConnected } = useAccount();
   const { data: balance } = useBalance({ address });
 
-  // Real raised amount from contract
-  const { data: totalRaisedRaw } = useReadContract({
-    address: PRESALE_CONTRACT,
-    abi: PRESALE_ABI,
-    functionName: 'totalRaised',
-  });
-
-  // User's personal purchases (only if connected)
-  const { data: userPurchasesRaw } = useReadContract({
-    address: PRESALE_CONTRACT,
-    abi: PRESALE_ABI,
-    functionName: 'userPurchases',
-    args: address ? [address] : undefined,
-  });
-
-  const [raised, setRaised] = useState(0); // fallback + simulation
-
-  const totalRaised = totalRaisedRaw ? Number(formatEther(totalRaisedRaw)) : raised;
-  const userTokens = userPurchasesRaw ? Number(formatEther(userPurchasesRaw)) : 0;
-
+  const [raised, setRaised] = useState(0);
   const hardCap = 200;
-  const progress = Math.min((totalRaised / hardCap) * 100, 100);
+  const progress = Math.min((raised / hardCap) * 100, 100);
 
-  // Optional: simulate updates if no contract data yet (remove in production)
   useEffect(() => {
     const interval = setInterval(() => {
-      setRaised((prev: number) => prev + Math.random() * 0.1); // demo only
+      // Replace with real contract polling or event listener in production
+      setRaised(prev => prev + Math.random() * 0.1); // demo only
     }, 10000);
 
     return () => clearInterval(interval);
   }, []);
 
   const currentStage = STAGES.find(
-    (s) => totalRaised >= s.min && totalRaised < s.max
+    s => raised >= s.min && raised < s.max
   ) || STAGES[STAGES.length - 1];
 
   return (
@@ -73,7 +35,7 @@ export function PresaleProgress() {
         <div className="flex justify-between mb-4 text-lg">
           <span className="text-cyan-400 font-bold">{currentStage.name}</span>
           <span className="text-white font-medium">
-            Raised: {totalRaised.toFixed(2)} / {hardCap} ETH
+            Raised: {raised.toFixed(2)} / {hardCap} ETH
           </span>
         </div>
 
@@ -86,7 +48,7 @@ export function PresaleProgress() {
 
         {isConnected && (
           <div className="text-center text-base text-gray-300 mt-6 space-y-2">
-            <div>Your purchases: <span className="text-cyan-400 font-bold">{userTokens.toFixed(2)} KLEO</span></div>
+            <div>Your purchases: <span className="text-cyan-400 font-bold">0.00 KLEO</span></div>
             <div>Wallet balance: <span className="text-cyan-400 font-bold">
               {balance ? formatEther(balance.value) : '0'} ETH
             </span></div>
