@@ -12,11 +12,11 @@ export function BuySection() {
   const cardRef = useRef<HTMLDivElement>(null);
   const bgRef = useRef<HTMLDivElement>(null);
   const { isConnected } = useAccount();
-  
+
   const { ethAmount, setEthAmount, tokenAmount, setTokenAmount } = usePresaleStore();
   const [isCalculating, setIsCalculating] = useState(false);
 
-  const TOKEN_PRICE = 0.0042;
+  const TOKEN_PRICE = 0.0042; // ETH per KLEO
   const MIN_ETH = 0.05;
   const MAX_ETH = 10;
 
@@ -27,6 +27,12 @@ export function BuySection() {
 
     if (!section || !card || !bg) return;
 
+    // Initial quick fade-in on load
+    gsap.fromTo(section, 
+      { opacity: 0, y: 40 },
+      { opacity: 1, y: 0, duration: 0.6, ease: 'power2.out' }
+    );
+
     const ctx = gsap.context(() => {
       const scrollTl = gsap.timeline({
         scrollTrigger: {
@@ -34,20 +40,46 @@ export function BuySection() {
           start: 'top top',
           end: '+=130%',
           pin: true,
-          scrub: 0.25,
+          pinSpacing: false,
+          scrub: 0.2,                  // Faster response → feels natural
           anticipatePin: 1,
           fastScrollEnd: true,
+          preventOverlaps: true,       // Prevents jitter with other sections
         }
       });
 
       scrollTl
-        .fromTo(card, { x: '60vw', opacity: 0, scale: 0.9 }, { x: 0, opacity: 1, scale: 1, ease: 'none' }, 0)
-        .fromTo('.buy-title', { x: '-10vw', opacity: 0 }, { x: 0, opacity: 1, ease: 'none' }, 0.05)
-        .fromTo('.buy-input', { y: '4vh', opacity: 0 }, { y: 0, opacity: 1, ease: 'none' }, 0.1)
-        .fromTo('.buy-button', { y: '4vh', opacity: 0 }, { y: 0, opacity: 1, ease: 'none' }, 0.15)
-        .to({}, { duration: 0.4 })
-        .fromTo(card, { x: 0, opacity: 1 }, { x: '-55vw', opacity: 0, ease: 'power2.in' }, 0.7)
-        .fromTo(bg, { scale: 1 }, { scale: 1.05, ease: 'power2.in' }, 0.7);
+        .fromTo(card, 
+          { x: '60vw', opacity: 0, scale: 0.9 }, 
+          { x: 0, opacity: 1, scale: 1, ease: 'none' },
+          0
+        )
+        .fromTo('.buy-title', 
+          { x: '-10vw', opacity: 0 }, 
+          { x: 0, opacity: 1, ease: 'none' },
+          0.05
+        )
+        .fromTo('.buy-input', 
+          { y: '4vh', opacity: 0 }, 
+          { y: 0, opacity: 1, ease: 'none' },
+          0.1
+        )
+        .fromTo('.buy-button', 
+          { y: '4vh', opacity: 0 }, 
+          { y: 0, opacity: 1, ease: 'none' },
+          0.15
+        )
+        .to({}, { duration: 0.4 }) // Settle time
+        .fromTo(card, 
+          { x: 0, opacity: 1 }, 
+          { x: '-55vw', opacity: 0, ease: 'power2.in' },
+          0.7
+        )
+        .fromTo(bg, 
+          { scale: 1 }, 
+          { scale: 1.05, ease: 'power2.in' },
+          0.7
+        );
 
     }, section);
 
@@ -88,14 +120,15 @@ export function BuySection() {
   };
 
   return (
-    <section 
-  ref={sectionRef} 
-  id="buy"
-  className="pinned-section fade-in-section min-h-screen z-20 flex items-center justify-center relative"
->
+    <section
+      ref={sectionRef}
+      id="buy"
+      className="pinned-section fade-in-section min-h-screen z-20 flex items-center justify-center relative overflow-hidden"
+    >
+      {/* Background Image – eager load to prevent flash */}
       <div ref={bgRef} className="absolute inset-0 w-full h-full">
-        <img 
-          src="/stage_city_bg_02.jpg" 
+        <img
+          src="/stage_city_bg_02.jpg"
           alt="Cyberpunk street"
           className="w-full h-full object-cover"
           loading="eager"
@@ -103,16 +136,23 @@ export function BuySection() {
         <div className="absolute inset-0 bg-gradient-to-b from-[#05060B]/80 via-[#05060B]/50 to-[#05060B]/85" />
       </div>
 
-      <div 
+      {/* Main Card – centered on all screens */}
+      <div
         ref={cardRef}
         className="glass-card relative w-[min(92vw,520px)] rounded-[28px] overflow-hidden p-8 mx-auto"
         style={{ opacity: 0 }}
       >
-        <div className="absolute inset-0 rounded-[28px] pointer-events-none"
-          style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(43,255,241,0.1) 0%, transparent 60%)' }}
+        {/* Card Glow */}
+        <div
+          className="absolute inset-0 rounded-[28px] pointer-events-none"
+          style={{
+            background: 'radial-gradient(ellipse at 50% 0%, rgba(43,255,241,0.1) 0%, transparent 60%)'
+          }}
         />
 
+        {/* Content */}
         <div className="relative">
+          {/* Header */}
           <div className="buy-title text-center mb-6">
             <div className="flex items-center justify-center gap-2 mb-2">
               <div className="w-10 h-10 rounded-xl bg-[#2BFFF1]/10 border border-[#2BFFF1]/30 flex items-center justify-center">
@@ -127,6 +167,7 @@ export function BuySection() {
             </p>
           </div>
 
+          {/* Leverage Badge */}
           <div className="flex items-center justify-center gap-2 mb-6">
             <span className="px-3 py-1 rounded-full bg-[#2BFFF1]/10 border border-[#2BFFF1]/30 text-[#2BFFF1] text-xs font-medium flex items-center gap-1">
               <Zap className="w-3 h-3" />
@@ -134,6 +175,7 @@ export function BuySection() {
             </span>
           </div>
 
+          {/* Input Section */}
           <div className="buy-input mb-4">
             <label className="block text-[#A7B0B7] text-sm mb-2 flex items-center gap-2">
               <Wallet className="w-4 h-4" />
@@ -155,6 +197,7 @@ export function BuySection() {
               </span>
             </div>
 
+            {/* Preset Amounts */}
             <div className="flex gap-2 mt-3 flex-wrap">
               {[0.1, 0.5, 1, 5].map((amount) => (
                 <button
@@ -168,6 +211,7 @@ export function BuySection() {
             </div>
           </div>
 
+          {/* Token Output */}
           {tokenAmount && (
             <div className="buy-input mb-4 p-4 rounded-xl bg-[#2BFFF1]/10 border border-[#2BFFF1]/30 text-center">
               <p className="text-[#A7B0B7] text-sm mb-1">You receive</p>
@@ -177,6 +221,7 @@ export function BuySection() {
             </div>
           )}
 
+          {/* Buy Button */}
           <button
             onClick={handleBuy}
             disabled={isCalculating || !ethAmount}
@@ -198,6 +243,7 @@ export function BuySection() {
             )}
           </button>
 
+          {/* Helper Text */}
           <div className="mt-4 flex items-center justify-center gap-2 text-[#A7B0B7] text-xs">
             <Info className="w-4 h-4" />
             <span>Min: {MIN_ETH} ETH · Max: {MAX_ETH} ETH</span>
