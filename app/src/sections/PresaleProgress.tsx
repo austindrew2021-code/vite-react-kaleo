@@ -6,7 +6,7 @@ const STAGES = [
   { min: 0, max: 10, price: 0.0042, name: 'Stage 1' },
   { min: 10, max: 50, price: 0.0055, name: 'Stage 2' },
   { min: 50, max: 200, price: 0.007, name: 'Stage 3' },
-  // ... add more stages
+  // ... add more stages as needed
 ];
 
 export function PresaleProgress() {
@@ -33,26 +33,28 @@ export function PresaleProgress() {
   ) || STAGES[STAGES.length - 1];
 
   return (
-    <div className="w-full max-w-2xl mx-auto p-6 bg-gray-900/60 rounded-2xl border border-cyan-500/30">
-      <div className="flex justify-between mb-4">
-        <span className="text-cyan-400 font-bold">{currentStage.name}</span>
-        <span className="text-white">
-          Raised: {raised.toFixed(2)} / {hardCap} ETH
-        </span>
-      </div>
-
-      <div className="w-full bg-gray-800 rounded-full h-4 mb-6 overflow-hidden">
-        <div
-          className="bg-gradient-to-r from-cyan-500 to-purple-600 h-4 rounded-full transition-all duration-1000"
-          style={{ width: `${progress}%` }}
-        />
-      </div>
-
-      {isConnected && balance && (
-        <div className="text-center text-sm text-gray-400">
-          Connected wallet balance: {formatEther(balance.value)} ETH
+    <section className="pinned-section min-h-screen flex items-center justify-center bg-gradient-to-b from-black to-gray-900">
+      <div className="w-full max-w-2xl mx-auto p-6 bg-gray-900/60 rounded-2xl border border-cyan-500/30">
+        <div className="flex justify-between mb-4">
+          <span className="text-cyan-400 font-bold">{currentStage.name}</span>
+          <span className="text-white">
+            Raised: {raised.toFixed(2)} / {hardCap} ETH
+          </span>
         </div>
-      )}
-    </div>
+
+        <div className="w-full bg-gray-800 rounded-full h-4 mb-6 overflow-hidden">
+          <div
+            className="bg-gradient-to-r from-cyan-500 to-purple-600 h-4 rounded-full transition-all duration-1000"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+
+        {isConnected && balance && (
+          <div className="text-center text-sm text-gray-400">
+            Connected wallet balance: {formatEther(balance.value)} ETH
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
