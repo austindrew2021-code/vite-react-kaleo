@@ -66,10 +66,9 @@ export function FooterSection() {
     <footer 
       ref={sectionRef} 
       id="docs"
-      className="pinned-section min-h-screen relative bg-[#0B0E14] py-16 z-[60]"
+      className="pinned-section fade-in-section min-h-screen relative bg-[#0B0E14] py-16 z-[60]"
     >
       <div className="max-w-[980px] mx-auto px-6">
-        {/* Main Content */}
         <div className="text-center mb-12">
           <h3 className="footer-title text-[clamp(24px,3vw,36px)] font-bold text-[#F4F6FA] mb-4">
             Ready to <span className="text-[#2BFFF1]">leverage trade</span>?
@@ -86,7 +85,6 @@ export function FooterSection() {
           </a>
         </div>
 
-        {/* Links */}
         <div className="flex flex-wrap justify-center gap-6 mb-10">
           {links.map((link, index) => (
             <a
@@ -100,7 +98,6 @@ export function FooterSection() {
           ))}
         </div>
 
-        {/* Socials */}
         <div className="flex justify-center gap-4 mb-12">
           {socials.map((social, index) => (
             <a
@@ -114,10 +111,8 @@ export function FooterSection() {
           ))}
         </div>
 
-        {/* Divider */}
         <div className="border-t border-white/10 pt-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            {/* Logo */}
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-md bg-[#2BFFF1] flex items-center justify-center">
                 <span className="text-[#05060B] font-bold text-xs">K</span>
@@ -125,12 +120,10 @@ export function FooterSection() {
               <span className="text-[#F4F6FA] font-semibold text-sm">Kaleo</span>
             </div>
 
-            {/* Copyright */}
             <p className="text-[#A7B0B7] text-xs">
               © 2026 Kaleo. All rights reserved.
             </p>
 
-            {/* Legal Links */}
             <div className="flex gap-4">
               <a href="#" className="text-[#A7B0B7] hover:text-[#2BFFF1] text-xs transition-colors">
                 Privacy
