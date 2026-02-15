@@ -13,7 +13,6 @@ export function FeaturesGridSection() {
     if (!section) return;
 
     const ctx = gsap.context(() => {
-      // Section title
       gsap.fromTo('.grid-title',
         { y: 24, opacity: 0 },
         {
@@ -29,7 +28,6 @@ export function FeaturesGridSection() {
         }
       );
 
-      // Card A
       gsap.fromTo('.grid-card-a',
         { x: '-8vw', rotate: -2, opacity: 0 },
         {
@@ -46,7 +44,6 @@ export function FeaturesGridSection() {
         }
       );
 
-      // Card B
       gsap.fromTo('.grid-card-b',
         { x: '8vw', rotate: 2, opacity: 0 },
         {
@@ -63,7 +60,6 @@ export function FeaturesGridSection() {
         }
       );
 
-      // Thumbnails parallax
       gsap.fromTo('.grid-thumb',
         { y: 20 },
         {
@@ -107,9 +103,8 @@ export function FeaturesGridSection() {
   return (
     <section 
       ref={sectionRef} 
-      className="pinned-section min-h-screen relative py-[10vh] z-40"
+      className="pinned-section fade-in-section min-h-screen relative py-[10vh] z-40"
     >
-      {/* Background Image */}
       <div className="absolute inset-0 w-full h-full">
         <img 
           src="/grid_city_bg_05.jpg" 
@@ -119,9 +114,7 @@ export function FeaturesGridSection() {
         <div className="absolute inset-0 bg-gradient-to-b from-[#05060B]/90 via-[#05060B]/70 to-[#05060B]/90" />
       </div>
 
-      {/* Content */}
       <div className="relative px-[6vw]">
-        {/* Section Title */}
         <h2 className="grid-title text-[clamp(30px,3.6vw,48px)] font-bold text-[#F4F6FA] text-center mb-4">
           Built for <span className="text-[#2BFFF1]">degens</span>
         </h2>
@@ -129,19 +122,16 @@ export function FeaturesGridSection() {
           The first leverage platform designed specifically for memecoin traders
         </p>
 
-        {/* Cards Grid */}
         <div className="grid md:grid-cols-2 gap-6 max-w-[1000px] mx-auto">
           {features.map((feature, index) => (
             <div 
               key={index}
               className={`${feature.className} glass-card rounded-[28px] overflow-hidden p-8 relative min-h-[320px] flex flex-col`}
             >
-              {/* Icon */}
               <div className="w-12 h-12 rounded-xl bg-[#2BFFF1]/10 border border-[#2BFFF1]/30 flex items-center justify-center mb-6">
                 <feature.icon className="w-6 h-6 text-[#2BFFF1]" />
               </div>
 
-              {/* Content */}
               <h3 className="text-2xl font-bold text-[#F4F6FA] mb-4">
                 {feature.title}
               </h3>
@@ -149,7 +139,6 @@ export function FeaturesGridSection() {
                 {feature.description}
               </p>
 
-              {/* Link */}
               <a 
                 href={feature.linkHref}
                 className="text-[#2BFFF1] font-medium flex items-center gap-2 hover:gap-3 transition-all"
@@ -158,7 +147,6 @@ export function FeaturesGridSection() {
                 <ArrowRight className="w-4 h-4" />
               </a>
 
-              {/* Thumbnail Image */}
               <div className="grid-thumb absolute bottom-0 right-0 w-[40%] h-[40%] opacity-50">
                 <img 
                   src={feature.image} 
