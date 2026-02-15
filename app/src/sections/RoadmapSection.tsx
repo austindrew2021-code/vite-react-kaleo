@@ -40,17 +40,12 @@ export function RoadmapSection() {
 
         <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
           {phases.map((phase, idx) => (
-            <div
-              key={idx}
-              className="relative p-8 rounded-2xl bg-gray-900/60 border border-cyan-500/20 backdrop-blur-sm hover:border-cyan-400/50 transition-all duration-300"
-            >
+            <div key={idx} className="relative p-8 rounded-2xl bg-gray-900/60 border border-cyan-500/20 backdrop-blur-sm hover:border-cyan-400/50 transition-all duration-300">
               <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-6 py-2 bg-cyan-500 text-black font-bold rounded-full text-sm">
                 {phase.date}
               </div>
 
-              <h3 className="text-2xl font-bold text-cyan-400 mt-6 mb-6 text-center">
-                {phase.title}
-              </h3>
+              <h3 className="text-2xl font-bold text-cyan-400 mt-6 mb-6 text-center">{phase.title}</h3>
 
               <ul className="space-y-4 text-gray-300">
                 {phase.items.map((item, i) => (
