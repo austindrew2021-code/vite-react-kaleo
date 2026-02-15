@@ -28,17 +28,19 @@ function App() {
   useEffect(() => {
     gsap.ticker.lagSmoothing(0);
 
+    // GPU acceleration for everything
     gsap.set('body, html, main.content-wrapper, section', {
       willChange: 'transform',
       transform: 'translate3d(0,0,0)',
       backfaceVisibility: 'hidden',
     });
 
-    ScrollTrigger.normalizeScroll(true);
+    ScrollTrigger.normalizeScroll(true); // smooth touch on mobile
 
+    // Clean up old triggers
     ScrollTrigger.getAll().forEach(st => st.kill());
 
-    // Pin single wrapper – no per-section pinning conflicts
+    // Pin ONLY the content wrapper – no per-section pinning conflicts
     ScrollTrigger.create({
       trigger: '.content-wrapper',
       start: 'top top',
@@ -52,7 +54,7 @@ function App() {
       invalidateOnRefresh: true,
     });
 
-    // Quick fade-in for all sections (0.6s, early trigger)
+    // Quick fade-in for all sections (0.6s duration, early trigger)
     gsap.utils.toArray('.fade-in-section').forEach((el: any) => {
       gsap.fromTo(el,
         { opacity: 0, y: 40 },
@@ -71,7 +73,7 @@ function App() {
       );
     });
 
-    // Debounced refresh
+    // Debounced refresh on resize/orientation
     let resizeTimer: NodeJS.Timeout | undefined;
     const handleResize = () => {
       if (resizeTimer) clearTimeout(resizeTimer);
@@ -80,7 +82,7 @@ function App() {
     window.addEventListener('resize', handleResize);
     window.addEventListener('orientationchange', handleResize);
 
-    // Modal open/close body lock
+    // Modal body scroll lock
     const handleModalChange = () => {
       if (document.querySelector('.rk-modal-backdrop')) {
         document.body.classList.add('modal-open');
@@ -110,12 +112,13 @@ function App() {
             borderRadius: 'large',
             fontStack: 'system',
           })}
-          modalSize="compact"
+          modalSize="compact" // smaller modal = better mobile fit
         >
           <div className="relative bg-[#05060B] min-h-screen">
             <div className="noise-overlay" />
             <Navigation />
 
+            {/* Single pinned wrapper – free scroll inside, all sections visible */}
             <main className="content-wrapper relative min-h-screen">
               <HeroSection />
               <PresaleProgress />
