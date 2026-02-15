@@ -66,7 +66,7 @@ export function FooterSection() {
     <footer 
       ref={sectionRef} 
       id="docs"
-      className="relative bg-[#0B0E14] py-16 z-[60]"
+      className="pinned-section min-h-screen relative bg-[#0B0E14] py-16 z-[60]"
     >
       <div className="max-w-[980px] mx-auto px-6">
         {/* Main Content */}
