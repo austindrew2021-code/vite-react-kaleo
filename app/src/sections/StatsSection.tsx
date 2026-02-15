@@ -38,6 +38,8 @@ export function StatsSection() {
           end: '+=130%',
           pin: true,
           scrub: 0.6,
+          anticipatePin: 1,
+          fastScrollEnd: true,
         }
       });
 
@@ -122,7 +124,7 @@ export function StatsSection() {
   return (
     <section 
       ref={sectionRef} 
-      className="section-pinned z-30 flex items-center justify-center"
+      className="pinned-section min-h-screen z-30 flex items-center justify-center relative"
     >
       {/* Background Image */}
       <div 
