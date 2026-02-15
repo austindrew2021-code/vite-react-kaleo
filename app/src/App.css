@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Component-Specific & Utility Styles
+   Component-Specific Styles & Utilities
    ========================================================================== */
 
 @layer components {
@@ -74,7 +74,7 @@
 }
 
 /* ==========================================================================
-   Modal Scroll Lock & RainbowKit Overrides (reinforced)
+   Modal Scroll Lock & RainbowKit Reinforced Fixes
    ========================================================================== */
 
 body.modal-open {
@@ -84,7 +84,6 @@ body.modal-open {
   width: 100%;
 }
 
-/* Stronger RainbowKit modal centering */
 .rk-modal-content {
   position: fixed !important;
   top: 50% !important;
