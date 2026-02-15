@@ -16,7 +16,6 @@ import { StakingCTASection } from './sections/StakingCTASection';
 import { FooterSection } from './sections/FooterSection';
 import { PresaleProgress } from './sections/PresaleProgress';
 import { RoadmapSection } from './sections/RoadmapSection';
-// WhitePaperSection is triggered from Navigation, no need to import here
 
 import '@rainbow-me/rainbowkit/styles.css';
 import './App.css';
@@ -27,52 +26,69 @@ const queryClient = new QueryClient();
 
 function App() {
   useEffect(() => {
-    // Global scroll snap for pinned sections
-    const setupGlobalSnap = () => {
-      const pinned = ScrollTrigger.getAll()
-        .filter((st) => st.vars.pin)
-        .sort((a, b) => a.start - b.start);
-      
-      const maxScroll = ScrollTrigger.maxScroll(window);
-      
-      if (!maxScroll || pinned.length === 0) return;
+    // Force GPU acceleration globally (helps mobile smoothness)
+    gsap.set('body, html, main, section', {
+      willChange: 'transform',
+      transform: 'translate3d(0,0,0)',
+      backfaceVisibility: 'hidden',
+    });
 
-      const pinnedRanges = pinned.map((st) => ({
-        start: st.start / maxScroll,
-        end: (st.end ?? st.start) / maxScroll,
-        center: (st.start + ((st.end ?? st.start) - st.start) * 0.5) / maxScroll,
-      }));
+    // Kill any previous ScrollTriggers to prevent memory leaks
+    ScrollTrigger.getAll().forEach(st => st.kill());
 
+    // Optimized pinning + snapping for major sections
+    const pinnedSections = document.querySelectorAll('.pinned-section');
+
+    pinnedSections.forEach((section, index) => {
       ScrollTrigger.create({
-        snap: {
-          snapTo: (value: number) => {
-            const inPinned = pinnedRanges.some(
-              (r) => value >= r.start - 0.02 && value <= r.end + 0.02
-            );
-            if (!inPinned) return value;
-
-            const target = pinnedRanges.reduce(
-              (closest, r) =>
-                Math.abs(r.center - value) < Math.abs(closest - value)
-                  ? r.center
-                  : closest,
-              pinnedRanges[0]?.center ?? 0
-            );
-            return target;
-          },
-          duration: { min: 0.15, max: 0.35 },
-          delay: 0,
-          ease: 'power2.out',
-        },
+        trigger: section,
+        start: 'top top',
+        end: 'bottom top',
+        pin: true,
+        pinSpacing: false,
+        anticipatePin: 1,           // Prevents jank on mobile
+        fastScrollEnd: true,         // Smoother quick scrolls
+        scrub: 0.4,                  // Faster response
+        id: `pin-${index}`,
       });
+    });
+
+    // Global smooth snapping (only near section boundaries)
+    ScrollTrigger.create({
+      start: 'top top',
+      end: 'bottom bottom',
+      snap: {
+        snapTo: (progress: number) => {
+          // Snap only near 0%, 25%, 50%, 75%, 100% (adjust as needed)
+          const targets = [0, 0.25, 0.5, 0.75, 1];
+          const closest = targets.reduce((prev, curr) =>
+            Math.abs(curr - progress) < Math.abs(prev - progress) ? curr : prev
+          );
+          // Only snap if very close (prevents constant micro-snaps)
+          return Math.abs(closest - progress) < 0.08 ? closest : progress;
+        },
+        duration: { min: 0.18, max: 0.45 }, // Faster on mobile
+        delay: 0.05,
+        ease: 'power2.out',
+        directional: true,
+      },
+      invalidateOnRefresh: true,
+    });
+
+    // Refresh on resize (debounced to prevent spam)
+    let resizeTimer: NodeJS.Timeout;
+    const handleResize = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => ScrollTrigger.refresh(), 150);
     };
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
 
-    // Delay to ensure all ScrollTriggers are created
-    const timer = setTimeout(setupGlobalSnap, 500);
-
+    // Cleanup
     return () => {
-      clearTimeout(timer);
-      ScrollTrigger.getAll().forEach((st) => st.kill());
+      ScrollTrigger.getAll().forEach(st => st.kill());
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
     };
   }, []);
 
