@@ -57,8 +57,9 @@ export function HeroSection() {
           end: '+=130%',
           pin: true,
           scrub: 0.6,
+          anticipatePin: 1,
+          fastScrollEnd: true,
           onLeaveBack: () => {
-            // Reset to visible when scrolling back
             gsap.set(card, { x: 0, opacity: 1 });
             gsap.set(bg, { scale: 1, opacity: 1 });
           }
@@ -86,7 +87,7 @@ export function HeroSection() {
   return (
     <section 
       ref={sectionRef} 
-      className="section-pinned z-10 flex items-center justify-center"
+      className="pinned-section min-h-screen z-10 flex items-center justify-center relative"
     >
       {/* Background Image */}
       <div 
