@@ -83,7 +83,7 @@ export function FeatureSection() {
             start: 'top 60%',
             toggleActions: 'play none none reverse'
           }
-        });
+        }
       }
 
       // Bullet points stagger
@@ -118,7 +118,7 @@ export function FeatureSection() {
     <section 
       ref={sectionRef} 
       id="features"
-      className="relative min-h-screen py-[10vh] z-40"
+      className="pinned-section min-h-screen relative py-[10vh] z-40"
     >
       {/* Background Image */}
       <div className="absolute inset-0 w-full h-full">
