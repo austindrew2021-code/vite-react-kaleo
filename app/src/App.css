@@ -1,128 +1,82 @@
 /* ==========================================================================
-   Core HTML & Body Styles
+   Component-Specific & Utility Styles
    ========================================================================== */
 
-html, body {
-  scroll-behavior: smooth;
-  -webkit-overflow-scrolling: touch; /* iOS momentum scroll */
-  overscroll-behavior: none;
-  touch-action: pan-y;
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  width: 100%;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-}
+@layer components {
+  .glass-card {
+    background: rgba(11, 14, 20, 0.72);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 28px 80px rgba(0, 0, 0, 0.55);
+    transition: all 0.3s ease;
+  }
 
-/* Hide scrollbar but keep functionality */
-body {
-  scrollbar-width: thin;
-  scrollbar-color: #1a1f2e #05060B;
-}
+  .glass-card:hover {
+    border-color: rgba(43, 255, 241, 0.3);
+    box-shadow: 0 32px 100px rgba(43, 255, 241, 0.15);
+  }
 
-/* Selection highlight */
-::selection {
-  background: rgba(43, 255, 241, 0.3);
-  color: #F4F6FA;
-}
+  .neon-button {
+    background: linear-gradient(135deg, #2BFFF1 0%, #1DD8CC 100%);
+    color: #05060B;
+    border-radius: 14px;
+    box-shadow: 0 10px 30px rgba(43, 255, 241, 0.3);
+    font-weight: 600;
+    transition: all 0.3s ease;
+  }
 
-/* Focus outline for accessibility */
-*:focus-visible {
-  outline: 2px solid #2BFFF1;
-  outline-offset: 2px;
-}
+  .neon-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 40px rgba(43, 255, 241, 0.45);
+  }
 
-/* ==========================================================================
-   Button & Link Resets
-   ========================================================================== */
+  .neon-button:active {
+    transform: translateY(0);
+  }
 
-button {
-  cursor: pointer;
-  border: none;
-  background: none;
-  font-family: inherit;
-  padding: 0;
-}
+  .neon-glow {
+    box-shadow: 0 0 20px rgba(43, 255, 241, 0.4),
+                0 0 40px rgba(43, 255, 241, 0.2),
+                0 0 60px rgba(43, 255, 241, 0.1);
+  }
 
-a {
-  text-decoration: none;
-  color: inherit;
-}
+  .text-gradient {
+    background: linear-gradient(135deg, #2BFFF1 0%, #1DD8CC 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
 
-/* ==========================================================================
-   Image & Media Optimization
-   ========================================================================== */
+  .noise-overlay {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: -1;
+    opacity: 0.04;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  }
 
-img {
-  max-width: 100%;
-  height: auto;
-  display: block;
-  loading: lazy;
-  image-rendering: -webkit-optimize-contrast;
-}
+  .input-glass {
+    background: rgba(11, 14, 20, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 14px;
+    color: #F4F6FA;
+    transition: all 0.3s ease;
+  }
 
-/* Prevent text selection on interactive elements */
-.no-select {
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-/* ==========================================================================
-   GPU Acceleration & Performance
-   ========================================================================== */
-
-.pinned-section,
-.gpu-accelerated,
-main img,
-.rk-modal-content {
-  will-change: transform;
-  transform: translate3d(0,0,0);
-  backface-visibility: hidden;
-}
-
-/* Extra mobile smoothness for pinned sections */
-@media (max-width: 768px) {
-  .pinned-section {
-    transform: translateZ(0);
+  .input-glass:focus {
+    outline: none;
+    border-color: rgba(43, 255, 241, 0.5);
+    box-shadow: 0 0 20px rgba(43, 255, 241, 0.15);
   }
 }
 
 /* ==========================================================================
-   Reduced Motion Preference
+   Modal Scroll Lock & RainbowKit Overrides (reinforced)
    ========================================================================== */
 
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-}
-
-/* ==========================================================================
-   Responsive Typography
-   ========================================================================== */
-
-@media (max-width: 768px) {
-  html {
-    font-size: 14px;
-  }
-}
-
-@media (max-width: 480px) {
-  html {
-    font-size: 13px;
-  }
-}
-
-/* ==========================================================================
-   Modal Scroll Lock & RainbowKit Fixes
-   ========================================================================== */
-
-/* Prevent scroll bleed when modal is open */
 body.modal-open {
   overflow: hidden !important;
   height: 100vh !important;
@@ -130,61 +84,46 @@ body.modal-open {
   width: 100%;
 }
 
-/* RainbowKit modal – force perfect centering, mobile-friendly, scrollable */
+/* Stronger RainbowKit modal centering */
 .rk-modal-content {
   position: fixed !important;
   top: 50% !important;
   left: 50% !important;
   transform: translate(-50%, -50%) !important;
-  max-width: 96vw !important;
+  width: 96vw !important;
+  max-width: 420px !important;
   max-height: 90vh !important;
   margin: 0 !important;
   border-radius: 16px !important;
   overflow-y: auto !important;
   z-index: 9999 !important;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
-  background: rgba(5, 6, 11, 0.95) !important;
-  border: 1px solid rgba(43, 255, 241, 0.2) !important;
-  backdrop-filter: blur(12px) !important;
+  background: rgba(5, 6, 11, 0.98) !important;
+  border: 1px solid rgba(43, 255, 241, 0.25) !important;
+  box-shadow: 0 25px 50px -12px rgba(43, 255, 241, 0.3);
+  backdrop-filter: blur(16px) !important;
 }
 
 .rk-modal-backdrop {
-  backdrop-filter: blur(12px) !important;
-  background: rgba(0, 0, 0, 0.65) !important;
+  backdrop-filter: blur(16px) !important;
+  background: rgba(0, 0, 0, 0.7) !important;
   z-index: 9998 !important;
 }
 
 @media (max-width: 768px) {
   .rk-modal-content {
-    width: 96vw !important;
-    height: auto !important;
+    max-width: 96vw !important;
     max-height: 92vh !important;
-    border-radius: 16px !important;
-    top: 50% !important;
-    transform: translate(-50%, -50%) !important;
   }
 }
 
 /* ==========================================================================
-   General Layout & Image Handling
+   Custom Utilities
    ========================================================================== */
 
-/* Improve large background image loading & fit */
-main img,
-section img {
-  object-fit: cover;
-  object-position: center;
-  width: 100%;
-  height: 100%;
-}
-
-/* Optional: Noise overlay (if used in App.tsx) */
-.noise-overlay {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background: url('/noise.png') repeat;
-  opacity: 0.03;
-  mix-blend-mode: overlay;
-  z-index: -1;
+@layer utilities {
+  .animation-delay-100 { animation-delay: 100ms; }
+  .animation-delay-200 { animation-delay: 200ms; }
+  .animation-delay-300 { animation-delay: 300ms; }
+  .animation-delay-400 { animation-delay: 400ms; }
+  .animation-delay-500 { animation-delay: 500ms; }
 }
