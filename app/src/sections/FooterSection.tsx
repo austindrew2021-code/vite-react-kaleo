@@ -13,37 +13,8 @@ export function FooterSection() {
     if (!section) return;
 
     const ctx = gsap.context(() => {
-      gsap.fromTo('.footer-title',
-        { y: 18, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.6,
-          ease: 'power2.out',
-          scrollTrigger: {
-            trigger: section,
-            start: 'top 85%',
-            toggleActions: 'play none none reverse'
-          }
-        }
-      );
-
-      gsap.fromTo('.footer-link',
-        { y: 12, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.4,
-          stagger: 0.06,
-          ease: 'power2.out',
-          scrollTrigger: {
-            trigger: section,
-            start: 'top 80%',
-            toggleActions: 'play none none reverse'
-          }
-        }
-      );
-
+      gsap.fromTo('.footer-title', { y: 18, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: 'power2.out', scrollTrigger: { trigger: section, start: 'top 85%', toggleActions: 'play none none reverse' } });
+      gsap.fromTo('.footer-link', { y: 12, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, stagger: 0.06, ease: 'power2.out', scrollTrigger: { trigger: section, start: 'top 80%', toggleActions: 'play none none reverse' } });
     }, section);
 
     return () => ctx.revert();
@@ -63,11 +34,7 @@ export function FooterSection() {
   ];
 
   return (
-    <footer 
-      ref={sectionRef} 
-      id="docs"
-      className="pinned-section fade-in-section min-h-screen relative bg-[#0B0E14] py-16 z-[60]"
-    >
+    <footer ref={sectionRef} id="docs" className="pinned-section fade-in-section min-h-screen relative bg-[#0B0E14] py-16 z-[60]">
       <div className="max-w-[980px] mx-auto px-6">
         <div className="text-center mb-12">
           <h3 className="footer-title text-[clamp(24px,3vw,36px)] font-bold text-[#F4F6FA] mb-4">
@@ -76,10 +43,7 @@ export function FooterSection() {
           <p className="footer-title text-[#A7B0B7] mb-4">
             The first leverage platform for Pump.fun memecoins
           </p>
-          <a 
-            href="mailto:hello@kaleo.xyz"
-            className="footer-title inline-flex items-center gap-2 text-[#A7B0B7] hover:text-[#2BFFF1] transition-colors"
-          >
+          <a href="mailto:hello@kaleo.xyz" className="footer-title inline-flex items-center gap-2 text-[#A7B0B7] hover:text-[#2BFFF1] transition-colors">
             <Mail className="w-5 h-5" />
             hello@kaleo.xyz
           </a>
@@ -87,11 +51,7 @@ export function FooterSection() {
 
         <div className="flex flex-wrap justify-center gap-6 mb-10">
           {links.map((link, index) => (
-            <a
-              key={index}
-              href={link.href}
-              className="footer-link text-[#A7B0B7] hover:text-[#2BFFF1] transition-colors text-sm font-medium flex items-center gap-2"
-            >
+            <a key={index} href={link.href} className="footer-link text-[#A7B0B7] hover:text-[#2BFFF1] transition-colors text-sm font-medium flex items-center gap-2">
               <link.icon className="w-4 h-4" />
               {link.label}
             </a>
@@ -100,12 +60,7 @@ export function FooterSection() {
 
         <div className="flex justify-center gap-4 mb-12">
           {socials.map((social, index) => (
-            <a
-              key={index}
-              href={social.href}
-              className="footer-link w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[#A7B0B7] hover:text-[#2BFFF1] hover:border-[#2BFFF1]/50 transition-all"
-              aria-label={social.label}
-            >
+            <a key={index} href={social.href} className="footer-link w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[#A7B0B7] hover:text-[#2BFFF1] hover:border-[#2BFFF1]/50 transition-all" aria-label={social.label}>
               <social.icon className="w-5 h-5" />
             </a>
           ))}
@@ -120,17 +75,11 @@ export function FooterSection() {
               <span className="text-[#F4F6FA] font-semibold text-sm">Kaleo</span>
             </div>
 
-            <p className="text-[#A7B0B7] text-xs">
-              © 2026 Kaleo. All rights reserved.
-            </p>
+            <p className="text-[#A7B0B7] text-xs">© 2026 Kaleo. All rights reserved.</p>
 
             <div className="flex gap-4">
-              <a href="#" className="text-[#A7B0B7] hover:text-[#2BFFF1] text-xs transition-colors">
-                Privacy
-              </a>
-              <a href="#" className="text-[#A7B0B7] hover:text-[#2BFFF1] text-xs transition-colors">
-                Terms
-              </a>
+              <a href="#" className="text-[#A7B0B7] hover:text-[#2BFFF1] text-xs transition-colors">Privacy</a>
+              <a href="#" className="text-[#A7B0B7] hover:text-[#2BFFF1] text-xs transition-colors">Terms</a>
             </div>
           </div>
         </div>
