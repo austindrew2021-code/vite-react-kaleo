@@ -40,7 +40,6 @@ export function BuySection() {
         }
       });
 
-      // Entrance (0% - 30%)
       scrollTl
         .fromTo(card, 
           { x: '60vw', opacity: 0, scale: 0.9 }, 
@@ -62,8 +61,7 @@ export function BuySection() {
           { y: 0, opacity: 1, ease: 'none' },
           0.15
         )
-        .to({}, { duration: 0.4 }) // Settle (30% - 70%)
-        // Exit (70% - 100%)
+        .to({}, { duration: 0.4 })
         .fromTo(card, 
           { x: 0, opacity: 1 }, 
           { x: '-55vw', opacity: 0, ease: 'power2.in' },
@@ -117,7 +115,7 @@ export function BuySection() {
     <section 
       ref={sectionRef} 
       id="buy"
-      className="pinned-section min-h-screen z-20 flex items-center justify-center relative"
+      className="pinned-section fade-in-section min-h-screen z-20 flex items-center justify-center relative"
     >
       {/* Background Image */}
       <div 
@@ -132,10 +130,10 @@ export function BuySection() {
         <div className="absolute inset-0 bg-gradient-to-b from-[#05060B]/80 via-[#05060B]/50 to-[#05060B]/85" />
       </div>
 
-      {/* Main Card */}
+      {/* Main Card - Centered */}
       <div 
         ref={cardRef}
-        className="glass-card relative w-[min(92vw,520px)] rounded-[28px] overflow-hidden p-8"
+        className="glass-card relative w-[min(92vw,520px)] rounded-[28px] overflow-hidden p-8 mx-auto"
         style={{ opacity: 0 }}
       >
         {/* Card Glow */}
@@ -163,7 +161,7 @@ export function BuySection() {
           </div>
 
           {/* Leverage Badge */}
-          <div className="buy-title flex items-center justify-center gap-2 mb-6">
+          <div className="flex items-center justify-center gap-2 mb-6">
             <span className="px-3 py-1 rounded-full bg-[#2BFFF1]/10 border border-[#2BFFF1]/30 text-[#2BFFF1] text-xs font-medium flex items-center gap-1">
               <Zap className="w-3 h-3" />
               Up to 100x Leverage
@@ -193,12 +191,12 @@ export function BuySection() {
             </div>
             
             {/* Preset Amounts */}
-            <div className="flex gap-2 mt-3">
+            <div className="flex gap-2 mt-3 flex-wrap">
               {[0.1, 0.5, 1, 5].map((amount) => (
                 <button
                   key={amount}
                   onClick={() => setPresetAmount(amount)}
-                  className="flex-1 px-2 py-2 rounded-lg bg-white/5 border border-white/10 text-[#A7B0B7] text-xs hover:border-[#2BFFF1]/50 hover:text-[#2BFFF1] transition-colors"
+                  className="flex-1 min-w-[80px] px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-[#A7B0B7] text-xs hover:border-[#2BFFF1]/50 hover:text-[#2BFFF1] transition-colors"
                 >
                   {amount} ETH
                 </button>
@@ -208,7 +206,7 @@ export function BuySection() {
 
           {/* Token Output */}
           {tokenAmount && (
-            <div className="buy-input mb-4 p-4 rounded-xl bg-[#2BFFF1]/10 border border-[#2BFFF1]/30">
+            <div className="buy-input mb-4 p-4 rounded-xl bg-[#2BFFF1]/10 border border-[#2BFFF1]/30 text-center">
               <p className="text-[#A7B0B7] text-sm mb-1">You receive</p>
               <p className="text-[#2BFFF1] text-2xl font-bold">
                 {tokenAmount} <span className="text-lg">KLEO</span>
@@ -239,7 +237,7 @@ export function BuySection() {
           </button>
 
           {/* Helper Text */}
-          <div className="buy-button mt-4 flex items-center justify-center gap-2 text-[#A7B0B7] text-xs">
+          <div className="mt-4 flex items-center justify-center gap-2 text-[#A7B0B7] text-xs">
             <Info className="w-4 h-4" />
             <span>Min: {MIN_ETH} ETH · Max: {MAX_ETH} ETH</span>
           </div>
