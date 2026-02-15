@@ -107,7 +107,7 @@ export function FeaturesGridSection() {
   return (
     <section 
       ref={sectionRef} 
-      className="relative py-[10vh] z-40"
+      className="pinned-section min-h-screen relative py-[10vh] z-40"
     >
       {/* Background Image */}
       <div className="absolute inset-0 w-full h-full">
