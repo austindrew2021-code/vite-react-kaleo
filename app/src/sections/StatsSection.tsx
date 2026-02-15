@@ -29,6 +29,12 @@ export function StatsSection() {
 
     if (!section || !panel || !bg) return;
 
+    // Initial quick fade-in on load (draw-in effect)
+    gsap.fromTo(section, 
+      { opacity: 0, y: 40 },
+      { opacity: 1, y: 0, duration: 0.6, ease: 'power2.out' }
+    );
+
     const ctx = gsap.context(() => {
       const scrollTl = gsap.timeline({
         scrollTrigger: {
@@ -36,26 +42,66 @@ export function StatsSection() {
           start: 'top top',
           end: '+=130%',
           pin: true,
-          scrub: 0.25,
+          pinSpacing: false,
+          scrub: 0.2,                  // Faster response → feels natural
           anticipatePin: 1,
           fastScrollEnd: true,
+          preventOverlaps: true,
         }
       });
 
       scrollTl
-        .fromTo(panel, { x: '-60vw', rotate: 8, opacity: 0 }, { x: 0, rotate: 4, opacity: 1, ease: 'none' }, 0)
-        .fromTo('.stack-card', { y: '10vh', scale: 0.96, opacity: 0 }, { y: 0, scale: 1, opacity: (i: number) => i === 0 ? 0.25 : 0.45, stagger: 0.06, ease: 'none' }, 0.05)
-        .fromTo('.stats-number', { y: '6vh', opacity: 0 }, { y: 0, opacity: 1, ease: 'none' }, 0.12)
-        .fromTo('.stats-content', { y: '4vh', opacity: 0 }, { y: 0, opacity: 1, ease: 'none' }, 0.18)
+        .fromTo(panel, 
+          { x: '-60vw', rotate: 8, opacity: 0 }, 
+          { x: 0, rotate: 4, opacity: 1, ease: 'none' },
+          0
+        )
+        .fromTo('.stack-card', 
+          { y: '10vh', scale: 0.96, opacity: 0 }, 
+          { y: 0, scale: 1, opacity: (i: number) => i === 0 ? 0.25 : 0.45, stagger: 0.06, ease: 'none' },
+          0.05
+        )
+        .fromTo('.stats-number', 
+          { y: '6vh', opacity: 0 }, 
+          { y: 0, opacity: 1, ease: 'none' },
+          0.12
+        )
+        .fromTo('.stats-content', 
+          { y: '4vh', opacity: 0 }, 
+          { y: 0, opacity: 1, ease: 'none', stagger: 0.1 },
+          0.18
+        )
         .to({}, { duration: 0.4 })
-        .fromTo(panel, { x: 0, rotate: 4, opacity: 1 }, { x: '55vw', opacity: 0, ease: 'power2.in' }, 0.7)
-        .fromTo('.stack-card', { opacity: (i: number) => i === 0 ? 0.25 : 0.45 }, { opacity: 0, ease: 'power2.in' }, 0.75)
-        .fromTo(bg, { scale: 1 }, { scale: 1.05, ease: 'power2.in' }, 0.7);
+        .fromTo(panel, 
+          { x: 0, rotate: 4, opacity: 1 }, 
+          { x: '55vw', opacity: 0, ease: 'power2.in' },
+          0.7
+        )
+        .fromTo('.stack-card', 
+          { opacity: (i: number) => i === 0 ? 0.25 : 0.45 }, 
+          { opacity: 0, ease: 'power2.in' },
+          0.75
+        )
+        .fromTo(bg, 
+          { scale: 1 }, 
+          { scale: 1.05, ease: 'power2.in' },
+          0.7
+        );
 
+      // Progress bar animation
       if (progressBar) {
         gsap.fromTo(progressBar,
           { width: '0%' },
-          { width: `${progressPercentage}%`, duration: 1.5, ease: 'power2.out', scrollTrigger: { trigger: section, start: 'top 60%', toggleActions: 'play none none reverse' } }
+          {
+            width: `${progressPercentage}%`,
+            duration: 1.5,
+            ease: 'power2.out',
+            scrollTrigger: {
+              trigger: section,
+              start: 'top 60%',
+              toggleActions: 'play none none reverse'
+            }
+          }
         );
       }
 
@@ -74,13 +120,14 @@ export function StatsSection() {
   };
 
   return (
-    <section 
-  ref={sectionRef} 
-  className="pinned-section fade-in-section min-h-screen z-30 flex items-center justify-center relative"
->
+    <section
+      ref={sectionRef}
+      className="pinned-section fade-in-section min-h-screen z-30 flex items-center justify-center relative overflow-hidden"
+    >
+      {/* Background Image – eager load to prevent flash */}
       <div ref={bgRef} className="absolute inset-0 w-full h-full">
-        <img 
-          src="/stats_city_bg_03.jpg" 
+        <img
+          src="/stats_city_bg_03.jpg"
           alt="Cyberpunk city"
           className="w-full h-full object-cover"
           loading="eager"
@@ -88,14 +135,38 @@ export function StatsSection() {
         <div className="absolute inset-0 bg-gradient-to-b from-[#05060B]/70 via-[#05060B]/40 to-[#05060B]/80" />
       </div>
 
+      {/* Stacked Cards Container */}
       <div className="relative">
-        <div className="stack-card absolute glass-card rounded-[28px] overflow-hidden" style={{ width: 'min(92vw, 600px)', minHeight: '480px', transform: 'translate(16px, 20px) rotate(4deg)', opacity: 0.25 }} />
-        <div className="stack-card absolute glass-card rounded-[28px] overflow-hidden" style={{ width: 'min(92vw, 600px)', minHeight: '480px', transform: 'translate(8px, 10px) rotate(4deg)', opacity: 0.45 }} />
+        {/* Back Stack Cards */}
+        <div 
+          className="stack-card absolute glass-card rounded-[28px] overflow-hidden"
+          style={{ 
+            width: 'min(92vw, 600px)', 
+            minHeight: '480px',
+            transform: 'translate(16px, 20px) rotate(4deg)',
+            opacity: 0.25
+          }}
+        />
+        <div 
+          className="stack-card absolute glass-card rounded-[28px] overflow-hidden"
+          style={{ 
+            width: 'min(92vw, 600px)', 
+            minHeight: '480px',
+            transform: 'translate(8px, 10px) rotate(4deg)',
+            opacity: 0.45
+          }}
+        />
 
-        <div ref={panelRef} className="glass-card relative w-[min(92vw,600px)] rounded-[28px] overflow-hidden p-8 mx-auto" style={{ transform: 'rotate(4deg)', opacity: 0 }}>
+        {/* Main Panel */}
+        <div
+          ref={panelRef}
+          className="glass-card relative w-[min(92vw,600px)] rounded-[28px] overflow-hidden p-8 mx-auto"
+          style={{ transform: 'rotate(4deg)', opacity: 0 }}
+        >
           <div className="relative">
+            {/* Big Number */}
             <div className="stats-number mb-2 text-center">
-              <h2 className="text-[clamp(36px,5vw,56px)] font-bold text-[#2BFFF1] leading-none">
+              <h2 className="text-[clamp(36px,5vw,56px)] font-bold text-[#2BFFF1] leading-none transition-colors hover:text-cyan-300">
                 {formatCurrency(stats.raised)}
               </h2>
             </div>
@@ -104,13 +175,18 @@ export function StatsSection() {
               <p className="text-[#F4F6FA] text-lg font-medium">Raised in presale</p>
             </div>
 
+            {/* Progress Bar */}
             <div className="stats-content mb-6">
               <div className="flex justify-between text-sm mb-2">
                 <span className="text-[#A7B0B7]">Presale Progress</span>
                 <span className="text-[#2BFFF1] font-medium">{progressPercentage.toFixed(1)}%</span>
               </div>
-              <div className="h-3 bg-white/10 rounded-full overflow-hidden">
-                <div ref={progressRef} className="h-full bg-gradient-to-r from-[#2BFFF1] to-[#1DD8CC] rounded-full" style={{ width: '0%' }} />
+              <div className="h-4 bg-gray-800/80 rounded-full overflow-hidden shadow-inner">
+                <div
+                  ref={progressRef}
+                  className="h-full bg-gradient-to-r from-[#2BFFF1] via-cyan-400 to-purple-600 rounded-full transition-all duration-1000 ease-out"
+                  style={{ width: '0%' }}
+                />
               </div>
               <div className="flex justify-between text-xs mt-2 text-[#A7B0B7]">
                 <span>0</span>
@@ -118,37 +194,49 @@ export function StatsSection() {
               </div>
             </div>
 
-            <div className="stats-content grid grid-cols-2 gap-3 mb-6">
-              <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-                <div className="flex items-center gap-2 text-[#A7B0B7] text-sm mb-1"><Users className="w-4 h-4" />Traders</div>
-                <p className="text-[#F4F6FA] text-xl font-bold">{stats.traders.toLocaleString()}</p>
-              </div>
-              <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-                <div className="flex items-center gap-2 text-[#A7B0B7] text-sm mb-1"><TrendingUp className="w-4 h-4" />24h Volume</div>
-                <p className="text-[#F4F6FA] text-xl font-bold">{formatVolume(stats.volume24h)}</p>
-              </div>
-              <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-                <div className="flex items-center gap-2 text-[#A7B0B7] text-sm mb-1"><Zap className="w-4 h-4" />Max Leverage</div>
-                <p className="text-[#2BFFF1] text-xl font-bold">{stats.maxLeverage}x</p>
-              </div>
-              <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-                <div className="flex items-center gap-2 text-[#A7B0B7] text-sm mb-1"><Trophy className="w-4 h-4" />Contests</div>
-                <p className="text-[#F4F6FA] text-xl font-bold">Live</p>
-              </div>
+            {/* Stats Grid */}
+            <div className="stats-content grid grid-cols-2 gap-4 mb-8">
+              {[
+                { icon: Users, label: 'Traders', value: stats.traders.toLocaleString() },
+                { icon: TrendingUp, label: '24h Volume', value: formatVolume(stats.volume24h) },
+                { icon: Zap, label: 'Max Leverage', value: `${stats.maxLeverage}x`, color: '#2BFFF1' },
+                { icon: Trophy, label: 'Contests', value: 'Live', color: '#2BFFF1' },
+              ].map((stat, index) => (
+                <div
+                  key={index}
+                  className="p-5 rounded-xl bg-white/5 border border-white/10 transition-all duration-300 hover:border-cyan-500/30 hover:scale-[1.02] hover:shadow-cyan-500/10"
+                >
+                  <div className="flex items-center gap-3 text-[#A7B0B7] text-sm mb-2">
+                    <stat.icon className="w-5 h-5" />
+                    {stat.label}
+                  </div>
+                  <p className={`text-2xl font-bold \( {stat.color ? `text-[ \){stat.color}]` : 'text-[#F4F6FA]'}`}>
+                    {stat.value}
+                  </p>
+                </div>
+              ))}
             </div>
 
-            <p className="stats-content text-[#A7B0B7] text-sm mb-6 leading-relaxed text-center">
+            {/* Description */}
+            <p className="stats-content text-[#A7B0B7] text-sm mb-8 leading-relaxed text-center">
               Join thousands of leverage traders. All trading fees fund weekly leverage trading contests with massive prizes.
             </p>
 
+            {/* CTAs */}
             <div className="stats-content flex items-center justify-center gap-4">
-              <a href="#buy" className="neon-button px-6 py-3 text-sm font-semibold flex items-center gap-2">
+              <a
+                href="#buy"
+                className="neon-button px-8 py-4 text-base font-semibold flex items-center gap-2 hover:gap-3 transition-all shadow-lg shadow-cyan-500/20"
+              >
                 Buy Kaleo
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-5 h-5" />
               </a>
-              <a href="#features" className="text-[#A7B0B7] hover:text-[#2BFFF1] text-sm font-medium transition-colors flex items-center gap-1">
+              <a
+                href="#features"
+                className="text-[#A7B0B7] hover:text-[#2BFFF1] text-base font-medium transition-colors flex items-center gap-2"
+              >
                 How It Works
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-5 h-5" />
               </a>
             </div>
           </div>
