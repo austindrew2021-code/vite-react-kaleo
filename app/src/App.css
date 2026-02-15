@@ -109,3 +109,20 @@ html, body {
     scroll-behavior: auto !important;
   }
 }
+
+/* RainbowKit modal fixes – center + full mobile width */
+.rk-modal-content {
+  max-width: 100% !important;
+  margin: 0 auto !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+}
+
+@media (max-width: 768px) {
+  .rk-modal-content {
+    width: 96vw !important;
+    max-height: 90vh !important;
+    overflow-y: auto !important;
+  }
+}
