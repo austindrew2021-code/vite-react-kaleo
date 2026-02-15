@@ -27,16 +27,16 @@ const queryClient = new QueryClient();
 function App() {
   useEffect(() => {
     // Force GPU acceleration globally (helps mobile smoothness)
-    gsap.set('body, html, main, section', {
+    gsap.set('body, html, main, section.pinned-section', {
       willChange: 'transform',
       transform: 'translate3d(0,0,0)',
       backfaceVisibility: 'hidden',
     });
 
-    // Kill any previous ScrollTriggers to prevent memory leaks
+    // Kill previous ScrollTriggers to prevent memory leaks
     ScrollTrigger.getAll().forEach(st => st.kill());
 
-    // Optimized pinning + snapping for major sections
+    // Pin major sections individually with optimized settings
     const pinnedSections = document.querySelectorAll('.pinned-section');
 
     pinnedSections.forEach((section, index) => {
@@ -48,12 +48,12 @@ function App() {
         pinSpacing: false,
         anticipatePin: 1,           // Prevents jank on mobile
         fastScrollEnd: true,         // Smoother quick scrolls
-        scrub: 0.4,                  // Faster response
+        scrub: 0.4,                  // Faster response, less lag
         id: `pin-${index}`,
       });
     });
 
-    // Global smooth snapping (only near section boundaries)
+    // Lightweight global snap (only near section boundaries)
     ScrollTrigger.create({
       start: 'top top',
       end: 'bottom bottom',
