@@ -1,16 +1,8 @@
-/* ==========================================================================
-   Tailwind & Font Imports
-   ========================================================================== */
-
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* ==========================================================================
-   Root Variables & Base Layer
-   ========================================================================== */
 
 @layer base {
   :root {
@@ -66,10 +58,7 @@
   }
 }
 
-/* ==========================================================================
-   Scrollbar Customization
-   ========================================================================== */
-
+/* Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
 }
@@ -87,10 +76,7 @@
   background: #2BFFF1;
 }
 
-/* ==========================================================================
-   Selection & Focus
-   ========================================================================== */
-
+/* Selection & Focus */
 ::selection {
   background: rgba(43, 255, 241, 0.3);
   color: #F4F6FA;
@@ -101,10 +87,7 @@
   outline-offset: 2px;
 }
 
-/* ==========================================================================
-   Reduced Motion & Responsive Typography
-   ========================================================================== */
-
+/* Reduced Motion */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -116,22 +99,15 @@
   }
 }
 
+/* Responsive Typography */
 @media (max-width: 768px) {
-  html {
-    font-size: 14px;
-  }
+  html { font-size: 14px; }
 }
-
 @media (max-width: 480px) {
-  html {
-    font-size: 13px;
-  }
+  html { font-size: 13px; }
 }
 
-/* ==========================================================================
-   RainbowKit Deep Overrides
-   ========================================================================== */
-
+/* RainbowKit Overrides */
 [data-rk] {
   --rk-colors-accentColor: #2BFFF1 !important;
   --rk-colors-accentColorForeground: #05060B !important;
