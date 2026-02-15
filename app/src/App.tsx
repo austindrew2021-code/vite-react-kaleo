@@ -26,23 +26,17 @@ const queryClient = new QueryClient();
 
 function App() {
   useEffect(() => {
-    // Eliminate micro-lag on mobile
-    gsap.ticker.lagSmoothing(0);
-
-    // Force GPU + smooth touch
+    // Force GPU acceleration globally (helps mobile smoothness)
     gsap.set('body, html, main, section.pinned-section', {
       willChange: 'transform',
       transform: 'translate3d(0,0,0)',
       backfaceVisibility: 'hidden',
     });
 
-    // Normalize scroll for mobile (prevents jitter)
-    ScrollTrigger.normalizeScroll(true);
-
-    // Kill old triggers
+    // Kill previous ScrollTriggers to prevent memory leaks
     ScrollTrigger.getAll().forEach(st => st.kill());
 
-    // Pin only major sections — avoid overlap fights
+    // Optimized pinning + snapping for major sections
     const pinnedSections = document.querySelectorAll('.pinned-section');
 
     pinnedSections.forEach((section, index) => {
@@ -54,46 +48,46 @@ function App() {
         pinSpacing: false,
         anticipatePin: 1,
         fastScrollEnd: true,
-        scrub: 0.2,                 // Faster, smoother response
-        preventOverlaps: true,      // Prevents fighting between pins
-        invalidateOnRefresh: true,
+        scrub: 0.4,
         id: `pin-${index}`,
       });
     });
 
-    // Lightweight directional snap
+    // Global smooth snapping (only near section boundaries)
     ScrollTrigger.create({
       start: 'top top',
       end: 'bottom bottom',
       snap: {
-        snapTo: (progress) => {
+        snapTo: (progress: number) => {
           const targets = [0, 0.25, 0.5, 0.75, 1];
           const closest = targets.reduce((prev, curr) =>
             Math.abs(curr - progress) < Math.abs(prev - progress) ? curr : prev
           );
           return Math.abs(closest - progress) < 0.08 ? closest : progress;
         },
-        duration: { min: 0.15, max: 0.4 },
-        delay: 0.03,
+        duration: { min: 0.18, max: 0.45 },
+        delay: 0.05,
         ease: 'power2.out',
         directional: true,
       },
       invalidateOnRefresh: true,
     });
 
-    // Debounced refresh
-    let resizeTimer;
+    // Refresh on resize (debounced to prevent spam) - explicit type fixes TS error
+    let resizeTimer: NodeJS.Timeout | undefined;
     const handleResize = () => {
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(() => ScrollTrigger.refresh(), 120);
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => ScrollTrigger.refresh(), 150);
     };
     window.addEventListener('resize', handleResize);
     window.addEventListener('orientationchange', handleResize);
 
+    // Cleanup
     return () => {
       ScrollTrigger.getAll().forEach(st => st.kill());
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('orientationchange', handleResize);
+      if (resizeTimer) clearTimeout(resizeTimer);
     };
   }, []);
 
@@ -101,17 +95,21 @@ function App() {
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider 
-  theme={darkTheme({
-    accentColor: '#2BFFF1',
-    accentColorForeground: '#05060B',
-    borderRadius: 'large',
-    fontStack: 'system',
-  })}
-  modalSize="compact" // Makes modal smaller + better mobile fit
->
+          theme={darkTheme({
+            accentColor: '#2BFFF1',
+            accentColorForeground: '#05060B',
+            borderRadius: 'large',
+            fontStack: 'system',
+          })}
+        >
           <div className="relative bg-[#05060B] min-h-screen">
+            {/* Noise Overlay */}
             <div className="noise-overlay" />
+            
+            {/* Navigation */}
             <Navigation />
+            
+            {/* Main Content */}
             <main className="relative">
               <HeroSection />
               <PresaleProgress />
