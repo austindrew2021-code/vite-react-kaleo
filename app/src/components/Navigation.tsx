@@ -55,6 +55,7 @@ export function Navigation() {
         '-=0.2'
       );
 
+    // Return cleanup function (void) to satisfy EffectCallback type
     return () => {
       tl.kill();
     };
