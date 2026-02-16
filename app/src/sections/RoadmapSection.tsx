@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { gsap } from 'gsap';
-import { CheckCircle2, Circle, Rocket, Code, Globe, Shield } from 'lucide-react';
+import { CheckCircle2, Circle, Rocket, Code, Globe, Shield, Zap, TrendingUp, Users, Award } from 'lucide-react';
 
 const phases = [
   {
