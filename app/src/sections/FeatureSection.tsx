@@ -19,13 +19,43 @@ export function FeatureSection() {
 
     if (!section || !card || !phone) return;
 
+    // Initial quick fade-in on load (draw-in effect)
+    gsap.fromTo(section, 
+      { opacity: 0, y: 40 },
+      { opacity: 1, y: 0, duration: 0.6, ease: 'power2.out' }
+    );
+
     const ctx = gsap.context(() => {
       // Card entrance
       gsap.fromTo(card,
-        { y: 40, opacity: 0 },
+        { y: 40, opacity: 0, scale: 0.96 },
         {
-          y: 0, opacity: 1, duration: 0.7, ease: 'power2.out',
-          scrollTrigger: { trigger: section, start: 'top 85%', toggleActions: 'play none none none', once: true }
+          y: 0,
+          opacity: 1,
+          scale: 1,
+          duration: 0.8,
+          ease: 'power3.out',
+          scrollTrigger: {
+            trigger: section,
+            start: 'top 85%',
+            toggleActions: 'play none none reverse'
+          }
+        }
+      );
+
+      // Headline entrance + subtle hover glow
+      gsap.fromTo('.feature-headline',
+        { x: -40, opacity: 0 },
+        {
+          x: 0,
+          opacity: 1,
+          duration: 0.7,
+          ease: 'power2.out',
+          scrollTrigger: {
+            trigger: section,
+            start: 'top 80%',
+            toggleActions: 'play none none reverse'
+          }
         }
       );
 
@@ -33,29 +63,52 @@ export function FeatureSection() {
       gsap.fromTo(phone,
         { x: 40, scale: 0.98, opacity: 0 },
         {
-          x: 0, scale: 1, opacity: 1, duration: 0.7, ease: 'power2.out',
-          scrollTrigger: { trigger: section, start: 'top 80%', toggleActions: 'play none none none', once: true }
+          x: 0,
+          scale: 1,
+          opacity: 1,
+          duration: 0.8,
+          ease: 'power2.out',
+          scrollTrigger: {
+            trigger: section,
+            start: 'top 75%',
+            toggleActions: 'play none none reverse'
+          }
         }
       );
 
-      // Arc stroke animation
+      // Arc stroke animation (enhanced glow)
       if (arc) {
         const length = arc.getTotalLength();
         gsap.set(arc, { strokeDasharray: length, strokeDashoffset: length });
         gsap.to(arc, {
-          strokeDashoffset: 0, duration: 1.2, ease: 'power2.out',
-          scrollTrigger: { trigger: section, start: 'top 75%', toggleActions: 'play none none none', once: true }
+          strokeDashoffset: 0,
+          duration: 1.2,
+          ease: 'power2.out',
+          scrollTrigger: {
+            trigger: section,
+            start: 'top 70%',
+            toggleActions: 'play none none reverse'
+          }
         });
       }
 
-      // Bullet points stagger
+      // Bullet points stagger (quick draw-in)
       gsap.fromTo('.feature-bullet',
-        { x: -15, opacity: 0 },
+        { x: -20, opacity: 0 },
         {
-          x: 0, opacity: 1, duration: 0.4, stagger: 0.08, ease: 'power2.out',
-          scrollTrigger: { trigger: section, start: 'top 75%', toggleActions: 'play none none none', once: true }
+          x: 0,
+          opacity: 1,
+          duration: 0.4,
+          stagger: 0.08,
+          ease: 'power2.out',
+          scrollTrigger: {
+            trigger: section,
+            start: 'top 70%',
+            toggleActions: 'play none none reverse'
+          }
         }
       );
+
     }, section);
 
     return () => ctx.revert();
@@ -71,7 +124,7 @@ export function FeatureSection() {
     <section
       ref={sectionRef}
       id="features"
-      className="fade-in-section relative py-16 overflow-hidden"
+      className="pinned-section fade-in-section min-h-screen relative py-[10vh] z-40 overflow-hidden"
     >
       {/* Background Image – eager load to prevent flash */}
       <div className="absolute inset-0 w-full h-full">
@@ -87,7 +140,7 @@ export function FeatureSection() {
       {/* Main Card – centered on all screens */}
       <div
         ref={cardRef}
-        className="glass-card relative mx-auto w-[min(92vw,1180px)] rounded-[28px] overflow-hidden"
+        className="glass-card relative mx-auto w-[min(92vw,1180px)] rounded-[28px] overflow-hidden min-h-[70vh]"
         style={{ opacity: 0 }}
       >
         <div className="flex flex-col lg:flex-row h-full">
@@ -112,7 +165,7 @@ export function FeatureSection() {
               {features.map((feature, index) => (
                 <div
                   key={index}
-                  className="feature-bullet flex items-center gap-3 transition-transform hover:scale-105"
+                  className="feature-bullet flex items-center gap-3 transition-transform hover:scale-105 hover:text-[#2BFFF1]"
                 >
                   <div className="w-10 h-10 rounded-lg bg-[#2BFFF1]/10 border border-[#2BFFF1]/30 flex items-center justify-center">
                     <feature.icon className="w-5 h-5 text-[#2BFFF1]" />
@@ -125,7 +178,7 @@ export function FeatureSection() {
             {/* CTA */}
             <a
               href="#buy"
-              className="neon-button w-fit px-6 py-3 text-sm font-semibold flex items-center gap-2 hover:gap-3 transition-all"
+              className="neon-button w-fit px-6 py-3 text-sm font-semibold flex items-center gap-2 hover:gap-3 transition-all shadow-lg shadow-cyan-500/20"
             >
               Start Trading
               <ArrowRight className="w-4 h-4" />
@@ -135,7 +188,7 @@ export function FeatureSection() {
           {/* Right Image with Neon Arc */}
           <div
             ref={phoneRef}
-            className="flex-1 relative flex items-center justify-center p-[6%]"
+            className="flex-1 relative flex items-center justify-center p-[6%] lg:p-[8%]"
             style={{ opacity: 0 }}
           >
             {/* Neon Arc SVG */}
@@ -160,12 +213,12 @@ export function FeatureSection() {
               <img
                 src="/feature_phone_mockup.jpg"
                 alt="Trading app mockup"
-                className="w-full max-w-[280px] rounded-2xl shadow-2xl"
+                className="w-full max-w-[280px] lg:max-w-[320px] rounded-2xl shadow-2xl"
                 loading="eager"
               />
               {/* Glow effect */}
               <div
-                className="absolute -inset-4 rounded-3xl opacity-40 blur-2xl -z-10"
+                className="absolute -inset-6 rounded-3xl opacity-40 blur-2xl -z-10"
                 style={{
                   background: 'radial-gradient(ellipse at center, rgba(43,255,241,0.4) 0%, transparent 70%)'
                 }}
