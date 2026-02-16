@@ -37,6 +37,7 @@ export function formatPercentage(value: number): {
 } {
   const absValue = Math.abs(value);
   const sign = value > 0 ? '+' : value < 0 ? '-' : '';
+
   const text = `\( {sign} \){absValue.toFixed(2)}%`;
 
   if (value > 0) {
