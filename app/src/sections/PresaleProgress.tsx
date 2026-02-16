@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useAccount, useBalance } from 'wagmi';
 import { formatEther } from 'viem';
 import { CheckCircle2, Circle, AlertTriangle, ArrowRight } from 'lucide-react';
@@ -24,11 +24,9 @@ export function PresaleProgress() {
   const totalKleoPurchased = purchases.reduce((sum, p) => sum + p.kleoReceived, 0);
   const totalEthSpent = purchases.reduce((sum, p) => sum + p.ethSpent, 0);
 
-  // Stage start ETH for the current stage
   const stageStartEth = currentStage.cumulativeEth - currentStage.ethTarget;
   const raisedInCurrentStage = Math.max(0, totalRaised - stageStartEth);
 
-  // Quick fade-in on load
   useEffect(() => {
     gsap.fromTo('.progress-container',
       { opacity: 0, y: 40 },
@@ -123,11 +121,11 @@ export function PresaleProgress() {
                   >
                     <div className="flex items-center justify-center mb-0.5">
                       {isCompleted ? (
-                        <CheckCircle2 className="w-3 h-3 text-green-400" />
+                        <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />
                       ) : isCurrent ? (
-                        <div className="w-3 h-3 rounded-full bg-[#2BFFF1] animate-pulse" />
+                        <div className="w-3.5 h-3.5 rounded-full bg-[#2BFFF1] animate-pulse" />
                       ) : (
-                        <Circle className="w-3 h-3 text-[#A7B0B7]/40" />
+                        <Circle className="w-3.5 h-3.5 text-[#A7B0B7]/40" />
                       )}
                     </div>
                     <p className={`text-[9px] sm:text-[10px] font-bold ${
@@ -164,7 +162,6 @@ export function PresaleProgress() {
               </div>
             </div>
 
-            {/* Recent Purchases */}
             {purchases.length > 0 && (
               <div className="mt-6 pt-6 border-t border-white/10">
                 <p className="text-[#A7B0B7] text-sm font-medium mb-3">Recent Purchases</p>
@@ -193,7 +190,6 @@ export function PresaleProgress() {
           </div>
         )}
 
-        {/* Not connected message */}
         {!isConnected && (
           <div className="text-center text-[#A7B0B7] mt-6 text-sm">
             Connect your wallet to see your purchases, balance, and stage progress
