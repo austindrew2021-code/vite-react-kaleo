@@ -66,7 +66,7 @@ export function usePresale() {
       setTxHash(sendTxHash);
       setTxStatus('confirming');
     }
-  }, [sendTxHash, setTxHash, setTxStatus]);
+  }, [sendTxHash]);
 
   // ── Handle send error ─────────────────────────────────────────────────
   useEffect(() => {
@@ -82,7 +82,7 @@ export function usePresale() {
       setTxStatus('error');
       setTxError(msg);
     }
-  }, [isSendError, sendError, setTxStatus, setTxError]);
+  }, [isSendError, sendError]);
 
   // ── Handle confirmation & record purchase ─────────────────────────────
   useEffect(() => {
@@ -94,7 +94,6 @@ export function usePresale() {
         const stage = getCurrentStage(totalRaised);
         const kleoReceived = eth / stage.priceEth;
 
-        // Update store
         usePresaleStore.getState().addRaised(eth);
         usePresaleStore.getState().addPurchase({
           ethSpent: eth,
@@ -106,7 +105,6 @@ export function usePresale() {
         });
       }
 
-      // Refetch balance after success
       refetchBalance();
     }
   }, [isConfirmed, sendTxHash, ethAmount, totalRaised, refetchBalance]);
@@ -144,7 +142,7 @@ export function usePresale() {
     } catch (err) {
       setTxError('Failed to switch network. Please try manually.');
     }
-  }, [switchChainAsync, setTxError]);
+  }, [switchChainAsync]);
 
   // ── Buy tokens (real Sepolia ETH transfer) ────────────────────────────
   const buyTokens = useCallback(
@@ -166,13 +164,11 @@ export function usePresale() {
         return;
       }
 
-      // Check balance
       if (ethBalance && eth > parseFloat(formatEther(ethBalance.value))) {
         setTxError('Insufficient Sepolia ETH balance');
         return;
       }
 
-      // Reset previous tx state
       resetTx();
       setTxStatus('pending');
 
@@ -200,26 +196,22 @@ export function usePresale() {
   );
 
   return {
-    // Connection & balance
     isConnected,
     address,
     isOnSepolia,
     ethBalance: ethBalance ? formatEther(ethBalance.value) : '0',
 
-    // Actions
     buyTokens,
     switchToSepolia,
     calculateTokenAmount,
     resetTx,
 
-    // Transaction state
     txHash,
     txStatus,
     txError,
     isSending,
     isConfirming,
 
-    // Presale data
     currentStage,
     nextStage,
     stageProgress,
@@ -229,7 +221,6 @@ export function usePresale() {
     listingPrice: LISTING_PRICE,
     stages: PRESALE_STAGES,
 
-    // Direction & progress indicators
     priceDirection,
     priceChangePercent,
     tokensSoldPercentage: overallProgress,
