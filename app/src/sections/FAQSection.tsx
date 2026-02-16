@@ -1,6 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { gsap } from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { HelpCircle } from 'lucide-react';
 import {
   Accordion,
@@ -8,8 +7,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-
-gsap.registerPlugin(ScrollTrigger);
 
 const faqCategories = [
   {
@@ -91,79 +88,80 @@ const faqCategories = [
 ];
 
 export function FAQSection() {
-  const sectionRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
-    const section = sectionRef.current;
-    if (!section) return;
-
-    const ctx = gsap.context(() => {
-      gsap.fromTo('.faq-header',
-        { opacity: 0, y: 30 },
-        {
-          opacity: 1, y: 0, duration: 0.7, ease: 'power2.out',
-          scrollTrigger: { trigger: section, start: 'top 85%', toggleActions: 'play none none none', once: true }
+    // Quick stagger fade-in for FAQ categories & items
+    gsap.fromTo('.faq-category',
+      { opacity: 0, y: 30 },
+      {
+        opacity: 1,
+        y: 0,
+        duration: 0.7,
+        stagger: 0.15,
+        ease: 'power3.out',
+        scrollTrigger: {
+          trigger: '.faq-container',
+          start: 'top 85%',
+          toggleActions: 'play none none reverse'
         }
-      );
+      }
+    );
 
-      gsap.fromTo('.faq-category',
-        { opacity: 0, y: 30 },
-        {
-          opacity: 1, y: 0, duration: 0.5, stagger: 0.1, ease: 'power2.out',
-          scrollTrigger: { trigger: section, start: 'top 75%', toggleActions: 'play none none none', once: true }
+    gsap.fromTo('.faq-item',
+      { opacity: 0, y: 20 },
+      {
+        opacity: 1,
+        y: 0,
+        duration: 0.5,
+        stagger: 0.08,
+        ease: 'power2.out',
+        scrollTrigger: {
+          trigger: '.faq-container',
+          start: 'top 80%',
+          toggleActions: 'play none none reverse'
         }
-      );
-    }, section);
-
-    return () => ctx.revert();
+      }
+    );
   }, []);
 
   return (
-    <section
-      ref={sectionRef}
-      id="faq"
-      className="fade-in-section relative py-16 overflow-hidden"
-    >
-      {/* Background */}
-      <div className="absolute inset-0 bg-gradient-to-b from-[#05060B] via-[#080B12] to-[#05060B]" />
-
-      <div className="relative max-w-4xl mx-auto px-6">
+    <section className="fade-in-section relative py-20 bg-gradient-to-b from-black to-gray-900 overflow-hidden">
+      <div className="faq-container max-w-5xl mx-auto px-6">
         {/* Header */}
-        <div className="faq-header text-center mb-14">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <span className="px-3 py-1 rounded-full bg-[#2BFFF1]/10 border border-[#2BFFF1]/30 text-[#2BFFF1] text-xs font-medium uppercase tracking-widest">
-              Support
-            </span>
+        <div className="text-center mb-16">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#2BFFF1]/10 border border-[#2BFFF1]/30 text-[#2BFFF1] text-sm font-medium uppercase tracking-widest mb-4">
+            <HelpCircle className="w-4 h-4" />
+            Support Center
           </div>
-          <h2 className="text-[clamp(32px,4vw,48px)] font-bold text-[#F4F6FA] mb-4 text-balance">
+          <h2 className="text-5xl md:text-6xl font-bold text-[#F4F6FA] mb-4">
             Frequently Asked <span className="text-[#2BFFF1]">Questions</span>
           </h2>
           <p className="text-[#A7B0B7] text-lg max-w-2xl mx-auto leading-relaxed">
-            Everything you need to know about Kaleo, the presale, and how leverage
-            trading works on our platform.
+            Everything you need to know about Kaleo, the presale, leverage trading, and how to get started.
           </p>
         </div>
 
         {/* FAQ Categories */}
-        <div className="space-y-8">
+        <div className="space-y-16">
           {faqCategories.map((cat, catIdx) => (
             <div key={catIdx} className="faq-category">
-              <div className="flex items-center gap-3 mb-4">
-                <HelpCircle className="w-5 h-5 text-[#2BFFF1]" />
-                <h3 className="text-lg font-bold text-[#F4F6FA]">{cat.category}</h3>
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-xl bg-[#2BFFF1]/10 border border-[#2BFFF1]/30 flex items-center justify-center">
+                  <HelpCircle className="w-5 h-5 text-[#2BFFF1]" />
+                </div>
+                <h3 className="text-2xl font-bold text-[#F4F6FA]">{cat.category}</h3>
               </div>
 
               <Accordion type="single" collapsible className="space-y-3">
                 {cat.questions.map((faq, idx) => (
                   <AccordionItem
                     key={idx}
-                    value={`${catIdx}-${idx}`}
-                    className="glass-card rounded-xl overflow-hidden border-white/[0.08] data-[state=open]:border-[#2BFFF1]/20 transition-colors"
+                    value={`\( {catIdx}- \){idx}`}
+                    className="faq-item glass-card rounded-xl overflow-hidden border border-white/[0.08] data-[state=open]:border-[#2BFFF1]/30 transition-all duration-300 hover:border-[#2BFFF1]/20"
                   >
-                    <AccordionTrigger className="px-5 py-4 text-left text-[#F4F6FA] hover:text-[#2BFFF1] transition-colors font-medium text-sm sm:text-base [&[data-state=open]]:text-[#2BFFF1]">
+                    <AccordionTrigger className="px-6 py-5 text-left text-[#F4F6FA] hover:text-[#2BFFF1] transition-colors font-medium text-base [&[data-state=open]]:text-[#2BFFF1]">
                       {faq.q}
                     </AccordionTrigger>
-                    <AccordionContent className="px-5 pb-5 text-[#A7B0B7] text-sm leading-relaxed">
+                    <AccordionContent className="px-6 pb-6 text-[#A7B0B7] text-base leading-relaxed">
                       {faq.a}
                     </AccordionContent>
                   </AccordionItem>
@@ -173,18 +171,20 @@ export function FAQSection() {
           ))}
         </div>
 
-        {/* Still have questions */}
-        <div className="mt-12 glass-card rounded-2xl p-8 text-center">
-          <h3 className="text-xl font-bold text-[#F4F6FA] mb-2">Still have questions?</h3>
-          <p className="text-[#A7B0B7] text-sm mb-5 max-w-md mx-auto">
-            Join our community channels to get real-time support from the team and fellow traders.
+        {/* Still have questions CTA */}
+        <div className="mt-16 glass-card rounded-2xl p-8 md:p-10 text-center border border-cyan-500/20">
+          <h3 className="text-2xl font-bold text-[#F4F6FA] mb-3">Still have questions?</h3>
+          <p className="text-[#A7B0B7] text-base mb-6 max-w-xl mx-auto">
+            Our team and community are ready to help. Join our channels for real-time support and updates.
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <a href="#" className="neon-button px-5 py-2.5 text-sm font-semibold">
+          <div className="flex flex-wrap justify-center gap-4">
+            <a href="#" className="neon-button px-6 py-3 text-base font-semibold flex items-center gap-2 hover:gap-3">
               Join Discord
+              <ArrowRight className="w-5 h-5" />
             </a>
-            <a href="#" className="px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-[#A7B0B7] text-sm font-medium hover:border-[#2BFFF1]/50 hover:text-[#2BFFF1] transition-colors">
+            <a href="#" className="px-6 py-3 rounded-xl bg-white/5 border border-white/10 text-[#A7B0B7] text-base font-medium hover:border-[#2BFFF1]/50 hover:text-[#2BFFF1] transition-colors flex items-center gap-2">
               Telegram Group
+              <ArrowRight className="w-5 h-5" />
             </a>
           </div>
         </div>
