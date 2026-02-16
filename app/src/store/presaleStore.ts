@@ -14,12 +14,12 @@ export const TOTAL_PRESALE_TOKENS = 224_500_000;
 // ── 12-Stage Presale Pricing Model ──────────────────────────────────────
 export interface PresaleStage {
   stage: number;
-  priceEth: number;          // ETH per KLEO in this stage
-  tokenAllocation: number;   // tokens available in this stage
-  ethTarget: number;         // ETH to raise in this stage
-  cumulativeEth: number;     // total ETH raised through end of this stage
-  discount: number;          // % discount vs listing price
-  direction?: 'up' | 'down'; // price movement vs previous stage
+  priceEth: number;
+  tokenAllocation: number;
+  ethTarget: number;
+  cumulativeEth: number;
+  discount: number;
+  direction?: 'up' | 'down';
 }
 
 export const PRESALE_STAGES: PresaleStage[] = [
@@ -39,10 +39,8 @@ export const PRESALE_STAGES: PresaleStage[] = [
 
 // ── Helper: determine current stage from total raised ───────────────────
 export function getCurrentStage(totalRaised: number): PresaleStage {
-  for (let i = 0; i < PRESALE_STAGES.length; i++) {
-    if (totalRaised < PRESALE_STAGES[i].cumulativeEth) {
-      return PRESALE_STAGES[i];
-    }
+  for (const stage of PRESALE_STAGES) {
+    if (totalRaised < stage.cumulativeEth) return stage;
   }
   return PRESALE_STAGES[PRESALE_STAGES.length - 1];
 }
@@ -60,10 +58,10 @@ export function getOverallProgress(totalRaised: number): number {
   return Math.min((totalRaised / HARD_CAP_ETH) * 100, 100);
 }
 
-// ── Helper: price direction indicator vs previous stage ────────────────
+// ── Helper: price direction vs previous stage ───────────────────────────
 export function getPriceDirection(currentStage: PresaleStage): 'up' | 'down' | 'same' {
   const prevStage = PRESALE_STAGES.find(s => s.stage === currentStage.stage - 1);
-  if (!prevStage) return 'up'; // first stage
+  if (!prevStage) return 'up';
   if (currentStage.priceEth > prevStage.priceEth) return 'up';
   if (currentStage.priceEth < prevStage.priceEth) return 'down';
   return 'same';
@@ -83,21 +81,17 @@ export interface PurchaseRecord {
 export type TxStatus = 'idle' | 'pending' | 'confirming' | 'success' | 'error';
 
 interface PresaleState {
-  // Form inputs
   ethAmount: string;
   tokenAmount: string;
   setEthAmount: (amount: string) => void;
   setTokenAmount: (amount: string) => void;
 
-  // Presale totals (persisted)
   totalRaised: number;
   addRaised: (eth: number) => void;
 
-  // User purchase history (persisted)
   purchases: PurchaseRecord[];
   addPurchase: (purchase: PurchaseRecord) => void;
 
-  // Transaction state (not persisted)
   txHash: string | null;
   txStatus: TxStatus;
   txError: string | null;
@@ -105,14 +99,12 @@ interface PresaleState {
   setTxStatus: (status: TxStatus) => void;
   setTxError: (error: string | null) => void;
 
-  // Derived helpers (not stored)
   isPresaleActive: boolean;
   tokensSoldPercentage: number;
   ethRemainingInStage: number;
   totalKleoPurchased: number;
   totalEthSpent: number;
 
-  // Reset functions
   reset: () => void;
   resetTx: () => void;
 }
@@ -120,22 +112,18 @@ interface PresaleState {
 export const usePresaleStore = create<PresaleState>()(
   persist(
     (set, get) => ({
-      // Form
       ethAmount: '',
       tokenAmount: '',
       setEthAmount: (amount) => set({ ethAmount: amount }),
       setTokenAmount: (amount) => set({ tokenAmount: amount }),
 
-      // Presale totals
       totalRaised: 0,
       addRaised: (eth) => set((state) => ({ totalRaised: state.totalRaised + eth })),
 
-      // Purchases
       purchases: [],
       addPurchase: (purchase) =>
         set((state) => ({ purchases: [...state.purchases, purchase] })),
 
-      // Tx state
       txHash: null,
       txStatus: 'idle' as TxStatus,
       txError: null,
@@ -143,13 +131,10 @@ export const usePresaleStore = create<PresaleState>()(
       setTxStatus: (status) => set({ txStatus: status }),
       setTxError: (error) => set({ txError: error }),
 
-      // Derived values (computed on-the-fly)
       get isPresaleActive() {
-        const { totalRaised } = get();
-        return totalRaised < HARD_CAP_ETH;
+        return get().totalRaised < HARD_CAP_ETH;
       },
       get tokensSoldPercentage() {
-        const { totalRaised } = get();
         const totalEthSpent = get().purchases.reduce((sum, p) => sum + p.ethSpent, 0);
         return Math.min((totalEthSpent / HARD_CAP_ETH) * 100, 100);
       },
@@ -166,7 +151,6 @@ export const usePresaleStore = create<PresaleState>()(
         return get().purchases.reduce((sum, p) => sum + p.ethSpent, 0);
       },
 
-      // Resets
       reset: () => set({ ethAmount: '', tokenAmount: '' }),
       resetTx: () => set({ txHash: null, txStatus: 'idle', txError: null }),
     }),
