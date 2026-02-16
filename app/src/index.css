@@ -35,6 +35,8 @@
   html {
     scroll-behavior: smooth;
     font-size: 16px;
+    overscroll-behavior: none;
+    overflow-x: hidden;
   }
 
   body {
@@ -45,6 +47,7 @@
     padding: 0;
     min-height: 100vh;
     overflow-x: hidden;
+    overscroll-behavior: none;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -231,42 +234,79 @@
 
 body.modal-open {
   overflow: hidden !important;
+  touch-action: none !important;
 }
 
 /* ==========================================================================
    RainbowKit Modal – ensure it sits above everything and scrolls properly
    ========================================================================== */
 
+/* RainbowKit portal container – force above everything */
+div[data-rk] {
+  position: relative;
+  z-index: 99999 !important;
+}
+
 /* The overlay/backdrop that RainbowKit renders */
-[data-rk] [role="dialog"],
-[data-rk] [aria-modal="true"] {
+div[data-rk] [role="dialog"],
+div[data-rk] [aria-modal="true"] {
   z-index: 99999 !important;
   position: fixed !important;
   inset: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 /* The actual modal box inside the overlay – enable internal scrolling */
-[data-rk] [role="dialog"] > div,
-[data-rk] [aria-modal="true"] > div {
-  max-height: 90vh !important;
+div[data-rk] [role="dialog"] > div,
+div[data-rk] [aria-modal="true"] > div {
+  max-height: 85vh !important;
+  max-height: 85dvh !important;
   overflow-y: auto !important;
+  overflow-x: hidden !important;
   -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior: contain !important;
 }
 
 /* Wallet list container inside the modal – scrollable */
-[data-rk] [role="dialog"] [data-testid="rk-wallet-list"],
-[data-rk] [role="dialog"] ul,
-[data-rk] [aria-modal="true"] [data-testid="rk-wallet-list"],
-[data-rk] [aria-modal="true"] ul {
-  max-height: 60vh !important;
+div[data-rk] [role="dialog"] div[data-testid="rk-wallet-list"],
+div[data-rk] [role="dialog"] ul,
+div[data-rk] [aria-modal="true"] div[data-testid="rk-wallet-list"],
+div[data-rk] [aria-modal="true"] ul {
+  max-height: 55vh !important;
+  max-height: 55dvh !important;
   overflow-y: auto !important;
   -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior: contain !important;
+}
+
+/* Scrollbar styling inside wallet modal */
+div[data-rk] [role="dialog"] ::-webkit-scrollbar,
+div[data-rk] [aria-modal="true"] ::-webkit-scrollbar {
+  width: 6px;
+}
+
+div[data-rk] [role="dialog"] ::-webkit-scrollbar-track,
+div[data-rk] [aria-modal="true"] ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+div[data-rk] [role="dialog"] ::-webkit-scrollbar-thumb,
+div[data-rk] [aria-modal="true"] ::-webkit-scrollbar-thumb {
+  background: rgba(43, 255, 241, 0.3);
+  border-radius: 3px;
 }
 
 /* Ensure pointer events work on the modal */
-[data-rk] [role="dialog"] *,
-[data-rk] [aria-modal="true"] * {
+div[data-rk] [role="dialog"] *,
+div[data-rk] [aria-modal="true"] * {
   pointer-events: auto !important;
+}
+
+/* Prevent body scroll when modal is open */
+body.modal-open *:not([data-rk] *) {
+  overflow: hidden;
 }
 
 /* ==========================================================================
