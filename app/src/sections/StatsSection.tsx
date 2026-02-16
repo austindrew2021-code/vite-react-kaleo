@@ -30,7 +30,6 @@ export function StatsSection() {
 
     if (!section || !panel || !bg) return;
 
-    // Quick fade-in on load
     gsap.fromTo(section,
       { opacity: 0, y: 40 },
       { opacity: 1, y: 0, duration: 0.6, ease: 'power2.out' }
@@ -89,7 +88,6 @@ export function StatsSection() {
           0.7
         );
 
-      // Progress bar animation
       if (progressBar) {
         gsap.fromTo(progressBar,
           { width: '0%' },
@@ -119,11 +117,6 @@ export function StatsSection() {
     }).format(value);
   };
 
-  const formatVolume = (value: number) => {
-    if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
-    return formatCurrency(value);
-  };
-
   const statItems = [
     { icon: Users, label: 'Buyers', value: totalBuyers.toLocaleString() },
     { icon: TrendingUp, label: 'Current Stage', value: `${currentStage.stage}/12` },
@@ -136,7 +129,6 @@ export function StatsSection() {
       ref={sectionRef}
       className="pinned-section fade-in-section min-h-screen z-30 flex items-center justify-center relative overflow-hidden"
     >
-      {/* Background Image */}
       <div ref={bgRef} className="absolute inset-0 w-full h-full">
         <img
           src="/stats_city_bg_03.jpg"
@@ -147,9 +139,7 @@ export function StatsSection() {
         <div className="absolute inset-0 bg-gradient-to-b from-[#05060B]/70 via-[#05060B]/40 to-[#05060B]/80" />
       </div>
 
-      {/* Stacked Cards Wrapper */}
       <div className="relative w-[min(92vw,600px)] mx-auto">
-        {/* Back Stack Cards */}
         <div
           className="stack-card absolute glass-card rounded-[28px] overflow-hidden"
           style={{
@@ -169,16 +159,14 @@ export function StatsSection() {
           }}
         />
 
-        {/* Main Panel */}
         <div
           ref={panelRef}
           className="glass-card relative rounded-[28px] overflow-hidden p-6 sm:p-8 mx-auto"
           style={{ transform: 'rotate(4deg)', opacity: 0 }}
         >
           <div className="relative">
-            {/* Big Number */}
             <div className="stats-number mb-4 text-center">
-              <h2 className="text-[clamp(32px,5vw,56px)] font-bold text-[#2BFFF1] leading-none transition-colors hover:text-cyan-300">
+              <h2 className="text-[clamp(32px,5vw,56px)] font-bold text-[#2BFFF1] leading-none">
                 {totalRaised.toFixed(4)} ETH
               </h2>
             </div>
@@ -187,7 +175,6 @@ export function StatsSection() {
               <p className="text-[#F4F6FA] text-lg font-medium">Raised in Presale</p>
             </div>
 
-            {/* Progress Bar */}
             <div className="stats-content mb-8">
               <div className="flex justify-between text-sm mb-2">
                 <span className="text-[#A7B0B7]">Presale Progress</span>
@@ -206,7 +193,6 @@ export function StatsSection() {
               </div>
             </div>
 
-            {/* Stats Grid */}
             <div className="stats-content grid grid-cols-2 gap-4 mb-8">
               {statItems.map((stat, index) => (
                 <div
@@ -224,12 +210,10 @@ export function StatsSection() {
               ))}
             </div>
 
-            {/* Description */}
             <p className="stats-content text-[#A7B0B7] text-sm mb-8 leading-relaxed text-center">
               Join thousands of leverage traders. All trading fees fund weekly leverage trading contests with massive prizes.
             </p>
 
-            {/* CTAs */}
             <div className="stats-content flex flex-col sm:flex-row items-center justify-center gap-4">
               <a
                 href="#buy"
