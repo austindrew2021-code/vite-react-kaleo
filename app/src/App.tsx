@@ -30,6 +30,10 @@ function App() {
   useEffect(() => {
     gsap.ticker.lagSmoothing(0);
 
+    // Explicitly disable normalizeScroll to prevent scroll hijacking/wrapping
+    ScrollTrigger.normalizeScroll(false);
+    ScrollTrigger.config({ ignoreMobileResize: true });
+
     // Clean up old triggers
     ScrollTrigger.getAll().forEach(st => st.kill());
 

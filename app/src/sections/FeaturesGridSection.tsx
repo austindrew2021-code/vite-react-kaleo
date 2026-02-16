@@ -130,7 +130,7 @@ export function FeaturesGridSection() {
   return (
     <section
       ref={sectionRef}
-      className="fade-in-section min-h-screen relative py-20 overflow-hidden"
+      className="fade-in-section relative py-24 overflow-hidden"
     >
       {/* Background Image – eager load to prevent flash */}
       <div className="absolute inset-0 w-full h-full">

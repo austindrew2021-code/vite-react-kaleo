@@ -123,7 +123,7 @@ export function FeatureSection() {
     <section
       ref={sectionRef}
       id="features"
-      className="fade-in-section min-h-screen relative py-20 overflow-hidden"
+      className="fade-in-section relative py-24 overflow-hidden"
     >
       {/* Background Image – eager load to prevent flash */}
       <div className="absolute inset-0 w-full h-full">
@@ -139,7 +139,7 @@ export function FeatureSection() {
       {/* Main Card – centered on all screens */}
       <div
         ref={cardRef}
-        className="glass-card relative mx-auto w-[min(92vw,1180px)] rounded-[28px] overflow-hidden min-h-[70vh]"
+        className="glass-card relative mx-auto w-[min(92vw,1180px)] rounded-[28px] overflow-hidden"
         style={{ opacity: 0 }}
       >
         <div className="flex flex-col lg:flex-row h-full">
