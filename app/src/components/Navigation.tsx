@@ -17,7 +17,6 @@ export function Navigation() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
-  // Scroll listener for glass effect
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 20);
@@ -26,7 +25,6 @@ export function Navigation() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Body scroll lock when mobile menu open
   useEffect(() => {
     if (mobileOpen) {
       document.body.style.overflow = 'hidden';
@@ -41,7 +39,6 @@ export function Navigation() {
     };
   }, [mobileOpen]);
 
-  // GSAP mobile menu animation
   useEffect(() => {
     if (!mobileOpen) return;
 
@@ -58,7 +55,9 @@ export function Navigation() {
         '-=0.2'
       );
 
-    return () => tl.kill();
+    return () => {
+      tl.kill();
+    };
   }, [mobileOpen]);
 
   const handleLinkClick = () => {
@@ -67,7 +66,6 @@ export function Navigation() {
 
   return (
     <>
-      {/* Main Nav Bar */}
       <nav
         className={`fixed top-0 left-0 right-0 z-[100] px-4 sm:px-6 py-4 flex items-center justify-between transition-all duration-300 ${
           scrolled
@@ -75,7 +73,6 @@ export function Navigation() {
             : 'bg-transparent'
         }`}
       >
-        {/* Logo */}
         <a href="#" className="flex items-center gap-2.5 shrink-0 group">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#2BFFF1] to-[#00D4FF] flex items-center justify-center shadow-lg shadow-[#2BFFF1]/20 transition-transform group-hover:scale-105">
             <span className="text-[#05060B] font-black text-lg tracking-tighter">K</span>
@@ -85,7 +82,6 @@ export function Navigation() {
           </span>
         </a>
 
-        {/* Desktop Nav Links */}
         <div className="hidden lg:flex items-center gap-8">
           {navLinks.map((link) => (
             <a
@@ -101,7 +97,6 @@ export function Navigation() {
           ))}
         </div>
 
-        {/* Right side: Connect + Mobile toggle */}
         <div className="flex items-center gap-3">
           <ConnectButton
             label="Connect Wallet"
@@ -113,7 +108,6 @@ export function Navigation() {
             }}
           />
 
-          {/* Mobile menu toggle */}
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
             className="lg:hidden w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-[#A7B0B7] hover:text-[#2BFFF1] hover:border-[#2BFFF1]/30 transition-all duration-200"
@@ -124,16 +118,13 @@ export function Navigation() {
         </div>
       </nav>
 
-      {/* Mobile Menu Overlay */}
       {mobileOpen && (
         <div className="fixed inset-0 z-[99] lg:hidden">
-          {/* Backdrop – click to close */}
           <div
             className="absolute inset-0 bg-[#05060B]/95 backdrop-blur-xl"
             onClick={() => setMobileOpen(false)}
           />
 
-          {/* Menu content */}
           <div className="mobile-menu-content relative flex flex-col items-center justify-center h-full gap-8 p-8">
             {navLinks.map((link) => (
               <a
@@ -147,7 +138,6 @@ export function Navigation() {
               </a>
             ))}
 
-            {/* Social links in mobile menu */}
             <div className="mt-8 flex items-center gap-6">
               <a href="#" className="text-[#A7B0B7] hover:text-[#2BFFF1] text-lg transition-colors">
                 Twitter
