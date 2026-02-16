@@ -63,13 +63,11 @@ const phases = [
 
 export function RoadmapSection() {
   useEffect(() => {
-    // Quick fade-in on load
     gsap.fromTo('.roadmap-section',
       { opacity: 0, y: 40 },
       { opacity: 1, y: 0, duration: 0.6, ease: 'power2.out' }
     );
 
-    // Stagger fade-in + scale for phase cards
     gsap.fromTo('.phase-card',
       { opacity: 0, y: 40, scale: 0.95 },
       {
@@ -90,16 +88,7 @@ export function RoadmapSection() {
 
   return (
     <section className="fade-in-section roadmap-section relative py-20 bg-gradient-to-b from-black to-gray-900 overflow-hidden">
-      {/* Decorative grid lines */}
-      <div className="absolute inset-0 opacity-[0.03]"
-        style={{
-          backgroundImage: 'linear-gradient(rgba(43,255,241,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(43,255,241,0.3) 1px, transparent 1px)',
-          backgroundSize: '60px 60px'
-        }}
-      />
-
       <div className="relative max-w-6xl mx-auto px-6">
-        {/* Header */}
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#2BFFF1]/10 border border-[#2BFFF1]/30 text-[#2BFFF1] text-sm font-medium uppercase tracking-widest mb-4">
             Development Roadmap
@@ -112,7 +101,6 @@ export function RoadmapSection() {
           </p>
         </div>
 
-        {/* Timeline */}
         <div className="space-y-12 lg:space-y-16">
           {phases.map((phase, idx) => {
             const isActive = phase.status === 'active';
@@ -127,7 +115,6 @@ export function RoadmapSection() {
                     ? 'border-[#2BFFF1]/40 shadow-lg shadow-[#2BFFF1]/10 animate-pulse-slow'
                     : 'border-white/10 hover:border-[#2BFFF1]/20 hover:shadow-cyan-500/10'
                 }`}>
-                  {/* Phase header */}
                   <div className="flex items-center gap-4 mb-6">
                     <div className={`w-12 h-12 md:w-14 md:h-14 rounded-xl flex items-center justify-center ${
                       isActive
@@ -153,7 +140,6 @@ export function RoadmapSection() {
                     </div>
                   </div>
 
-                  {/* Progress bar */}
                   <div className="mb-6">
                     <div className="flex justify-between text-xs mb-1.5">
                       <span className="text-[#A7B0B7]">Progress</span>
@@ -167,7 +153,6 @@ export function RoadmapSection() {
                     </div>
                   </div>
 
-                  {/* Items list */}
                   <ul className="space-y-3 md:space-y-4">
                     {phase.items.map((item, i) => (
                       <li key={i} className="flex items-start gap-3">
@@ -190,7 +175,6 @@ export function RoadmapSection() {
           })}
         </div>
 
-        {/* Bottom Stats */}
         <div className="mt-16 grid grid-cols-2 sm:grid-cols-4 gap-6">
           {[
             { icon: Zap, label: 'Max Leverage', value: '100x' },
