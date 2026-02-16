@@ -18,7 +18,7 @@ import { PresaleProgress } from './sections/PresaleProgress';
 import { RoadmapSection } from './sections/RoadmapSection';
 
 import '@rainbow-me/rainbowkit/styles.css';
-import './App.css';
+import './index.css';  // Assuming index.css is your global stylesheet
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -26,19 +26,23 @@ const queryClient = new QueryClient();
 
 function App() {
   useEffect(() => {
+    // Eliminate micro-lag on mobile touch
     gsap.ticker.lagSmoothing(0);
 
-    gsap.set('body, html, main.content-wrapper, section', {
-      willChange: 'transform',
+    // GPU acceleration hints for pinned/animated content
+    gsap.set('body, html, main.content-wrapper, section.fade-in-section', {
+      willChange: 'transform, opacity',
       transform: 'translate3d(0,0,0)',
       backfaceVisibility: 'hidden',
     });
 
+    // Normalize scroll for mobile (smooth touch momentum)
     ScrollTrigger.normalizeScroll(true);
 
+    // Clean up any old ScrollTriggers
     ScrollTrigger.getAll().forEach(st => st.kill());
 
-    // Pin ONLY the content wrapper – fixes overlapping sections & jump loops
+    // Pin ONLY the content wrapper (fixes blank sections & jump loops)
     ScrollTrigger.create({
       trigger: '.content-wrapper',
       start: 'top top',
@@ -52,7 +56,7 @@ function App() {
       invalidateOnRefresh: true,
     });
 
-    // Quick fade-in for all sections (no forced snap)
+    // Quick, smooth fade-in for all sections with fade-in-section class
     gsap.utils.toArray('.fade-in-section').forEach((el: any) => {
       gsap.fromTo(el,
         { opacity: 0, y: 40 },
@@ -65,12 +69,13 @@ function App() {
             trigger: el,
             start: 'top 85%',
             toggleActions: 'play none none reverse',
-            once: false,
+            once: false,  // Repeat on scroll back for natural feel
           }
         }
       );
     });
 
+    // Debounced refresh on resize/orientation change
     let resizeTimer: NodeJS.Timeout | undefined;
     const handleResize = () => {
       if (resizeTimer) clearTimeout(resizeTimer);
@@ -79,7 +84,7 @@ function App() {
     window.addEventListener('resize', handleResize);
     window.addEventListener('orientationchange', handleResize);
 
-    // Modal body scroll lock cleanup
+    // Modal body scroll lock (prevents page staying locked after modal close)
     const handleModalChange = () => {
       if (document.querySelector('.rk-modal-backdrop')) {
         document.body.classList.add('modal-open');
@@ -102,19 +107,20 @@ function App() {
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider 
+        <RainbowKitProvider
           theme={darkTheme({
             accentColor: '#2BFFF1',
             accentColorForeground: '#05060B',
             borderRadius: 'large',
             fontStack: 'system',
           })}
-          modalSize="compact"
+          modalSize="compact" // Better mobile fit + visibility
         >
           <div className="relative bg-[#05060B] min-h-screen">
             <div className="noise-overlay" />
             <Navigation />
 
+            {/* Single pinned wrapper – all sections scroll freely inside */}
             <main className="content-wrapper relative min-h-screen">
               <HeroSection />
               <PresaleProgress />
