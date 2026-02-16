@@ -91,7 +91,7 @@ export function FooterSection() {
     <footer
       ref={sectionRef}
       id="docs"
-      className="pinned-section fade-in-section relative bg-[#0B0E14] py-20 z-[60] overflow-hidden"
+      className="fade-in-section relative bg-[#0B0E14] py-20 overflow-hidden"
     >
       <div className="max-w-[980px] mx-auto px-6">
         {/* Main Content */}

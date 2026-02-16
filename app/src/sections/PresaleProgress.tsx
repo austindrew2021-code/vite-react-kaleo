@@ -37,7 +37,7 @@ export function PresaleProgress() {
   }, []);
 
   return (
-    <section className="pinned-section fade-in-section min-h-screen flex items-center justify-center bg-gradient-to-b from-[#05060B] to-[#0B0E14] relative overflow-hidden">
+    <section className="fade-in-section min-h-screen flex items-center justify-center bg-gradient-to-b from-[#05060B] to-[#0B0E14] relative overflow-hidden py-20">
       <div className="progress-container w-full max-w-3xl mx-auto p-6 sm:p-8">
         {/* Main Progress Card */}
         <div className="glass-card rounded-[28px] p-6 sm:p-8 mb-6">

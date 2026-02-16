@@ -123,7 +123,7 @@ export function FeatureSection() {
     <section
       ref={sectionRef}
       id="features"
-      className="pinned-section fade-in-section min-h-screen relative py-[10vh] z-40 overflow-hidden"
+      className="fade-in-section min-h-screen relative py-20 overflow-hidden"
     >
       {/* Background Image – eager load to prevent flash */}
       <div className="absolute inset-0 w-full h-full">

@@ -10,7 +10,6 @@ gsap.registerPlugin(ScrollTrigger);
 export function BuySection() {
   const sectionRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
-  const bgRef = useRef<HTMLDivElement>(null);
 
   const { ethAmount, setEthAmount, tokenAmount, setTokenAmount } = usePresaleStore();
 
@@ -36,63 +35,24 @@ export function BuySection() {
   useEffect(() => {
     const section = sectionRef.current;
     const card = cardRef.current;
-    const bg = bgRef.current;
 
-    if (!section || !card || !bg) return;
-
-    gsap.fromTo(section,
-      { opacity: 0, y: 40 },
-      { opacity: 1, y: 0, duration: 0.6, ease: 'power2.out' }
-    );
+    if (!section || !card) return;
 
     const ctx = gsap.context(() => {
-      const scrollTl = gsap.timeline({
-        scrollTrigger: {
-          trigger: section,
-          start: 'top top',
-          end: '+=130%',
-          pin: true,
-          pinSpacing: false,
-          scrub: 0.2,
-          anticipatePin: 1,
-          fastScrollEnd: true,
-          preventOverlaps: true,
+      gsap.fromTo(card,
+        { y: 60, opacity: 0, scale: 0.95 },
+        {
+          y: 0, opacity: 1, scale: 1,
+          duration: 0.9,
+          ease: 'power3.out',
+          scrollTrigger: {
+            trigger: section,
+            start: 'top 75%',
+            toggleActions: 'play none none none',
+            once: true,
+          }
         }
-      });
-
-      scrollTl
-        .fromTo(card,
-          { x: '60vw', opacity: 0, scale: 0.9 },
-          { x: 0, opacity: 1, scale: 1, ease: 'none' },
-          0
-        )
-        .fromTo('.buy-title',
-          { x: '-10vw', opacity: 0 },
-          { x: 0, opacity: 1, ease: 'none' },
-          0.05
-        )
-        .fromTo('.buy-input',
-          { y: '4vh', opacity: 0 },
-          { y: 0, opacity: 1, ease: 'none' },
-          0.1
-        )
-        .fromTo('.buy-button',
-          { y: '4vh', opacity: 0 },
-          { y: 0, opacity: 1, ease: 'none' },
-          0.15
-        )
-        .to({}, { duration: 0.4 })
-        .fromTo(card,
-          { x: 0, opacity: 1 },
-          { x: '-55vw', opacity: 0, ease: 'power2.in' },
-          0.7
-        )
-        .fromTo(bg,
-          { scale: 1 },
-          { scale: 1.05, ease: 'power2.in' },
-          0.7
-        );
-
+      );
     }, section);
 
     return () => ctx.revert();
@@ -141,10 +101,10 @@ export function BuySection() {
     <section
       ref={sectionRef}
       id="buy"
-      className="pinned-section fade-in-section min-h-screen z-20 flex items-center justify-center relative overflow-hidden"
+      className="fade-in-section min-h-screen flex items-center justify-center relative overflow-hidden py-20"
     >
       {/* Background */}
-      <div ref={bgRef} className="absolute inset-0 w-full h-full">
+      <div className="absolute inset-0 w-full h-full">
         <img
           src="/stage_city_bg_02.jpg"
           alt="Cyberpunk street"
@@ -169,7 +129,7 @@ export function BuySection() {
 
         <div className="relative">
           {/* Header */}
-          <div className="buy-title text-center mb-4">
+          <div className="text-center mb-4">
             <div className="flex items-center justify-center gap-2 mb-2">
               <div className="w-10 h-10 rounded-xl bg-[#2BFFF1]/10 border border-[#2BFFF1]/30 flex items-center justify-center">
                 <TrendingUp className="w-5 h-5 text-[#2BFFF1]" />
@@ -199,7 +159,7 @@ export function BuySection() {
             </span>
           </div>
 
-          {/* ── Transaction Status Overlay ── */}
+          {/* Transaction Status Overlay */}
           {txStatus !== 'idle' && (
             <div className="mb-4 p-4 rounded-xl border text-center">
               {(txStatus === 'pending' || txStatus === 'confirming') && (
@@ -272,7 +232,7 @@ export function BuySection() {
             </div>
           )}
 
-          {/* ── Buy Form (hidden during active tx) ── */}
+          {/* Buy Form (hidden during active tx) */}
           {txStatus === 'idle' && (
             <>
               {/* Not on Sepolia warning */}
@@ -292,7 +252,7 @@ export function BuySection() {
               )}
 
               {/* Input */}
-              <div className="buy-input mb-4">
+              <div className="mb-4">
                 <label className="block text-[#A7B0B7] text-sm mb-2 flex items-center gap-2">
                   <Wallet className="w-4 h-4" />
                   Pay with ETH
@@ -329,7 +289,7 @@ export function BuySection() {
 
               {/* Token Output */}
               {tokenAmount && tokenAmount !== '0' && (
-                <div className="buy-input mb-4 p-4 rounded-xl bg-[#2BFFF1]/10 border border-[#2BFFF1]/30 text-center">
+                <div className="mb-4 p-4 rounded-xl bg-[#2BFFF1]/10 border border-[#2BFFF1]/30 text-center">
                   <p className="text-[#A7B0B7] text-sm mb-1">You receive</p>
                   <p className="text-[#2BFFF1] text-2xl font-bold">
                     {tokenAmount} <span className="text-lg">KLEO</span>
@@ -341,7 +301,7 @@ export function BuySection() {
               <button
                 onClick={handleBuy}
                 disabled={isProcessing || !ethAmount || !isConnected}
-                className="buy-button neon-button w-full py-4 text-base font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="neon-button w-full py-4 text-base font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {!isConnected ? (
                   'Connect Wallet to Buy'
