@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useAccount, useBalance } from 'wagmi';
 import { formatEther } from 'viem';
-import { CheckCircle2, Circle, AlertTriangle, ArrowRight } from 'lucide-react';
+import { CheckCircle2, Circle, ArrowRight } from 'lucide-react';
 import {
   usePresaleStore,
   getCurrentStage,
