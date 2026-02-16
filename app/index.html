@@ -2,16 +2,33 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Kaleo - Token Presale</title>
-    <link rel="preload" href="/hero_city_bg.jpg" as="image" />
-    <link rel="preload" href="/stage_city_bg_02.jpg" as="image" />
-    <link rel="preload" href="/stats_city_bg_03.jpg" as="image" />
-    <link rel="preload" href="/feature_city_bg_04.jpg" as="image" />
-    <link rel="preload" href="/grid_city_bg_05.jpg" as="image" />
-    <link rel="preload" href="/final_city_bg_06.jpg" as="image" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+
+    <!-- Title & basic SEO -->
+    <title>Kaleo - Memecoin Leverage Platform</title>
+    <meta name="description" content="Leverage trade any Pump.fun memecoin with up to 100x leverage. Presale live now." />
+
+    <!-- Theme color & PWA basics -->
+    <meta name="theme-color" content="#05060B" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+    <!-- Favicon (add your real icons later) -->
+    <link rel="icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!-- Preload critical background images (high priority) -->
+    <link rel="preload" href="/hero_city_bg.jpg" as="image" fetchpriority="high" />
+    <link rel="preload" href="/stage_city_bg_02.jpg" as="image" fetchpriority="high" />
+    <link rel="preload" href="/stats_city_bg_03.jpg" as="image" fetchpriority="high" />
+    <link rel="preload" href="/feature_city_bg_04.jpg" as="image" fetchpriority="high" />
+    <link rel="preload" href="/grid_city_bg_05.jpg" as="image" fetchpriority="high" />
+    <link rel="preload" href="/final_city_bg_06.jpg" as="image" fetchpriority="high" />
+
+    <!-- Optional: Preload fonts if not already handled by Google Fonts import -->
+    <!-- <link rel="preload" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" as="style" /> -->
   </head>
-  <body>
+  <body class="antialiased">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
