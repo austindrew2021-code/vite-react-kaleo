@@ -15,6 +15,8 @@ import { FeatureSection } from './sections/FeatureSection';
 import { FeaturesGridSection } from './sections/FeaturesGridSection';
 import { StakingCTASection } from './sections/StakingCTASection';
 import { RoadmapSection } from './sections/RoadmapSection';
+import { WhitePaperSection } from './sections/WhitePaperSection';
+import { FAQSection } from './sections/FAQSection';
 import { FooterSection } from './sections/FooterSection';
 
 import '@rainbow-me/rainbowkit/styles.css';
@@ -26,33 +28,7 @@ const queryClient = new QueryClient();
 
 function App() {
   useEffect(() => {
-    gsap.ticker.lagSmoothing(0);
-
-    gsap.set('body, html, main.content-wrapper, section.fade-in-section', {
-      willChange: 'transform, opacity',
-      transform: 'translate3d(0,0,0)',
-      backfaceVisibility: 'hidden',
-    });
-
-    ScrollTrigger.normalizeScroll(true);
-
-    ScrollTrigger.getAll().forEach(st => st.kill());
-
-    // Single pinned wrapper – all sections scroll freely inside
-    ScrollTrigger.create({
-      trigger: '.content-wrapper',
-      start: 'top top',
-      end: 'bottom bottom',
-      pin: true,
-      pinSpacing: false,
-      anticipatePin: 1,
-      fastScrollEnd: true,
-      scrub: 0.25,
-      preventOverlaps: true,
-      invalidateOnRefresh: true,
-    });
-
-    // Quick fade-in for all sections
+    // Simple fade-in animations for sections -- no pinning, no scroll hijacking
     gsap.utils.toArray('.fade-in-section').forEach((el: any) => {
       gsap.fromTo(el,
         { opacity: 0, y: 40 },
@@ -64,24 +40,16 @@ function App() {
           scrollTrigger: {
             trigger: el,
             start: 'top 85%',
-            toggleActions: 'play none none reverse',
-            once: false,
+            toggleActions: 'play none none none',
+            once: true,
           }
         }
       );
     });
 
-    let resizeTimer: NodeJS.Timeout | undefined;
-    const handleResize = () => {
-      if (resizeTimer) clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(() => ScrollTrigger.refresh(), 120);
-    };
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('orientationchange', handleResize);
-
-    // Modal scroll lock
+    // Modal scroll lock for RainbowKit
     const handleModalChange = () => {
-      if (document.querySelector('.rk-modal-backdrop')) {
+      if (document.querySelector('[data-rk]')?.querySelector('[role="dialog"]')) {
         document.body.classList.add('modal-open');
       } else {
         document.body.classList.remove('modal-open');
@@ -92,10 +60,7 @@ function App() {
 
     return () => {
       ScrollTrigger.getAll().forEach(st => st.kill());
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('orientationchange', handleResize);
       observer.disconnect();
-      if (resizeTimer) clearTimeout(resizeTimer);
     };
   }, []);
 
@@ -115,7 +80,7 @@ function App() {
             <div className="noise-overlay" />
             <Navigation />
 
-            <main className="content-wrapper relative min-h-screen">
+            <main className="relative">
               <HeroSection />
               <PresaleProgress />
               <BuySection />
@@ -124,6 +89,8 @@ function App() {
               <FeaturesGridSection />
               <StakingCTASection />
               <RoadmapSection />
+              <WhitePaperSection />
+              <FAQSection />
               <FooterSection />
             </main>
           </div>
