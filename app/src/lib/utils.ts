@@ -35,10 +35,10 @@ export function formatPercentage(value: number): {
   colorClass: string;
   icon: 'up' | 'down' | 'same';
 } {
-  const absValue = Math.abs(value);
+  const abs = Math.abs(value);
   const sign = value > 0 ? '+' : value < 0 ? '-' : '';
 
-  const text = `\( {sign} \){absValue.toFixed(2)}%`;
+  const text = `\( {sign} \){abs.toFixed(2)}%`;
 
   if (value > 0) {
     return { text, colorClass: 'text-green-400', icon: 'up' };
