@@ -96,7 +96,7 @@ export function RoadmapSection() {
     <section
       ref={sectionRef}
       id="roadmap"
-      className="fade-in-section relative py-24 overflow-hidden"
+      className="fade-in-section relative py-16 overflow-hidden"
     >
       {/* Background */}
       <div className="absolute inset-0 bg-gradient-to-b from-[#05060B] via-[#080B12] to-[#05060B]" />

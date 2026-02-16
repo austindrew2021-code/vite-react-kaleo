@@ -101,7 +101,7 @@ export function BuySection() {
     <section
       ref={sectionRef}
       id="buy"
-      className="fade-in-section flex items-center justify-center relative overflow-hidden py-24"
+      className="fade-in-section flex items-center justify-center relative overflow-hidden py-16"
     >
       {/* Background */}
       <div className="absolute inset-0 w-full h-full">

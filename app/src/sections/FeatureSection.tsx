@@ -19,59 +19,22 @@ export function FeatureSection() {
 
     if (!section || !card || !phone) return;
 
-    // Initial quick fade-in on load (draw-in effect)
-    gsap.fromTo(section, 
-      { opacity: 0, y: 40 },
-      { opacity: 1, y: 0, duration: 0.6, ease: 'power2.out' }
-    );
-
     const ctx = gsap.context(() => {
       // Card entrance
       gsap.fromTo(card,
-        { y: '8vh', opacity: 0 },
+        { y: 40, opacity: 0 },
         {
-          y: 0,
-          opacity: 1,
-          duration: 0.8,
-          ease: 'power2.out',
-          scrollTrigger: {
-            trigger: section,
-            start: 'top 85%', // earlier trigger for quicker feel
-            toggleActions: 'play none none reverse'
-          }
-        }
-      );
-
-      // Headline entrance + subtle hover glow
-      gsap.fromTo('.feature-headline',
-        { x: '-6vw', opacity: 0 },
-        {
-          x: 0,
-          opacity: 1,
-          duration: 0.6,
-          ease: 'power2.out',
-          scrollTrigger: {
-            trigger: section,
-            start: 'top 80%',
-            toggleActions: 'play none none reverse'
-          }
+          y: 0, opacity: 1, duration: 0.7, ease: 'power2.out',
+          scrollTrigger: { trigger: section, start: 'top 85%', toggleActions: 'play none none none', once: true }
         }
       );
 
       // Phone mockup entrance
       gsap.fromTo(phone,
-        { x: '10vw', scale: 0.98, opacity: 0 },
+        { x: 40, scale: 0.98, opacity: 0 },
         {
-          x: 0,
-          scale: 1,
-          opacity: 1,
-          duration: 0.8,
-          ease: 'power2.out',
-          scrollTrigger: {
-            trigger: section,
-            start: 'top 75%',
-            toggleActions: 'play none none reverse'
-          }
+          x: 0, scale: 1, opacity: 1, duration: 0.7, ease: 'power2.out',
+          scrollTrigger: { trigger: section, start: 'top 80%', toggleActions: 'play none none none', once: true }
         }
       );
 
@@ -80,34 +43,19 @@ export function FeatureSection() {
         const length = arc.getTotalLength();
         gsap.set(arc, { strokeDasharray: length, strokeDashoffset: length });
         gsap.to(arc, {
-          strokeDashoffset: 0,
-          duration: 1.2,
-          ease: 'power2.out',
-          scrollTrigger: {
-            trigger: section,
-            start: 'top 70%',
-            toggleActions: 'play none none reverse'
-          }
+          strokeDashoffset: 0, duration: 1.2, ease: 'power2.out',
+          scrollTrigger: { trigger: section, start: 'top 75%', toggleActions: 'play none none none', once: true }
         });
       }
 
-      // Bullet points stagger (quick, smooth draw-in)
+      // Bullet points stagger
       gsap.fromTo('.feature-bullet',
-        { x: -20, opacity: 0 },
+        { x: -15, opacity: 0 },
         {
-          x: 0,
-          opacity: 1,
-          duration: 0.4,
-          stagger: 0.08,
-          ease: 'power2.out',
-          scrollTrigger: {
-            trigger: section,
-            start: 'top 70%',
-            toggleActions: 'play none none reverse'
-          }
+          x: 0, opacity: 1, duration: 0.4, stagger: 0.08, ease: 'power2.out',
+          scrollTrigger: { trigger: section, start: 'top 75%', toggleActions: 'play none none none', once: true }
         }
       );
-
     }, section);
 
     return () => ctx.revert();
@@ -123,7 +71,7 @@ export function FeatureSection() {
     <section
       ref={sectionRef}
       id="features"
-      className="fade-in-section relative py-24 overflow-hidden"
+      className="fade-in-section relative py-16 overflow-hidden"
     >
       {/* Background Image – eager load to prevent flash */}
       <div className="absolute inset-0 w-full h-full">

@@ -28,9 +28,7 @@ const queryClient = new QueryClient();
 
 function App() {
   useEffect(() => {
-    gsap.ticker.lagSmoothing(0);
-
-    // Explicitly disable normalizeScroll to prevent scroll hijacking/wrapping
+    // Disable GSAP scroll normalization completely - let native scroll work
     ScrollTrigger.normalizeScroll(false);
     ScrollTrigger.config({ ignoreMobileResize: true });
 
@@ -40,30 +38,21 @@ function App() {
     // Simple fade-in for all sections on scroll (no pinning, no scroll hijacking)
     gsap.utils.toArray('.fade-in-section').forEach((el: any) => {
       gsap.fromTo(el,
-        { opacity: 0, y: 50 },
+        { opacity: 0, y: 30 },
         {
           opacity: 1,
           y: 0,
-          duration: 0.8,
+          duration: 0.6,
           ease: 'power2.out',
           scrollTrigger: {
             trigger: el,
-            start: 'top 88%',
+            start: 'top 90%',
             toggleActions: 'play none none none',
             once: true,
           }
         }
       );
     });
-
-    // Debounced refresh on resize/orientation
-    let resizeTimer: NodeJS.Timeout | undefined;
-    const handleResize = () => {
-      if (resizeTimer) clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(() => ScrollTrigger.refresh(), 200);
-    };
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('orientationchange', handleResize);
 
     // Modal body scroll lock for RainbowKit
     const handleModalChange = () => {
@@ -80,10 +69,7 @@ function App() {
 
     return () => {
       ScrollTrigger.getAll().forEach(st => st.kill());
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('orientationchange', handleResize);
       observer.disconnect();
-      if (resizeTimer) clearTimeout(resizeTimer);
     };
   }, []);
 

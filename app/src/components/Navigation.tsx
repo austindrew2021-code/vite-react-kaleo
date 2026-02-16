@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { Menu, X } from 'lucide-react';
 
+const WHITEPAPER_URL = 'https://docs.google.com/document/d/e/2PACX-1vExampleWhitepaperLink/pub';
+
 const navLinks = [
   { label: 'Buy', href: '#buy' },
   { label: 'Features', href: '#features' },
   { label: 'Roadmap', href: '#roadmap' },
-  { label: 'Whitepaper', href: '#whitepaper' },
+  { label: 'Whitepaper', href: WHITEPAPER_URL, external: true },
   { label: 'FAQ', href: '#faq' },
 ];
 
@@ -63,6 +65,7 @@ export function Navigation() {
               key={link.label}
               href={link.href}
               className="text-[#A7B0B7] hover:text-[#2BFFF1] transition-colors font-medium text-sm"
+              {...('external' in link && link.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
             >
               {link.label}
             </a>
@@ -109,6 +112,7 @@ export function Navigation() {
                 href={link.href}
                 onClick={handleLinkClick}
                 className="text-[#F4F6FA] text-2xl font-bold hover:text-[#2BFFF1] transition-colors"
+                {...('external' in link && link.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
               >
                 {link.label}
               </a>

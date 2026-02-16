@@ -1,9 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { ArrowRight, Zap, TrendingUp } from 'lucide-react';
-
-gsap.registerPlugin(ScrollTrigger);
 
 export function HeroSection() {
   const sectionRef = useRef<HTMLDivElement>(null);
@@ -17,6 +14,7 @@ export function HeroSection() {
 
     if (!section || !card || !bg) return;
 
+
     const ctx = gsap.context(() => {
       // Background fade
       gsap.fromTo(bg, { opacity: 0 }, { opacity: 1, duration: 0.8 });
@@ -24,36 +22,24 @@ export function HeroSection() {
       // Card entrance
       const tl = gsap.timeline();
       tl.fromTo(card,
-        { y: 60, scale: 0.96, opacity: 0 },
-        { y: 0, scale: 1, opacity: 1, duration: 1, ease: 'power3.out' }
+        { y: 40, scale: 0.97, opacity: 0 },
+        { y: 0, scale: 1, opacity: 1, duration: 0.8, ease: 'power3.out' }
       )
       .fromTo('.hero-title-word',
-        { y: 24, opacity: 0 },
-        { y: 0, opacity: 1, duration: 0.5, stagger: 0.06, ease: 'power2.out' },
-        '-=0.5'
+        { y: 16, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.4, stagger: 0.05, ease: 'power2.out' },
+        '-=0.4'
       )
       .fromTo('.hero-subtitle',
-        { y: 14, opacity: 0 },
-        { y: 0, opacity: 1, duration: 0.45, ease: 'power2.out' },
-        '-=0.3'
+        { y: 10, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.35, ease: 'power2.out' },
+        '-=0.2'
       )
       .fromTo('.hero-cta',
-        { y: 14, opacity: 0 },
-        { y: 0, opacity: 1, duration: 0.45, ease: 'power2.out' },
-        '-=0.2'
+        { y: 10, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.35, ease: 'power2.out' },
+        '-=0.15'
       );
-
-      // Parallax on scroll (subtle, no pinning)
-      gsap.to(bg, {
-        y: 80,
-        ease: 'none',
-        scrollTrigger: {
-          trigger: section,
-          start: 'top top',
-          end: 'bottom top',
-          scrub: true,
-        }
-      });
     }, section);
 
     return () => ctx.revert();
@@ -62,7 +48,7 @@ export function HeroSection() {
   return (
     <section
       ref={sectionRef}
-      className="fade-in-section min-h-screen flex items-center justify-center relative overflow-hidden"
+      className="fade-in-section min-h-[80vh] flex items-center justify-center relative overflow-hidden pt-20 pb-12"
     >
       {/* Background */}
       <div ref={bgRef} className="absolute inset-0 w-full h-full">
@@ -78,7 +64,7 @@ export function HeroSection() {
       {/* Hero Card */}
       <div
         ref={cardRef}
-        className="glass-card relative w-[min(90vw,1120px)] rounded-[28px] overflow-hidden mx-auto mt-20"
+        className="glass-card relative w-[min(90vw,1120px)] rounded-[28px] overflow-hidden mx-auto"
         style={{ opacity: 0 }}
       >
         <div className="absolute inset-0 rounded-[28px] pointer-events-none"

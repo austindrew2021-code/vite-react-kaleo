@@ -12,95 +12,42 @@ export function FeaturesGridSection() {
     const section = sectionRef.current;
     if (!section) return;
 
-    // Initial quick fade-in on load (draw-in effect)
-    gsap.fromTo(section, 
-      { opacity: 0, y: 40 },
-      { opacity: 1, y: 0, duration: 0.6, ease: 'power2.out' }
-    );
-
     const ctx = gsap.context(() => {
       // Title fade-in
       gsap.fromTo('.grid-title',
-        { y: 24, opacity: 0 },
+        { y: 20, opacity: 0 },
         {
-          y: 0,
-          opacity: 1,
-          duration: 0.6,
-          ease: 'power2.out',
-          scrollTrigger: {
-            trigger: section,
-            start: 'top 85%', // earlier for quicker feel
-            toggleActions: 'play none none reverse'
-          }
+          y: 0, opacity: 1, duration: 0.6, ease: 'power2.out',
+          scrollTrigger: { trigger: section, start: 'top 85%', toggleActions: 'play none none none', once: true }
         }
       );
 
       // Card A entrance
       gsap.fromTo('.grid-card-a',
-        { x: '-8vw', rotate: -2, opacity: 0 },
+        { x: -30, opacity: 0 },
         {
-          x: 0,
-          rotate: 0,
-          opacity: 1,
-          duration: 0.7,
-          ease: 'power2.out',
-          scrollTrigger: {
-            trigger: section,
-            start: 'top 80%',
-            toggleActions: 'play none none reverse'
-          }
+          x: 0, opacity: 1, duration: 0.6, ease: 'power2.out',
+          scrollTrigger: { trigger: section, start: 'top 80%', toggleActions: 'play none none none', once: true }
         }
       );
 
       // Card B entrance
       gsap.fromTo('.grid-card-b',
-        { x: '8vw', rotate: 2, opacity: 0 },
+        { x: 30, opacity: 0 },
         {
-          x: 0,
-          rotate: 0,
-          opacity: 1,
-          duration: 0.7,
-          ease: 'power2.out',
-          scrollTrigger: {
-            trigger: section,
-            start: 'top 80%',
-            toggleActions: 'play none none reverse'
-          }
-        }
-      );
-
-      // Thumbnails parallax (subtle movement)
-      gsap.fromTo('.grid-thumb',
-        { y: 20 },
-        {
-          y: -10,
-          ease: 'none',
-          scrollTrigger: {
-            trigger: section,
-            start: 'top bottom',
-            end: 'bottom top',
-            scrub: true
-          }
+          x: 0, opacity: 1, duration: 0.6, ease: 'power2.out',
+          scrollTrigger: { trigger: section, start: 'top 80%', toggleActions: 'play none none none', once: true }
         }
       );
 
       // Stagger fade-in for card content
       gsap.fromTo('.grid-content',
-        { opacity: 0, y: 20 },
+        { opacity: 0, y: 15 },
         {
-          opacity: 1,
-          y: 0,
-          duration: 0.5,
-          stagger: 0.15,
-          ease: 'power2.out',
-          scrollTrigger: {
-            trigger: section,
-            start: 'top 75%',
-            toggleActions: 'play none none reverse'
-          }
+          opacity: 1, y: 0, duration: 0.5, stagger: 0.1, ease: 'power2.out',
+          scrollTrigger: { trigger: section, start: 'top 75%', toggleActions: 'play none none none', once: true }
         }
       );
-
     }, section);
 
     return () => ctx.revert();
@@ -130,7 +77,7 @@ export function FeaturesGridSection() {
   return (
     <section
       ref={sectionRef}
-      className="fade-in-section relative py-24 overflow-hidden"
+      className="fade-in-section relative py-16 overflow-hidden"
     >
       {/* Background Image – eager load to prevent flash */}
       <div className="absolute inset-0 w-full h-full">
