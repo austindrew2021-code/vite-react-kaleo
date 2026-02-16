@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { gsap } from 'gsap';
-import { HelpCircle } from 'lucide-react';
+import { HelpCircle, ArrowRight } from 'lucide-react';
 import {
   Accordion,
   AccordionContent,
@@ -89,7 +89,6 @@ const faqCategories = [
 
 export function FAQSection() {
   useEffect(() => {
-    // Quick stagger fade-in for FAQ categories & items
     gsap.fromTo('.faq-category',
       { opacity: 0, y: 30 },
       {
@@ -126,7 +125,6 @@ export function FAQSection() {
   return (
     <section className="fade-in-section relative py-20 bg-gradient-to-b from-black to-gray-900 overflow-hidden">
       <div className="faq-container max-w-5xl mx-auto px-6">
-        {/* Header */}
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#2BFFF1]/10 border border-[#2BFFF1]/30 text-[#2BFFF1] text-sm font-medium uppercase tracking-widest mb-4">
             <HelpCircle className="w-4 h-4" />
@@ -140,7 +138,6 @@ export function FAQSection() {
           </p>
         </div>
 
-        {/* FAQ Categories */}
         <div className="space-y-16">
           {faqCategories.map((cat, catIdx) => (
             <div key={catIdx} className="faq-category">
@@ -171,7 +168,6 @@ export function FAQSection() {
           ))}
         </div>
 
-        {/* Still have questions CTA */}
         <div className="mt-16 glass-card rounded-2xl p-8 md:p-10 text-center border border-cyan-500/20">
           <h3 className="text-2xl font-bold text-[#F4F6FA] mb-3">Still have questions?</h3>
           <p className="text-[#A7B0B7] text-base mb-6 max-w-xl mx-auto">
