@@ -172,7 +172,6 @@ body.modal-open {
   width: 100%;
 }
 
-/* RainbowKit modal – force perfect centering & scrollability */
 .rk-modal-content {
   position: fixed !important;
   top: 50% !important;
