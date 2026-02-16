@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { useAccount } from 'wagmi';
 import { ArrowRight, Info, Wallet, TrendingUp, Zap, ExternalLink, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { usePresaleStore } from '../store/presaleStore';
 import { usePresale } from '../hooks/usePresale';
@@ -12,12 +11,11 @@ export function BuySection() {
   const sectionRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const bgRef = useRef<HTMLDivElement>(null);
-  const { isConnected } = useAccount();
 
   const { ethAmount, setEthAmount, tokenAmount, setTokenAmount } = usePresaleStore();
 
   const {
-    isConnected: isWalletConnected,
+    isConnected,
     isOnSepolia,
     buyTokens,
     switchToSepolia,
@@ -41,63 +39,20 @@ export function BuySection() {
 
     if (!section || !card) return;
 
-    // Quick fade-in on load
-    gsap.fromTo(section,
-      { opacity: 0, y: 40 },
-      { opacity: 1, y: 0, duration: 0.6, ease: 'power2.out' }
-    );
-
-    const ctx = gsap.context(() => {
-      const scrollTl = gsap.timeline({
+    gsap.fromTo(card,
+      { y: 60, opacity: 0, scale: 0.95 },
+      {
+        y: 0, opacity: 1, scale: 1,
+        duration: 0.9,
+        ease: 'power3.out',
         scrollTrigger: {
           trigger: section,
-          start: 'top top',
-          end: '+=130%',
-          pin: true,
-          pinSpacing: false,
-          scrub: 0.2,                  // Fast response → natural feel
-          anticipatePin: 1,
-          fastScrollEnd: true,
-          preventOverlaps: true,
+          start: 'top 75%',
+          toggleActions: 'play none none none',
+          once: true,
         }
-      });
-
-      scrollTl
-        .fromTo(card,
-          { x: '60vw', opacity: 0, scale: 0.9 },
-          { x: 0, opacity: 1, scale: 1, ease: 'none' },
-          0
-        )
-        .fromTo('.buy-title',
-          { x: '-10vw', opacity: 0 },
-          { x: 0, opacity: 1, ease: 'none' },
-          0.05
-        )
-        .fromTo('.buy-input',
-          { y: '4vh', opacity: 0 },
-          { y: 0, opacity: 1, ease: 'none' },
-          0.1
-        )
-        .fromTo('.buy-button',
-          { y: '4vh', opacity: 0 },
-          { y: 0, opacity: 1, ease: 'none' },
-          0.15
-        )
-        .to({}, { duration: 0.4 })
-        .fromTo(card,
-          { x: 0, opacity: 1 },
-          { x: '-55vw', opacity: 0, ease: 'power2.in' },
-          0.7
-        )
-        .fromTo(bgRef.current,
-          { scale: 1 },
-          { scale: 1.05, ease: 'power2.in' },
-          0.7
-        );
-
-    }, section);
-
-    return () => ctx.revert();
+      }
+    );
   }, []);
 
   const handleEthChange = (value: string) => {
@@ -111,7 +66,7 @@ export function BuySection() {
   };
 
   const handleBuy = () => {
-    if (!isWalletConnected) return;
+    if (!isConnected) return;
 
     if (!isOnSepolia) {
       switchToSepolia();
@@ -143,9 +98,9 @@ export function BuySection() {
     <section
       ref={sectionRef}
       id="buy"
-      className="pinned-section fade-in-section min-h-screen z-20 flex items-center justify-center relative overflow-hidden"
+      className="fade-in-section flex items-center justify-center relative overflow-hidden py-16"
     >
-      {/* Background Image – eager load to prevent flash */}
+      {/* Background */}
       <div ref={bgRef} className="absolute inset-0 w-full h-full">
         <img
           src="/stage_city_bg_02.jpg"
@@ -156,13 +111,11 @@ export function BuySection() {
         <div className="absolute inset-0 bg-gradient-to-b from-[#05060B]/80 via-[#05060B]/50 to-[#05060B]/85" />
       </div>
 
-      {/* Main Card – centered on all screens */}
+      {/* Main Card */}
       <div
         ref={cardRef}
-        className="glass-card relative w-[min(92vw,520px)] rounded-[28px] overflow-hidden p-6 sm:p-8 mx-auto"
-        style={{ opacity: 0 }}
+        className="glass-card relative w-[min(92vw,520px)] rounded-[28px] overflow-hidden p-8 mx-auto"
       >
-        {/* Card Glow */}
         <div
           className="absolute inset-0 rounded-[28px] pointer-events-none"
           style={{
@@ -170,10 +123,9 @@ export function BuySection() {
           }}
         />
 
-        {/* Content */}
         <div className="relative">
           {/* Header */}
-          <div className="text-center mb-6">
+          <div className="text-center mb-4">
             <div className="flex items-center justify-center gap-2 mb-2">
               <div className="w-10 h-10 rounded-xl bg-[#2BFFF1]/10 border border-[#2BFFF1]/30 flex items-center justify-center">
                 <TrendingUp className="w-5 h-5 text-[#2BFFF1]" />
@@ -205,7 +157,7 @@ export function BuySection() {
 
           {/* Transaction Status Overlay */}
           {txStatus !== 'idle' && (
-            <div className="mb-6 p-4 rounded-xl border text-center">
+            <div className="mb-4 p-4 rounded-xl border text-center">
               {(txStatus === 'pending' || txStatus === 'confirming') && (
                 <div className="border-[#2BFFF1]/30 bg-[#2BFFF1]/5">
                   <div className="flex items-center justify-center gap-2 mb-2">
@@ -276,19 +228,19 @@ export function BuySection() {
             </div>
           )}
 
-          {/* Buy Form (hidden during active tx) */}
+          {/* Buy Form */}
           {txStatus === 'idle' && (
             <>
               {/* Not on Sepolia warning */}
-              {isWalletConnected && !isOnSepolia && (
-                <div className="mb-6 p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/30 text-center">
-                  <p className="text-yellow-400 text-sm mb-3 flex items-center justify-center gap-2">
+              {isConnected && !isOnSepolia && (
+                <div className="mb-4 p-3 rounded-xl bg-yellow-500/10 border border-yellow-500/30 text-center">
+                  <p className="text-yellow-400 text-sm mb-2 flex items-center justify-center gap-2">
                     <AlertTriangle className="w-4 h-4" />
                     Wrong network detected
                   </p>
                   <button
                     onClick={switchToSepolia}
-                    className="neon-button px-6 py-3 text-sm font-semibold"
+                    className="neon-button px-4 py-2 text-xs font-semibold"
                   >
                     Switch to Sepolia
                   </button>
@@ -296,7 +248,7 @@ export function BuySection() {
               )}
 
               {/* Input */}
-              <div className="mb-6">
+              <div className="mb-4">
                 <label className="block text-[#A7B0B7] text-sm mb-2 flex items-center gap-2">
                   <Wallet className="w-4 h-4" />
                   Pay with ETH
@@ -323,7 +275,7 @@ export function BuySection() {
                     <button
                       key={amount}
                       onClick={() => setPresetAmount(amount)}
-                      className="flex-1 min-w-[80px] px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-[#A7B0B7] text-xs hover:border-[#2BFFF1]/50 hover:text-[#2BFFF1] transition-colors"
+                      className="flex-1 min-w-[70px] px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-[#A7B0B7] text-xs hover:border-[#2BFFF1]/50 hover:text-[#2BFFF1] transition-colors"
                     >
                       {amount} ETH
                     </button>
@@ -333,7 +285,7 @@ export function BuySection() {
 
               {/* Token Output */}
               {tokenAmount && tokenAmount !== '0' && (
-                <div className="mb-6 p-4 rounded-xl bg-[#2BFFF1]/10 border border-[#2BFFF1]/30 text-center">
+                <div className="mb-4 p-4 rounded-xl bg-[#2BFFF1]/10 border border-[#2BFFF1]/30 text-center">
                   <p className="text-[#A7B0B7] text-sm mb-1">You receive</p>
                   <p className="text-[#2BFFF1] text-2xl font-bold">
                     {tokenAmount} <span className="text-lg">KLEO</span>
@@ -344,10 +296,10 @@ export function BuySection() {
               {/* Buy Button */}
               <button
                 onClick={handleBuy}
-                disabled={isProcessing || !ethAmount || !isWalletConnected}
+                disabled={isProcessing || !ethAmount || !isConnected}
                 className="neon-button w-full py-4 text-base font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {!isWalletConnected ? (
+                {!isConnected ? (
                   'Connect Wallet to Buy'
                 ) : !isOnSepolia ? (
                   'Switch to Sepolia'
