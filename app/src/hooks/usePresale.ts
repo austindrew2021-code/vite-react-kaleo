@@ -29,9 +29,6 @@ export function usePresale() {
 
   const {
     ethAmount,
-    tokenAmount,
-    setEthAmount,
-    setTokenAmount,
     totalRaised,
     purchases,
     txHash,
@@ -43,7 +40,6 @@ export function usePresale() {
     resetTx,
   } = usePresaleStore();
 
-  // ── Send transaction hook ─────────────────────────────────────────────
   const {
     sendTransaction,
     data: sendTxHash,
@@ -52,7 +48,6 @@ export function usePresale() {
     error: sendError,
   } = useSendTransaction();
 
-  // ── Wait for confirmation ─────────────────────────────────────────────
   const {
     isLoading: isConfirming,
     isSuccess: isConfirmed,
@@ -60,7 +55,6 @@ export function usePresale() {
     hash: sendTxHash,
   });
 
-  // ── Sync tx hash into store ───────────────────────────────────────────
   useEffect(() => {
     if (sendTxHash) {
       setTxHash(sendTxHash);
@@ -68,23 +62,17 @@ export function usePresale() {
     }
   }, [sendTxHash]);
 
-  // ── Handle send error ─────────────────────────────────────────────────
   useEffect(() => {
     if (isSendError && sendError) {
       let msg = 'Transaction failed. Please try again.';
-      if (sendError.message?.includes('User rejected')) {
-        msg = 'Transaction rejected by user';
-      } else if (sendError.message?.includes('insufficient funds')) {
-        msg = 'Insufficient Sepolia ETH balance';
-      } else if (sendError.message?.includes('wrong chain')) {
-        msg = 'Please switch to Sepolia network';
-      }
+      if (sendError.message?.includes('User rejected')) msg = 'Transaction rejected by user';
+      else if (sendError.message?.includes('insufficient funds')) msg = 'Insufficient Sepolia ETH balance';
+      else if (sendError.message?.includes('wrong chain')) msg = 'Please switch to Sepolia network';
       setTxStatus('error');
       setTxError(msg);
     }
   }, [isSendError, sendError]);
 
-  // ── Handle confirmation & record purchase ─────────────────────────────
   useEffect(() => {
     if (isConfirmed && sendTxHash && ethAmount) {
       setTxStatus('success');
@@ -109,7 +97,6 @@ export function usePresale() {
     }
   }, [isConfirmed, sendTxHash, ethAmount, totalRaised, refetchBalance]);
 
-  // ── Derived state (memoized) ──────────────────────────────────────────
   const currentStage = useMemo(() => getCurrentStage(totalRaised), [totalRaised]);
   const stageProgress = useMemo(() => getStageProgress(totalRaised), [totalRaised]);
   const overallProgress = useMemo(() => getOverallProgress(totalRaised), [totalRaised]);
@@ -123,7 +110,6 @@ export function usePresale() {
   const isOnSepolia = chainId === SEPOLIA_CHAIN_ID;
   const nextStage = currentStage.stage < 12 ? PRESALE_STAGES[currentStage.stage] : null;
 
-  // ── Calculate KLEO from ETH input ─────────────────────────────────────
   const calculateTokenAmount = useCallback(
     (ethInput: string): string => {
       if (!ethInput || isNaN(parseFloat(ethInput))) return '0';
@@ -135,7 +121,6 @@ export function usePresale() {
     [currentStage.priceEth]
   );
 
-  // ── Switch to Sepolia ─────────────────────────────────────────────────
   const switchToSepolia = useCallback(async () => {
     try {
       await switchChainAsync({ chainId: SEPOLIA_CHAIN_ID });
@@ -144,7 +129,6 @@ export function usePresale() {
     }
   }, [switchChainAsync]);
 
-  // ── Buy tokens (real Sepolia ETH transfer) ────────────────────────────
   const buyTokens = useCallback(
     async (ethInput: string) => {
       if (!isConnected || !address) {
