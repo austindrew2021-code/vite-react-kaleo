@@ -37,9 +37,7 @@ export function PresaleProgress() {
   return (
     <section className="fade-in-section min-h-screen flex items-center justify-center bg-gradient-to-b from-[#05060B] to-[#0B0E14] relative overflow-hidden py-16">
       <div className="progress-container w-full max-w-3xl mx-auto px-4 sm:px-6">
-        {/* Main Progress Card */}
         <div className="glass-card rounded-[28px] p-6 sm:p-8 mb-8 shadow-2xl shadow-cyan-900/20">
-          {/* Stage Header */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
             <div>
               <div className="flex items-center gap-3 mb-2">
@@ -69,7 +67,6 @@ export function PresaleProgress() {
             </div>
           </div>
 
-          {/* Current Stage Progress Bar */}
           <div className="mb-6">
             <div className="flex justify-between text-sm mb-2">
               <span className="text-[#A7B0B7]">Stage {currentStage.stage} Progress</span>
@@ -87,7 +84,6 @@ export function PresaleProgress() {
             </div>
           </div>
 
-          {/* Overall Progress Bar */}
           <div className="mb-8">
             <div className="flex justify-between text-sm mb-2">
               <span className="text-[#A7B0B7]">Overall Presale</span>
@@ -101,7 +97,6 @@ export function PresaleProgress() {
             </div>
           </div>
 
-          {/* Stage Timeline */}
           <div className="mb-8">
             <p className="text-[#A7B0B7] text-sm font-medium mb-3">All Stages</p>
             <div className="grid grid-cols-6 sm:grid-cols-12 gap-1.5">
@@ -141,7 +136,6 @@ export function PresaleProgress() {
           </div>
         </div>
 
-        {/* Connected Wallet Card */}
         {isConnected && (
           <div className="glass-card rounded-[28px] p-6 mb-8 shadow-2xl shadow-cyan-900/20">
             <div className="flex flex-col sm:flex-row justify-between items-center gap-6">
