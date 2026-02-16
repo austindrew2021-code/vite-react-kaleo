@@ -39,16 +39,11 @@ export function formatPercentage(value: number): {
   const sign = value > 0 ? '+' : value < 0 ? '-' : '';
   const text = `\( {sign} \){absValue.toFixed(2)}%`;
 
-  let colorClass = 'text-gray-400';
-  let icon: 'up' | 'down' | 'same' = 'same';
-
   if (value > 0) {
-    colorClass = 'text-green-400';
-    icon = 'up';
-  } else if (value < 0) {
-    colorClass = 'text-red-400';
-    icon = 'down';
+    return { text, colorClass: 'text-green-400', icon: 'up' };
   }
-
-  return { text, colorClass, icon };
+  if (value < 0) {
+    return { text, colorClass: 'text-red-400', icon: 'down' };
+  }
+  return { text, colorClass: 'text-gray-400', icon: 'same' };
 }
