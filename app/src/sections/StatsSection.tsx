@@ -108,15 +108,6 @@ export function StatsSection() {
     return () => ctx.revert();
   }, [overallProgress]);
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  };
-
   const statItems = [
     { icon: Users, label: 'Buyers', value: totalBuyers.toLocaleString() },
     { icon: TrendingUp, label: 'Current Stage', value: `${currentStage.stage}/12` },
