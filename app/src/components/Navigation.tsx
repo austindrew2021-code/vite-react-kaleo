@@ -2,15 +2,16 @@ import { useState, useEffect } from 'react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { Menu, X, ExternalLink } from 'lucide-react';
 import { gsap } from 'gsap';
+import { Link } from 'react-scroll'; // for smooth internal scrolling
 
 const WHITEPAPER_URL = 'https://docs.google.com/document/d/e/2PACX-1vExampleWhitepaperLink/pub';
 
 const navLinks = [
-  { label: 'Buy', href: '#buy' },
-  { label: 'Features', href: '#features' },
-  { label: 'Roadmap', href: '#roadmap' },
-  { label: 'Whitepaper', href: WHITEPAPER_URL, external: true },
-  { label: 'FAQ', href: '#faq' },
+  { label: 'Buy', href: 'buy', isExternal: false },
+  { label: 'Features', href: 'features', isExternal: false },
+  { label: 'Roadmap', href: 'roadmap', isExternal: false },
+  { label: 'Whitepaper', href: WHITEPAPER_URL, isExternal: true },
+  { label: 'FAQ', href: 'faq', isExternal: false },
 ];
 
 export function Navigation() {
@@ -55,7 +56,6 @@ export function Navigation() {
         '-=0.2'
       );
 
-    // Return cleanup function (void) to satisfy EffectCallback type
     return () => {
       tl.kill();
     };
@@ -70,11 +70,11 @@ export function Navigation() {
       <nav
         className={`fixed top-0 left-0 right-0 z-[100] px-4 sm:px-6 py-4 flex items-center justify-between transition-all duration-300 ${
           scrolled
-            ? 'bg-[#05060B]/90 backdrop-blur-xl border-b border-white/[0.06] shadow-lg shadow-black/20'
+            ? 'bg-[#05060B]/92 backdrop-blur-xl border-b border-white/[0.08] shadow-xl shadow-black/30'
             : 'bg-transparent'
         }`}
       >
-        <a href="#" className="flex items-center gap-2.5 shrink-0 group">
+        <a href="#" className="flex items-center gap-2.5 shrink-0 group" onClick={handleLinkClick}>
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#2BFFF1] to-[#00D4FF] flex items-center justify-center shadow-lg shadow-[#2BFFF1]/20 transition-transform group-hover:scale-105">
             <span className="text-[#05060B] font-black text-lg tracking-tighter">K</span>
           </div>
@@ -83,22 +83,39 @@ export function Navigation() {
           </span>
         </a>
 
-        <div className="hidden lg:flex items-center gap-8">
+        {/* Desktop Nav – smooth scroll */}
+        <div className="hidden lg:flex items-center gap-10">
           {navLinks.map((link) => (
-            <a
-              key={link.label}
-              href={link.href}
-              onClick={handleLinkClick}
-              className="text-[#A7B0B7] hover:text-[#2BFFF1] transition-colors font-medium text-sm flex items-center gap-1 hover:gap-2"
-              {...(link.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-            >
-              {link.label}
-              {link.external && <ExternalLink className="w-3.5 h-3.5 opacity-60" />}
-            </a>
+            link.isExternal ? (
+              <a
+                key={link.label}
+                href={link.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#A7B0B7] hover:text-[#2BFFF1] transition-colors font-medium text-sm flex items-center gap-1 hover:gap-2"
+              >
+                {link.label}
+                <ExternalLink className="w-3.5 h-3.5 opacity-60" />
+              </a>
+            ) : (
+              <Link
+                key={link.label}
+                to={link.href}
+                smooth={true}
+                duration={800}
+                offset={-80} // account for fixed nav height
+                spy={true}
+                activeClass="text-[#2BFFF1] font-semibold"
+                className="text-[#A7B0B7] hover:text-[#2BFFF1] transition-colors font-medium text-sm cursor-pointer flex items-center gap-1 hover:gap-2"
+                onClick={handleLinkClick}
+              >
+                {link.label}
+              </Link>
+            )
           ))}
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           <ConnectButton
             label="Connect Wallet"
             showBalance={false}
@@ -111,44 +128,61 @@ export function Navigation() {
 
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
-            className="lg:hidden w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-[#A7B0B7] hover:text-[#2BFFF1] hover:border-[#2BFFF1]/30 transition-all duration-200"
+            className="lg:hidden w-11 h-11 rounded-xl bg-white/6 border border-white/12 flex items-center justify-center text-[#A7B0B7] hover:text-[#2BFFF1] hover:border-[#2BFFF1]/40 transition-all duration-200 shadow-sm"
             aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
           >
-            {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
         </div>
       </nav>
 
+      {/* Mobile Menu */}
       {mobileOpen && (
         <div className="fixed inset-0 z-[99] lg:hidden">
           <div
-            className="absolute inset-0 bg-[#05060B]/95 backdrop-blur-xl"
+            className="absolute inset-0 bg-[#05060B]/96 backdrop-blur-2xl"
             onClick={() => setMobileOpen(false)}
           />
 
-          <div className="mobile-menu-content relative flex flex-col items-center justify-center h-full gap-8 p-8">
+          <div className="mobile-menu-content relative flex flex-col items-center justify-center h-full gap-10 p-8">
             {navLinks.map((link) => (
-              <a
-                key={link.label}
-                href={link.href}
-                onClick={handleLinkClick}
-                className="mobile-link text-[#F4F6FA] text-3xl font-bold hover:text-[#2BFFF1] transition-colors"
-                {...(link.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-              >
-                {link.label}
-              </a>
+              link.isExternal ? (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={handleLinkClick}
+                  className="mobile-link text-[#F4F6FA] text-4xl font-bold hover:text-[#2BFFF1] transition-colors flex items-center gap-3"
+                >
+                  {link.label}
+                  <ExternalLink className="w-6 h-6 opacity-70" />
+                </a>
+              ) : (
+                <Link
+                  key={link.label}
+                  to={link.href}
+                  smooth={true}
+                  duration={800}
+                  offset={-80}
+                  onClick={handleLinkClick}
+                  className="mobile-link text-[#F4F6FA] text-4xl font-bold hover:text-[#2BFFF1] transition-colors cursor-pointer"
+                >
+                  {link.label}
+                </Link>
+              )
             ))}
 
-            <div className="mt-8 flex items-center gap-6">
-              <a href="#" className="text-[#A7B0B7] hover:text-[#2BFFF1] text-lg transition-colors">
+            <div className="mt-12 flex items-center gap-8 text-lg">
+              <a href="#" className="text-[#A7B0B7] hover:text-[#2BFFF1] transition-colors">
                 Twitter
               </a>
-              <span className="text-white/10 text-lg">|</span>
-              <a href="#" className="text-[#A7B0B7] hover:text-[#2BFFF1] text-lg transition-colors">
+              <span className="text-white/15">|</span>
+              <a href="#" className="text-[#A7B0B7] hover:text-[#2BFFF1] transition-colors">
                 Discord
               </a>
-              <span className="text-white/10 text-lg">|</span>
-              <a href="#" className="text-[#A7B0B7] hover:text-[#2BFFF1] text-lg transition-colors">
+              <span className="text-white/15">|</span>
+              <a href="#" className="text-[#A7B0B7] hover:text-[#2BFFF1] transition-colors">
                 Telegram
               </a>
             </div>
@@ -157,4 +191,4 @@ export function Navigation() {
       )}
     </>
   );
-}
+              }
