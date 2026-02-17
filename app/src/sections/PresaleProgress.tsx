@@ -252,10 +252,11 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
                           {p.kleoReceived.toLocaleString('en-US', { maximumFractionDigits: 0 })} KLEO
                         </span>
                         <span className="text-[#A7B0B7]">
-                          @ Stage {p.stage} &ndash; {p.ethSpent.toFixed(4)} ETH
+                          @ Stage {p.stage} – {p.ethSpent.toFixed(4)} ETH
                         </span>
                       </div>
-                      
+
+                      <a
                         href={`https://sepolia.etherscan.io/tx/${p.txHash}`}
                         target="_blank"
                         rel="noopener noreferrer"
