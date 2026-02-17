@@ -6,18 +6,25 @@ import {
   Info,
   Wallet,
   TrendingUp,
-  X,
   ExternalLink,
   AlertTriangle,
   CheckCircle2,
   CreditCard,
 } from 'lucide-react';
+import { SupabaseClient } from '@supabase/supabase-js';
 import { usePresale } from '../hooks/usePresale';
 import { usePresaleStore } from '../store/presaleStore';
 
 gsap.registerPlugin(ScrollTrigger);
 
-export function BuySection() {
+interface BuySectionProps {
+  userTokens: number;
+  direction: 'up' | 'down' | 'neutral';
+  supabase: SupabaseClient | null;
+  walletAddress: `0x${string}` | undefined;
+}
+
+export function BuySection({ userTokens: _userTokens, direction: _direction, supabase: _supabase, walletAddress: _walletAddress }: BuySectionProps) {
   const sectionRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -300,4 +307,4 @@ export function BuySection() {
       </div>
     </section>
   );
-                      }
+}
