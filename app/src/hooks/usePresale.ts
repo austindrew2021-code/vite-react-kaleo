@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   useAccount,
   useBalance,
@@ -8,6 +8,7 @@ import {
   useWaitForTransactionReceipt,
 } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
+import { createClient } from '@supabase/supabase-js';
 import {
   usePresaleStore,
   getCurrentStage,
@@ -18,12 +19,13 @@ import {
   PRESALE_STAGES,
   HARD_CAP_ETH,
   LISTING_PRICE,
-  PurchaseRecord,
 } from '../store/presaleStore';
 import { SEPOLIA_CHAIN_ID } from '../wagmi';
 
-const MIN_ETH = 0.001;
-const MAX_ETH = 100; // reasonable per-tx limit for testnet / UX
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL || '',
+  import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+);
 
 export function usePresale() {
   const { address, isConnected } = useAccount();
@@ -46,6 +48,9 @@ export function usePresale() {
     addPurchase,
   } = usePresaleStore();
 
+  const [stripeLoading, setStripeLoading] = useState(false);
+  const [momentum, setMomentum] = useState(0); // proxy: net buys in last \~10 min window (simplified)
+
   const {
     sendTransaction,
     data: sendTxHash,
@@ -61,7 +66,15 @@ export function usePresale() {
     hash: sendTxHash,
   });
 
-  // ── Transaction flow updates ─────────────────────────────────────────────
+  // Track momentum (simple: count recent purchases vs time)
+  useEffect(() => {
+    if (purchases.length < 2) return;
+    const now = Date.now();
+    const recent = purchases.filter(p => now - p.timestamp < 600_000); // 10 min
+    const netMomentum = recent.length > 3 ? 1 : recent.length > 1 ? 0.3 : -0.2;
+    setMomentum(netMomentum);
+  }, [purchases]);
+
   useEffect(() => {
     if (sendTxHash) {
       setTxHash(sendTxHash);
@@ -73,97 +86,80 @@ export function usePresale() {
     if (isSendError && sendError) {
       let msg = 'Transaction failed. Please try again.';
       if (sendError.message?.includes('User rejected')) msg = 'Transaction rejected by user';
-      else if (sendError.message?.includes('insufficient funds')) msg = 'Insufficient Sepolia ETH';
-      else if (sendError.message?.includes('wrong chain')) msg = 'Switch to Sepolia network';
-      else if (sendError.shortMessage) msg = sendError.shortMessage;
+      else if (sendError.message?.includes('insufficient funds')) msg = 'Insufficient Sepolia ETH balance';
+      else if (sendError.message?.includes('wrong chain')) msg = 'Please switch to Sepolia network';
       setTxStatus('error');
       setTxError(msg);
     }
   }, [isSendError, sendError, setTxStatus, setTxError]);
 
   useEffect(() => {
-    if (isConfirmed && sendTxHash && ethAmount) {
-      const eth = parseFloat(ethAmount);
-      if (!isNaN(eth) && eth > 0) {
-        const stage = getCurrentStage(totalRaised);
-        const kleoReceived = eth / stage.priceEth;
+    if (!isConfirmed || !sendTxHash || !ethAmount || !address) return;
 
-        // Update global state
-        addRaised(eth);
-        addPurchase({
-          ethSpent: eth,
-          kleoReceived,
-          stage: stage.stage,
-          priceEth: stage.priceEth,
-          txHash: sendTxHash,
-          timestamp: Date.now(),
-        });
+    setTxStatus('success');
 
-        setTxStatus('success');
-        refetchBalance();
-      }
-    }
-  }, [isConfirmed, sendTxHash, ethAmount, totalRaised, addRaised, addPurchase, refetchBalance, setTxStatus]);
+    const eth = parseFloat(ethAmount);
+    if (isNaN(eth) || eth <= 0) return;
 
-  // ── Derived values ───────────────────────────────────────────────────────
+    const stage = getCurrentStage(totalRaised);
+    const kleoReceived = eth / stage.priceEth;
+
+    // Update local store
+    addRaised(eth);
+    addPurchase({
+      ethSpent: eth,
+      kleoReceived,
+      stage: stage.stage,
+      priceEth: stage.priceEth,
+      txHash: sendTxHash,
+      timestamp: Date.now(),
+    });
+
+    // Persist to Supabase
+    supabase
+      .from('presale_purchases')
+      .insert({
+        wallet_address: address.toLowerCase(),
+        tokens: kleoReceived,
+        eth_spent: eth,
+        stage: stage.stage,
+        price_eth: stage.priceEth,
+        tx_hash: sendTxHash,
+        method: 'eth',
+      })
+      .then(({ error }) => {
+        if (error) console.error('Supabase insert failed:', error);
+      });
+
+    refetchBalance();
+  }, [isConfirmed, sendTxHash, ethAmount, address, totalRaised, addRaised, addPurchase, refetchBalance]);
+
   const currentStage = useMemo(() => getCurrentStage(totalRaised), [totalRaised]);
   const stageProgress = useMemo(() => getStageProgress(totalRaised), [totalRaised]);
   const overallProgress = useMemo(() => getOverallProgress(totalRaised), [totalRaised]);
   const priceDirection = useMemo(() => getPriceDirection(currentStage), [currentStage]);
-
   const priceChangePercent = useMemo(() => {
     const prev = PRESALE_STAGES.find(s => s.stage === currentStage.stage - 1);
-    if (!prev) return 0;
-    return ((currentStage.priceEth - prev.priceEth) / prev.priceEth) * 100;
+    return prev ? ((currentStage.priceEth - prev.priceEth) / prev.priceEth) * 100 : 0;
   }, [currentStage]);
 
-  // ── Momentum / Direction indicator ───────────────────────────────────────
-  // Combines price trend + recent activity velocity (last 8 tx ≈ last few minutes/hours)
-  const momentumScore = useMemo(() => {
-    if (purchases.length === 0) return 0;
-
-    const recent = purchases.slice(-8); // last 8 buys
-    if (recent.length < 2) return 0;
-
-    const timeSpan = Date.now() - recent[0].timestamp;
-    const buysPerMinute = (recent.length / (timeSpan / 60000)) || 0;
-
-    const recentEth = recent.reduce((sum, p) => sum + p.ethSpent, 0);
-    const avgRecent = recentEth / recent.length;
-
-    // Normalize: >0.05 eth/min + increasing price = strong bullish
-    const activityFactor = Math.min(buysPerMinute * 20, 1); // cap at 1
-    const priceFactor = priceChangePercent / 100; // e.g. +83% = 0.83
-
-    return activityFactor + priceFactor * 0.6;
-  }, [purchases, priceChangePercent]);
-
-  const direction = useMemo<'up' | 'down' | 'neutral'>(() => {
-    if (momentumScore > 1.2) return 'up';     // strong bullish
-    if (momentumScore > 0.4) return 'up';     // mild bullish
-    if (momentumScore < -0.3) return 'down';  // bearish (unlikely in presale)
-    return 'neutral';
-  }, [momentumScore]);
-
-  const directionLabel = useMemo(() => {
-    if (direction === 'up') {
-      if (momentumScore > 1.2) return 'Strong Buying Pressure ↑';
-      return 'Bullish Momentum ↑';
-    }
-    if (direction === 'down') return 'Cooling Off ↓';
-    return 'Stable →';
-  }, [direction, momentumScore]);
+  const directionIndicator = useMemo(() => {
+    if (priceChangePercent > 10 || momentum > 0.5) return { text: 'Strong ↑ Bullish', color: 'text-green-400' };
+    if (priceChangePercent > 0 || momentum > 0) return { text: '↑ Mild Bullish', color: 'text-emerald-300' };
+    if (priceChangePercent < -5 || momentum < -0.3) return { text: '↓ Bearish Pressure', color: 'text-red-400' };
+    return { text: '→ Neutral / Stable', color: 'text-gray-400' };
+  }, [priceChangePercent, momentum]);
 
   const isOnSepolia = chainId === SEPOLIA_CHAIN_ID;
-  const nextStage = currentStage.stage < PRESALE_STAGES.length ? PRESALE_STAGES[currentStage.stage] : null;
+  const nextStage = currentStage.stage < 12 ? PRESALE_STAGES[currentStage.stage] : null;
 
   const calculateTokenAmount = useCallback(
-    (ethInput: string): string => {
-      if (!ethInput || isNaN(parseFloat(ethInput))) return '0';
-      const eth = parseFloat(ethInput);
-      if (eth <= 0) return '0';
-      const tokens = eth / currentStage.priceEth;
-      return tokens.toLocaleString('en-US', { maximumFractionDigits: 0 });
+    (input: string, isEth = true): string => {
+      if (!input || isNaN(parseFloat(input))) return '0';
+      const val = parseFloat(input);
+      if (val <= 0) return '0';
+      const rate = isEth ? currentStage.priceEth : currentStage.priceEth * 2000; // rough USD/ETH proxy
+      return (val / rate).toLocaleString('en-US', { maximumFractionDigits: 0 });
     },
     [currentStage.priceEth]
   );
@@ -171,34 +167,28 @@ export function usePresale() {
   const switchToSepolia = useCallback(async () => {
     try {
       await switchChainAsync({ chainId: SEPOLIA_CHAIN_ID });
-    } catch (err: any) {
-      setTxError(err?.shortMessage || 'Failed to switch network');
+    } catch (err) {
+      setTxError('Failed to switch network. Please switch manually.');
     }
   }, [switchChainAsync, setTxError]);
 
   const buyWithEth = useCallback(
-    async (amountEth: string) => {
+    async (ethInput: string) => {
       if (!isConnected || !address) {
-        setTxError('Connect your wallet first');
+        setTxError('Please connect your wallet first');
         return;
       }
       if (!isOnSepolia) {
-        setTxError('Please switch to Sepolia');
         await switchToSepolia();
         return;
       }
-
-      const eth = parseFloat(amountEth);
-      if (isNaN(eth) || eth < MIN_ETH) {
-        setTxError(`Minimum ${MIN_ETH} ETH`);
-        return;
-      }
-      if (eth > MAX_ETH) {
-        setTxError(`Maximum ${MAX_ETH} ETH per transaction`);
+      const eth = parseFloat(ethInput);
+      if (isNaN(eth) || eth <= 0) {
+        setTxError('Invalid ETH amount');
         return;
       }
       if (ethBalance && eth > parseFloat(formatEther(ethBalance.value))) {
-        setTxError('Insufficient Sepolia ETH balance');
+        setTxError('Insufficient Sepolia ETH');
         return;
       }
 
@@ -208,33 +198,56 @@ export function usePresale() {
       try {
         sendTransaction({
           to: PRESALE_WALLET,
-          value: parseEther(amountEth),
+          value: parseEther(ethInput),
         });
       } catch (err: any) {
         setTxStatus('error');
         setTxError(err?.shortMessage || 'Failed to send transaction');
       }
     },
-    [
-      isConnected,
-      address,
-      isOnSepolia,
-      ethBalance,
-      switchToSepolia,
-      resetTx,
-      setTxStatus,
-      setTxError,
-      sendTransaction,
-    ]
+    [isConnected, address, isOnSepolia, ethBalance, switchToSepolia, resetTx, setTxStatus, setTxError, sendTransaction]
   );
 
-  // Placeholder for future Stripe integration (call from BuySection)
-  const buyWithCard = useCallback(async (usdAmount: number) => {
-    // → redirect to Stripe Checkout
-    // On success → webhook or client poll → addPurchase(...)
-    console.warn('Stripe buy not implemented yet — amount:', usdAmount);
-    // Future: fetch('/api/create-checkout-session', { method: 'POST', body: JSON.stringify({ usdAmount, wallet: address }) })
-  }, []);
+  const buyWithCard = useCallback(
+    async (usdAmount: string) => {
+      if (!isConnected || !address) {
+        setTxError('Connect wallet first');
+        return;
+      }
+      if (!usdAmount || parseFloat(usdAmount) < 10) {
+        setTxError('Minimum $10');
+        return;
+      }
+
+      setStripeLoading(true);
+      try {
+        const tokens = calculateTokenAmount(usdAmount, false);
+        const res = await fetch('/api/create-checkout-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            amount: Math.round(parseFloat(usdAmount) * 100), // cents
+            tokens: parseFloat(tokens),
+            wallet: address,
+            stage: currentStage.stage,
+          }),
+        });
+
+        const { sessionId, error } = await res.json();
+        if (error) throw new Error(error);
+
+        const stripe = await import('@stripe/stripe-js').then(m => m.loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY));
+        if (!stripe) throw new Error('Stripe failed to load');
+
+        await stripe.redirectToCheckout({ sessionId });
+      } catch (err: any) {
+        setTxError(err.message || 'Card payment failed');
+      } finally {
+        setStripeLoading(false);
+      }
+    },
+    [isConnected, address, currentStage.stage, calculateTokenAmount]
+  );
 
   return {
     isConnected,
@@ -243,7 +256,7 @@ export function usePresale() {
     ethBalance: ethBalance ? formatEther(ethBalance.value) : '0',
 
     buyWithEth,
-    buyWithCard,               // future card payment entry point
+    buyWithCard,
     switchToSepolia,
     calculateTokenAmount,
     resetTx,
@@ -253,6 +266,7 @@ export function usePresale() {
     txError,
     isSending,
     isConfirming,
+    stripeLoading,
 
     currentStage,
     nextStage,
@@ -265,17 +279,12 @@ export function usePresale() {
 
     priceDirection,
     priceChangePercent,
-    momentumScore,
-    direction,
-    directionLabel,
-
+    directionIndicator,
+    momentum,
     tokensSoldPercentage: overallProgress,
     ethRemainingInStage: currentStage.ethTarget - (totalRaised - (currentStage.cumulativeEth - currentStage.ethTarget)),
     totalKleoPurchased: purchases.reduce((sum, p) => sum + p.kleoReceived, 0),
     totalEthSpent: purchases.reduce((sum, p) => sum + p.ethSpent, 0),
     totalBuyers: purchases.length,
-
-    minEth: MIN_ETH,
-    maxEth: MAX_ETH,
   };
 }
