@@ -6,7 +6,7 @@ import {
   Info,
   Wallet,
   TrendingUp,
-  Zap,
+  X,
   ExternalLink,
   AlertTriangle,
   CheckCircle2,
