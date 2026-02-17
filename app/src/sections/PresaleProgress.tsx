@@ -1,3 +1,4 @@
+import { gsap } from 'gsap';
 import { useEffect, useState } from 'react';
 import { useAccount, useBalance } from 'wagmi';
 import { formatEther } from 'viem';
@@ -18,7 +19,11 @@ const supabase = createClient(
   import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 );
 
-export function PresaleProgress() {
+interface PresaleProgressProps {
+  direction: 'up' | 'down' | 'neutral';
+}
+
+export function PresaleProgress({ direction }: PresaleProgressProps) {
   const { address, isConnected } = useAccount();
   const { data: balance } = useBalance({ address });
   const { totalRaised, purchases } = usePresaleStore();
@@ -27,13 +32,12 @@ export function PresaleProgress() {
   const stageProgress = getStageProgress(totalRaised);
   const overallProgress = getOverallProgress(totalRaised);
 
-  const totalKleoPurchased = purchases.reduce((sum, p) => sum + p.kleoReceived, 0);
+  const _totalKleoPurchased = purchases.reduce((sum, p) => sum + p.kleoReceived, 0);
   const totalEthSpent = purchases.reduce((sum, p) => sum + p.ethSpent, 0);
 
   const stageStartEth = currentStage.cumulativeEth - currentStage.ethTarget;
   const raisedInCurrentStage = Math.max(0, totalRaised - stageStartEth);
 
-  // Momentum: count buys in last 15 minutes
   const now = Date.now();
   const recentBuys = purchases.filter(p => now - p.timestamp < 15 * 60 * 1000).length;
 
@@ -43,7 +47,6 @@ export function PresaleProgress() {
     ? { text: 'Active buying', color: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300' }
     : { text: 'Building momentum', color: 'bg-gray-600/20 border-gray-500/30 text-gray-400' };
 
-  // Fetch real token balance from Supabase (persistent)
   const [supabaseTokens, setSupabaseTokens] = useState<number>(0);
 
   useEffect(() => {
@@ -66,7 +69,6 @@ export function PresaleProgress() {
 
     fetchTokens();
 
-    // Realtime subscription (optional but makes it feel live)
     const channel = supabase
       .channel('presale-updates')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'presale_purchases' }, (payload) => {
@@ -92,8 +94,10 @@ export function PresaleProgress() {
   return (
     <section className="fade-in-section min-h-screen flex items-center justify-center bg-gradient-to-b from-[#05060B] to-[#0B0E14] relative overflow-hidden py-20">
       <div className="progress-container w-full max-w-4xl mx-auto px-6">
+
         {/* Main Card */}
         <div className="glass-card rounded-[32px] p-8 sm:p-10 mb-10 shadow-2xl shadow-cyan-900/25">
+
           {/* Header with indicators */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-6">
             <div>
@@ -105,12 +109,16 @@ export function PresaleProgress() {
                   <Circle className="w-3.5 h-3.5 animate-pulse" />
                   LIVE
                 </span>
-                {/* Price direction arrow */}
-                <span className="px-4 py-1.5 rounded-full bg-green-500/15 border border-green-500/30 text-green-400 font-medium flex items-center gap-2 text-sm">
-                  <ArrowUp className="w-4 h-4" />
-                  Price rising
+                <span className={`px-4 py-1.5 rounded-full font-medium flex items-center gap-2 text-sm ${
+                  direction === 'up'
+                    ? 'bg-green-500/15 border border-green-500/30 text-green-400'
+                    : direction === 'down'
+                    ? 'bg-red-500/15 border border-red-500/30 text-red-400'
+                    : 'bg-gray-500/15 border border-gray-500/30 text-gray-400'
+                }`}>
+                  <ArrowUp className={`w-4 h-4 transition-transform ${direction === 'down' ? 'rotate-180' : ''}`} />
+                  {direction === 'up' ? 'Price rising' : direction === 'down' ? 'Price falling' : 'Price stable'}
                 </span>
-                {/* Momentum badge */}
                 <span className={`px-4 py-1.5 rounded-full text-sm font-medium flex items-center gap-2 ${momentumBadge.color}`}>
                   <Zap className="w-4 h-4" />
                   {momentumBadge.text}
@@ -244,10 +252,10 @@ export function PresaleProgress() {
                           {p.kleoReceived.toLocaleString('en-US', { maximumFractionDigits: 0 })} KLEO
                         </span>
                         <span className="text-[#A7B0B7]">
-                          @ Stage {p.stage} – {p.ethSpent.toFixed(4)} ETH
+                          @ Stage {p.stage} &ndash; {p.ethSpent.toFixed(4)} ETH
                         </span>
                       </div>
-                      <a
+                      
                         href={`https://sepolia.etherscan.io/tx/${p.txHash}`}
                         target="_blank"
                         rel="noopener noreferrer"
@@ -268,7 +276,8 @@ export function PresaleProgress() {
             Connect your wallet to view your personal allocation, recent purchases, and real-time progress.
           </div>
         )}
+
       </div>
     </section>
   );
-                                                      }
+}
