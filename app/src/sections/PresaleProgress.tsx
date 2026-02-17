@@ -32,7 +32,6 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
   const stageProgress = getStageProgress(totalRaised);
   const overallProgress = getOverallProgress(totalRaised);
 
-  const _totalKleoPurchased = purchases.reduce((sum, p) => sum + p.kleoReceived, 0);
   const totalEthSpent = purchases.reduce((sum, p) => sum + p.ethSpent, 0);
 
   const stageStartEth = currentStage.cumulativeEth - currentStage.ethTarget;
