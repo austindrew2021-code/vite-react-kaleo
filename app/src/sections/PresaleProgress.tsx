@@ -1,3 +1,4 @@
+import { gsap } from 'gsap';
 import { useEffect, useState } from 'react';
 import { useAccount, useBalance } from 'wagmi';
 import { formatEther } from 'viem';
@@ -18,7 +19,11 @@ const supabase = createClient(
   import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 );
 
-export function PresaleProgress() {
+interface PresaleProgressProps {
+  direction: 'up' | 'down' | 'neutral';
+}
+
+export function PresaleProgress({ direction }: PresaleProgressProps) {
   const { address, isConnected } = useAccount();
   const { data: balance } = useBalance({ address });
   const { totalRaised, purchases } = usePresaleStore();
@@ -33,7 +38,6 @@ export function PresaleProgress() {
   const stageStartEth = currentStage.cumulativeEth - currentStage.ethTarget;
   const raisedInCurrentStage = Math.max(0, totalRaised - stageStartEth);
 
-  // Momentum: count buys in last 15 minutes
   const now = Date.now();
   const recentBuys = purchases.filter(p => now - p.timestamp < 15 * 60 * 1000).length;
 
@@ -43,7 +47,6 @@ export function PresaleProgress() {
     ? { text: 'Active buying', color: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300' }
     : { text: 'Building momentum', color: 'bg-gray-600/20 border-gray-500/30 text-gray-400' };
 
-  // Fetch real token balance from Supabase (persistent)
   const [supabaseTokens, setSupabaseTokens] = useState<number>(0);
 
   useEffect(() => {
@@ -66,7 +69,6 @@ export function PresaleProgress() {
 
     fetchTokens();
 
-    // Realtime subscription (optional but makes it feel live)
     const channel = supabase
       .channel('presale-updates')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'presale_purchases' }, (payload) => {
@@ -106,9 +108,15 @@ export function PresaleProgress() {
                   LIVE
                 </span>
                 {/* Price direction arrow */}
-                <span className="px-4 py-1.5 rounded-full bg-green-500/15 border border-green-500/30 text-green-400 font-medium flex items-center gap-2 text-sm">
-                  <ArrowUp className="w-4 h-4" />
-                  Price rising
+                <span className={`px-4 py-1.5 rounded-full font-medium flex items-center gap-2 text-sm ${
+                  direction === 'up'
+                    ? 'bg-green-500/15 border border-green-500/30 text-green-400'
+                    : direction === 'down'
+                    ? 'bg-red-500/15 border border-red-500/30 text-red-400'
+                    : 'bg-gray-500/15 border border-gray-500/30 text-gray-400'
+                }`}>
+                  <ArrowUp className={`w-4 h-4 transition-transform ${direction === 'down' ? 'rotate-180' : ''}`} />
+                  {direction === 'up' ? 'Price rising' : direction === 'down' ? 'Price falling' : 'Price stable'}
                 </span>
                 {/* Momentum badge */}
                 <span className={`px-4 py-1.5 rounded-full text-sm font-medium flex items-center gap-2 ${momentumBadge.color}`}>
@@ -247,7 +255,7 @@ export function PresaleProgress() {
                           @ Stage {p.stage} – {p.ethSpent.toFixed(4)} ETH
                         </span>
                       </div>
-                      <a
+                      
                         href={`https://sepolia.etherscan.io/tx/${p.txHash}`}
                         target="_blank"
                         rel="noopener noreferrer"
@@ -271,4 +279,4 @@ export function PresaleProgress() {
       </div>
     </section>
   );
-                                                      }
+}
