@@ -109,7 +109,6 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
                   <Circle className="w-3.5 h-3.5 animate-pulse" />
                   LIVE
                 </span>
-                {/* Price direction arrow */}
                 <span className={`px-4 py-1.5 rounded-full font-medium flex items-center gap-2 text-sm ${
                   direction === 'up'
                     ? 'bg-green-500/15 border border-green-500/30 text-green-400'
@@ -120,7 +119,6 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
                   <ArrowUp className={`w-4 h-4 transition-transform ${direction === 'down' ? 'rotate-180' : ''}`} />
                   {direction === 'up' ? 'Price rising' : direction === 'down' ? 'Price falling' : 'Price stable'}
                 </span>
-                {/* Momentum badge */}
                 <span className={`px-4 py-1.5 rounded-full text-sm font-medium flex items-center gap-2 ${momentumBadge.color}`}>
                   <Zap className="w-4 h-4" />
                   {momentumBadge.text}
@@ -254,7 +252,7 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
                           {p.kleoReceived.toLocaleString('en-US', { maximumFractionDigits: 0 })} KLEO
                         </span>
                         <span className="text-[#A7B0B7]">
-                          @ Stage {p.stage} – {p.ethSpent.toFixed(4)} ETH
+                          @ Stage {p.stage} &ndash; {p.ethSpent.toFixed(4)} ETH
                         </span>
                       </div>
                       
@@ -278,6 +276,7 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
             Connect your wallet to view your personal allocation, recent purchases, and real-time progress.
           </div>
         )}
+
       </div>
     </section>
   );
