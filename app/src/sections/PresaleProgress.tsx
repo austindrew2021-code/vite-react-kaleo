@@ -94,8 +94,10 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
   return (
     <section className="fade-in-section min-h-screen flex items-center justify-center bg-gradient-to-b from-[#05060B] to-[#0B0E14] relative overflow-hidden py-20">
       <div className="progress-container w-full max-w-4xl mx-auto px-6">
+
         {/* Main Card */}
         <div className="glass-card rounded-[32px] p-8 sm:p-10 mb-10 shadow-2xl shadow-cyan-900/25">
+
           {/* Header with indicators */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-6">
             <div>
