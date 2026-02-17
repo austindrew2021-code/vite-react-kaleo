@@ -1,107 +1,194 @@
+import { useState, useEffect } from 'react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'; // shadcn/ui Dialog component
+import { Menu, X, ExternalLink } from 'lucide-react';
+import { gsap } from 'gsap';
+import { Link } from 'react-scroll'; // for smooth internal scrolling
+
+const WHITEPAPER_URL = 'https://docs.google.com/document/d/e/2PACX-1vExampleWhitepaperLink/pub';
+
+const navLinks = [
+  { label: 'Buy', href: 'buy', isExternal: false },
+  { label: 'Features', href: 'features', isExternal: false },
+  { label: 'Roadmap', href: 'roadmap', isExternal: false },
+  { label: 'Whitepaper', href: WHITEPAPER_URL, isExternal: true },
+  { label: 'FAQ', href: 'faq', isExternal: false },
+];
 
 export function Navigation() {
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = 'hidden';
+      document.body.style.touchAction = 'none';
+    } else {
+      document.body.style.overflow = '';
+      document.body.style.touchAction = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.touchAction = '';
+    };
+  }, [mobileOpen]);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+
+    const tl = gsap.timeline();
+    tl.fromTo(
+      '.mobile-menu-content',
+      { opacity: 0, scale: 0.95, y: 20 },
+      { opacity: 1, scale: 1, y: 0, duration: 0.4, ease: 'power2.out' }
+    )
+      .fromTo(
+        '.mobile-link',
+        { opacity: 0, y: 15 },
+        { opacity: 1, y: 0, duration: 0.35, stagger: 0.06, ease: 'power2.out' },
+        '-=0.2'
+      );
+
+    return () => {
+      tl.kill();
+    };
+  }, [mobileOpen]);
+
+  const handleLinkClick = () => {
+    setMobileOpen(false);
+  };
+
   return (
-    <nav className="fixed top-0 left-0 right-0 z-[100] px-6 py-5 flex items-center justify-between bg-black/40 backdrop-blur-md border-b border-cyan-500/20">
-      {/* Logo */}
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-cyan-600 flex items-center justify-center shadow-lg shadow-cyan-500/30">
-          <span className="text-black font-black text-2xl tracking-tighter">K</span>
+    <>
+      <nav
+        className={`fixed top-0 left-0 right-0 z-[100] px-4 sm:px-6 py-4 flex items-center justify-between transition-all duration-300 ${
+          scrolled
+            ? 'bg-[#05060B]/92 backdrop-blur-xl border-b border-white/[0.08] shadow-xl shadow-black/30'
+            : 'bg-transparent'
+        }`}
+      >
+        <a href="#" className="flex items-center gap-2.5 shrink-0 group" onClick={handleLinkClick}>
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#2BFFF1] to-[#00D4FF] flex items-center justify-center shadow-lg shadow-[#2BFFF1]/20 transition-transform group-hover:scale-105">
+            <span className="text-[#05060B] font-black text-lg tracking-tighter">K</span>
+          </div>
+          <span className="text-[#F4F6FA] font-bold text-xl tracking-tight group-hover:text-[#2BFFF1] transition-colors">
+            Kaleo
+          </span>
+        </a>
+
+        {/* Desktop Nav – smooth scroll */}
+        <div className="hidden lg:flex items-center gap-10">
+          {navLinks.map((link) => (
+            link.isExternal ? (
+              <a
+                key={link.label}
+                href={link.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#A7B0B7] hover:text-[#2BFFF1] transition-colors font-medium text-sm flex items-center gap-1 hover:gap-2"
+              >
+                {link.label}
+                <ExternalLink className="w-3.5 h-3.5 opacity-60" />
+              </a>
+            ) : (
+              <Link
+                key={link.label}
+                to={link.href}
+                smooth={true}
+                duration={800}
+                offset={-80} // account for fixed nav height
+                spy={true}
+                activeClass="text-[#2BFFF1] font-semibold"
+                className="text-[#A7B0B7] hover:text-[#2BFFF1] transition-colors font-medium text-sm cursor-pointer flex items-center gap-1 hover:gap-2"
+                onClick={handleLinkClick}
+              >
+                {link.label}
+              </Link>
+            )
+          ))}
         </div>
-        <span className="text-white font-bold text-2xl tracking-tight">Kaleo</span>
-      </div>
 
-      {/* Nav Links - Hidden on mobile, centered on desktop */}
-      <div className="hidden md:flex items-center gap-10">
-        <a
-          href="#buy"
-          className="text-gray-300 hover:text-cyan-400 transition-colors font-medium text-base"
-        >
-          Buy
-        </a>
+        <div className="flex items-center gap-4">
+          <ConnectButton
+            label="Connect Wallet"
+            showBalance={false}
+            chainStatus="icon"
+            accountStatus={{
+              smallScreen: 'avatar',
+              largeScreen: 'address',
+            }}
+          />
 
-        <a
-          href="#staking"
-          className="text-gray-300 hover:text-cyan-400 transition-colors font-medium text-base"
-        >
-          Staking
-        </a>
+          <button
+            onClick={() => setMobileOpen(!mobileOpen)}
+            className="lg:hidden w-11 h-11 rounded-xl bg-white/6 border border-white/12 flex items-center justify-center text-[#A7B0B7] hover:text-[#2BFFF1] hover:border-[#2BFFF1]/40 transition-all duration-200 shadow-sm"
+            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+          >
+            {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
+        </div>
+      </nav>
 
-        {/* Whitepaper Modal Trigger */}
-        <Dialog>
-          <DialogTrigger asChild>
-            <button className="text-gray-300 hover:text-cyan-400 transition-colors font-medium text-base">
-              Whitepaper
-            </button>
-          </DialogTrigger>
+      {/* Mobile Menu */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-[99] lg:hidden">
+          <div
+            className="absolute inset-0 bg-[#05060B]/96 backdrop-blur-2xl"
+            onClick={() => setMobileOpen(false)}
+          />
 
-          <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto bg-gradient-to-b from-gray-950 to-black border border-cyan-500/30 text-white">
-            <DialogHeader>
-              <DialogTitle className="text-4xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent mb-8">
-                Kaleo Whitepaper
-              </DialogTitle>
-            </DialogHeader>
+          <div className="mobile-menu-content relative flex flex-col items-center justify-center h-full gap-10 p-8">
+            {navLinks.map((link) => (
+              link.isExternal ? (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={handleLinkClick}
+                  className="mobile-link text-[#F4F6FA] text-4xl font-bold hover:text-[#2BFFF1] transition-colors flex items-center gap-3"
+                >
+                  {link.label}
+                  <ExternalLink className="w-6 h-6 opacity-70" />
+                </a>
+              ) : (
+                <Link
+                  key={link.label}
+                  to={link.href}
+                  smooth={true}
+                  duration={800}
+                  offset={-80}
+                  onClick={handleLinkClick}
+                  className="mobile-link text-[#F4F6FA] text-4xl font-bold hover:text-[#2BFFF1] transition-colors cursor-pointer"
+                >
+                  {link.label}
+                </Link>
+              )
+            ))}
 
-            <div className="prose prose-invert prose-cyan max-w-none space-y-8 text-gray-200 leading-relaxed">
-              {/* Paste or import your full whitepaper content here */}
-              <h2 className="text-3xl font-semibold text-cyan-300 mt-12">1. Executive Summary</h2>
-              <p>
-                Kaleo is a decentralized leverage trading platform for memecoins on Polygon, offering up to 100x leverage with advanced risk controls...
-              </p>
-
-              <h2 className="text-3xl font-semibold text-cyan-300 mt-12">2. Tokenomics</h2>
-              <ul className="list-disc pl-8 space-y-3">
-                <li>Total Supply: 1,000,000,000 KLEO</li>
-                <li>Presale: 40% (400M tokens)</li>
-                <li>Liquidity & Marketing: 20%</li>
-                <li>Team & Advisors: 10% (vested 24 months)</li>
-                <li>Ecosystem & Rewards: 15%</li>
-                <li>Community Airdrops: 15%</li>
-              </ul>
-
-              <h2 className="text-3xl font-semibold text-cyan-300 mt-12">3. Roadmap</h2>
-              <div className="grid md:grid-cols-2 gap-6 mt-6">
-                <div className="p-6 bg-gray-900/50 rounded-xl border border-cyan-500/20">
-                  <h3 className="text-xl font-bold text-cyan-400 mb-4">Q1 2026 – Launch</h3>
-                  <ul className="list-disc pl-5 space-y-2">
-                    <li>Presale & Token Generation</li>
-                    <li>DEX Listing</li>
-                    <li>Initial Community Marketing</li>
-                  </ul>
-                </div>
-                <div className="p-6 bg-gray-900/50 rounded-xl border border-cyan-500/20">
-                  <h3 className="text-xl font-bold text-cyan-400 mb-4">Q2 2026 – Platform</h3>
-                  <ul className="list-disc pl-5 space-y-2">
-                    <li>Leverage Dashboard</li>
-                    <li>Advanced Orders</li>
-                    <li>Mobile App Beta</li>
-                  </ul>
-                </div>
-                {/* Add more phases */}
-              </div>
-
-              <p className="text-sm text-gray-500 mt-16 text-center">
-                © 2026 Kaleo Team. All rights reserved. This document is for informational purposes only.
-              </p>
+            <div className="mt-12 flex items-center gap-8 text-lg">
+              <a href="#" className="text-[#A7B0B7] hover:text-[#2BFFF1] transition-colors">
+                Twitter
+              </a>
+              <span className="text-white/15">|</span>
+              <a href="#" className="text-[#A7B0B7] hover:text-[#2BFFF1] transition-colors">
+                Discord
+              </a>
+              <span className="text-white/15">|</span>
+              <a href="#" className="text-[#A7B0B7] hover:text-[#2BFFF1] transition-colors">
+                Telegram
+              </a>
             </div>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {/* Connect Wallet Button */}
-      <ConnectButton
-        label="Connect Wallet"
-        showBalance={false}
-        chainStatus="none"
-        accountStatus="address"
-      />
-    </nav>
+          </div>
+        </div>
+      )}
+    </>
   );
-}
+              }

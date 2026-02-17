@@ -22,7 +22,7 @@ export function StakingCTASection() {
     if (!section || !card || !bg) return;
 
     // Initial quick fade-in on load (draw-in effect)
-    gsap.fromTo(section, 
+    gsap.fromTo(section,
       { opacity: 0, y: 40 },
       { opacity: 1, y: 0, duration: 0.6, ease: 'power2.out' }
     );
@@ -35,7 +35,7 @@ export function StakingCTASection() {
           end: '+=120%',
           pin: true,
           pinSpacing: false,
-          scrub: 0.2,                  // Faster response → feels natural
+          scrub: 0.2,                  // Faster response → natural feel
           anticipatePin: 1,
           fastScrollEnd: true,
           preventOverlaps: true,
@@ -43,34 +43,34 @@ export function StakingCTASection() {
       });
 
       scrollTl
-        .fromTo(card, 
-          { x: '60vw', rotate: -8, scale: 0.94, opacity: 0 }, 
+        .fromTo(card,
+          { x: '60vw', rotate: -8, scale: 0.94, opacity: 0 },
           { x: 0, rotate: -4, scale: 1, opacity: 1, ease: 'none' },
           0
         )
-        .fromTo('.cta-headline', 
-          { y: '4vh', opacity: 0 }, 
+        .fromTo('.cta-headline',
+          { y: '4vh', opacity: 0 },
           { y: 0, opacity: 1, ease: 'none' },
           0.05
         )
-        .fromTo('.cta-body', 
-          { y: '3vh', opacity: 0 }, 
+        .fromTo('.cta-body',
+          { y: '3vh', opacity: 0 },
           { y: 0, opacity: 1, ease: 'none' },
           0.1
         )
-        .fromTo('.cta-button', 
-          { y: '3vh', opacity: 0 }, 
+        .fromTo('.cta-button',
+          { y: '3vh', opacity: 0 },
           { y: 0, opacity: 1, ease: 'none' },
           0.15
         )
-        .to({}, { duration: 0.4 }) // Settle time
-        .fromTo(card, 
-          { y: 0, opacity: 1 }, 
+        .to({}, { duration: 0.4 })
+        .fromTo(card,
+          { y: 0, opacity: 1 },
           { y: '-18vh', opacity: 0, ease: 'power2.in' },
           0.7
         )
-        .fromTo(bg, 
-          { opacity: 1 }, 
+        .fromTo(bg,
+          { opacity: 1 },
           { opacity: 0.7, ease: 'power2.in' },
           0.7
         );
@@ -106,6 +106,7 @@ export function StakingCTASection() {
   return (
     <section
       ref={sectionRef}
+      id="staking"
       className="pinned-section fade-in-section min-h-screen z-50 flex items-center justify-center relative overflow-hidden"
     >
       {/* Background Image – eager load to prevent flash */}
@@ -123,7 +124,7 @@ export function StakingCTASection() {
       <div
         ref={cardRef}
         className="glass-card relative w-[min(92vw,520px)] rounded-[28px] overflow-hidden p-8 mx-auto"
-        style={{ transform: 'rotate(-4deg)', opacity: 0 }}
+        style={{ opacity: 0 }}
       >
         {/* Card Glow */}
         <div
@@ -169,10 +170,20 @@ export function StakingCTASection() {
           <div className="cta-button cta-element flex flex-col sm:flex-row items-center justify-center gap-4">
             <button
               onClick={handleConnect}
-              className="neon-button px-10 py-5 text-lg font-semibold flex items-center gap-3 hover:gap-4 transition-all shadow-lg shadow-cyan-500/20"
+              disabled={isConnected}
+              className="neon-button px-10 py-5 text-lg font-semibold flex items-center gap-3 hover:gap-4 transition-all shadow-lg shadow-cyan-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isConnected ? 'Buy Kaleo' : 'Connect Wallet'}
-              <ArrowRight className="w-6 h-6" />
+              {isConnected ? (
+                <a href="#buy" className="flex items-center gap-3">
+                  Buy Kaleo
+                  <ArrowRight className="w-6 h-6" />
+                </a>
+              ) : (
+                <>
+                  Connect Wallet
+                  <ArrowRight className="w-6 h-6" />
+                </>
+              )}
             </button>
             <a
               href="#docs"

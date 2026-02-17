@@ -2,6 +2,12 @@ import { useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { ArrowRight, TrendingUp, Users, Trophy, Zap } from 'lucide-react';
+import {
+  usePresaleStore,
+  getCurrentStage,
+  getOverallProgress,
+  HARD_CAP_ETH,
+} from '../store/presaleStore';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -11,15 +17,10 @@ export function StatsSection() {
   const bgRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
 
-  const stats = {
-    raised: 2840000,
-    goal: 5000000,
-    traders: 1247,
-    volume24h: 15800000,
-    maxLeverage: 100,
-  };
-
-  const progressPercentage = (stats.raised / stats.goal) * 100;
+  const { totalRaised, purchases } = usePresaleStore();
+  const currentStage = getCurrentStage(totalRaised);
+  const overallProgress = getOverallProgress(totalRaised);
+  const totalBuyers = purchases.length;
 
   useEffect(() => {
     const section = sectionRef.current;
@@ -29,7 +30,6 @@ export function StatsSection() {
 
     if (!section || !panel || !bg) return;
 
-    // Quick fade-in on load
     gsap.fromTo(section,
       { opacity: 0, y: 40 },
       { opacity: 1, y: 0, duration: 0.6, ease: 'power2.out' }
@@ -92,7 +92,7 @@ export function StatsSection() {
         gsap.fromTo(progressBar,
           { width: '0%' },
           {
-            width: `${progressPercentage}%`,
+            width: `${overallProgress}%`,
             duration: 1.5,
             ease: 'power2.out',
             scrollTrigger: {
@@ -106,29 +106,13 @@ export function StatsSection() {
     }, section);
 
     return () => ctx.revert();
-  }, [progressPercentage]);
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  };
-
-  const formatVolume = (value: number) => {
-    if (value >= 1000000) {
-      return `$${(value / 1000000).toFixed(1)}M`;
-    }
-    return formatCurrency(value);
-  };
+  }, [overallProgress]);
 
   const statItems = [
-    { icon: Users, label: 'Traders', value: stats.traders.toLocaleString() },
-    { icon: TrendingUp, label: '24h Volume', value: formatVolume(stats.volume24h) },
-    { icon: Zap, label: 'Max Leverage', value: `${stats.maxLeverage}x`, highlight: true },
-    { icon: Trophy, label: 'Contests', value: 'Live', highlight: true },
+    { icon: Users, label: 'Buyers', value: totalBuyers.toLocaleString() },
+    { icon: TrendingUp, label: 'Current Stage', value: `${currentStage.stage}/12` },
+    { icon: Zap, label: 'Price/KLEO', value: `${currentStage.priceEth} ETH`, highlight: true },
+    { icon: Trophy, label: 'Discount', value: `${currentStage.discount}%`, highlight: true },
   ];
 
   return (
@@ -136,7 +120,6 @@ export function StatsSection() {
       ref={sectionRef}
       className="pinned-section fade-in-section min-h-screen z-30 flex items-center justify-center relative overflow-hidden"
     >
-      {/* Background Image */}
       <div ref={bgRef} className="absolute inset-0 w-full h-full">
         <img
           src="/stats_city_bg_03.jpg"
@@ -147,9 +130,7 @@ export function StatsSection() {
         <div className="absolute inset-0 bg-gradient-to-b from-[#05060B]/70 via-[#05060B]/40 to-[#05060B]/80" />
       </div>
 
-      {/* Stacked Cards Wrapper */}
       <div className="relative w-[min(92vw,600px)] mx-auto">
-        {/* Back Stack Cards */}
         <div
           className="stack-card absolute glass-card rounded-[28px] overflow-hidden"
           style={{
@@ -169,29 +150,26 @@ export function StatsSection() {
           }}
         />
 
-        {/* Main Panel */}
         <div
           ref={panelRef}
           className="glass-card relative rounded-[28px] overflow-hidden p-6 sm:p-8 mx-auto"
           style={{ transform: 'rotate(4deg)', opacity: 0 }}
         >
           <div className="relative">
-            {/* Big Number */}
             <div className="stats-number mb-4 text-center">
               <h2 className="text-[clamp(32px,5vw,56px)] font-bold text-[#2BFFF1] leading-none">
-                {formatCurrency(stats.raised)}
+                {totalRaised.toFixed(4)} ETH
               </h2>
             </div>
 
             <div className="stats-content mb-6 text-center">
-              <p className="text-[#F4F6FA] text-lg font-medium">Raised in presale</p>
+              <p className="text-[#F4F6FA] text-lg font-medium">Raised in Presale</p>
             </div>
 
-            {/* Progress Bar */}
             <div className="stats-content mb-8">
               <div className="flex justify-between text-sm mb-2">
                 <span className="text-[#A7B0B7]">Presale Progress</span>
-                <span className="text-[#2BFFF1] font-medium">{progressPercentage.toFixed(1)}%</span>
+                <span className="text-[#2BFFF1] font-medium">{overallProgress.toFixed(1)}%</span>
               </div>
               <div className="h-4 bg-gray-800/80 rounded-full overflow-hidden shadow-inner">
                 <div
@@ -202,11 +180,10 @@ export function StatsSection() {
               </div>
               <div className="flex justify-between text-xs mt-2 text-[#A7B0B7]">
                 <span>0</span>
-                <span>Goal: {formatCurrency(stats.goal)}</span>
+                <span>Hard Cap: {HARD_CAP_ETH.toLocaleString()} ETH</span>
               </div>
             </div>
 
-            {/* Stats Grid */}
             <div className="stats-content grid grid-cols-2 gap-4 mb-8">
               {statItems.map((stat, index) => (
                 <div
@@ -224,16 +201,14 @@ export function StatsSection() {
               ))}
             </div>
 
-            {/* Description */}
             <p className="stats-content text-[#A7B0B7] text-sm mb-8 leading-relaxed text-center">
               Join thousands of leverage traders. All trading fees fund weekly leverage trading contests with massive prizes.
             </p>
 
-            {/* CTAs */}
             <div className="stats-content flex flex-col sm:flex-row items-center justify-center gap-4">
               <a
                 href="#buy"
-                className="neon-button px-8 py-4 text-base font-semibold flex items-center justify-center gap-2 hover:gap-3 transition-all shadow-lg shadow-cyan-500/20 w-full sm:w-auto"
+                className="neon-button px-8 py-4 text-base font-semibold flex items-center justify-center gap-2 hover:gap-3 transition-all w-full sm:w-auto"
               >
                 Buy Kaleo
                 <ArrowRight className="w-5 h-5" />

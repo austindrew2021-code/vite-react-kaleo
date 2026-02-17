@@ -1,36 +1,42 @@
 import { getDefaultConfig } from '@rainbow-me/rainbowkit';
-import {
-  mainnet,
-  base,
-  arbitrum,
-  optimism,
-  polygon,
-} from 'wagmi/chains';
+import { sepolia } from 'wagmi/chains';
 import { http } from 'wagmi';
 
-// Debug logs – keep these for now to verify env vars in console
-console.log('WalletConnect Project ID loaded:', import.meta.env.VITE_WALLET_CONNECT_PROJECT_ID || 'MISSING');
-console.log('RPC URL loaded:', import.meta.env.VITE_RPC_URL || 'MISSING');
-console.log('VITE env vars present:', Object.keys(import.meta.env).filter(k => k.startsWith('VITE_')));
+// WalletConnect Project ID (use your own in .env!)
+const projectId = import.meta.env.VITE_WALLET_CONNECT_PROJECT_ID;
 
-const projectId = import.meta.env.VITE_WALLET_CONNECT_PROJECT_ID || '69b686259ac98fa35d4188e56796ca47';
+// Fallback if missing (for local dev only – never use in production!)
+if (!projectId) {
+  console.warn(
+    '[wagmi] Missing VITE_WALLET_CONNECT_PROJECT_ID in .env – using fallback ID. ' +
+    'Get a real project ID at https://cloud.walletconnect.com'
+  );
+}
+
+const FALLBACK_PROJECT_ID = '69b686259ac98fa35d4188e56796ca47';
+const effectiveProjectId = projectId || FALLBACK_PROJECT_ID;
+
+// Multiple public Sepolia RPCs for reliability (automatic fallback)
+const SEPOLIA_RPC_URLS = [
+  import.meta.env.VITE_SEPOLIA_RPC_URL || '',
+  'https://rpc.sepolia.org',
+  'https://ethereum-sepolia-rpc.publicnode.com',
+  'https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161', // Infura public (limited)
+  'https://sepolia.rpc.thirdweb.com',
+].filter(Boolean); // remove empty strings
+
+export const SEPOLIA_CHAIN_ID = sepolia.id;
+
+// Optional debug logs (uncomment in development if needed)
+// console.log('[wagmi] Using WalletConnect Project ID:', effectiveProjectId);
+// console.log('[wagmi] Sepolia RPC URLs:', SEPOLIA_RPC_URLS);
 
 export const config = getDefaultConfig({
   appName: 'Kaleo - Memecoin Leverage Platform',
-  projectId,
-  chains: [polygon, mainnet, base, arbitrum, optimism],
+  projectId: effectiveProjectId,
+  chains: [sepolia],
   transports: {
-    [polygon.id]: http(import.meta.env.VITE_RPC_URL || 'https://polygon-rpc.com'),
-    [mainnet.id]: http(import.meta.env.VITE_RPC_URL || 'https://ethereum.publicnode.com'),
-    [base.id]: http('https://mainnet.base.org'),
-    [arbitrum.id]: http('https://arb1.arbitrum.io/rpc'),
-    [optimism.id]: http('https://mainnet.optimism.io'),
+    [sepolia.id]: http(SEPOLIA_RPC_URLS[0]), // Primary RPC – others can be added via fallback if needed
   },
   ssr: false,
 });
-
-// Optional extra debug – confirms config is created
-console.log('Wagmi config created with projectId:', projectId);
-
-// Optional: Log available chains (useful for debugging chain switching later)
-console.log('Available chains:', config.chains.map(c => `${c.name} (ID: ${c.id})`));

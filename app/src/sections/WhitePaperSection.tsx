@@ -1,92 +1,128 @@
 import { useEffect } from 'react';
 import { gsap } from 'gsap';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+import { FileText, ExternalLink, Shield, Coins, TrendingUp, Users } from 'lucide-react';
+
+const WHITEPAPER_URL = 'https://docs.google.com/document/d/e/2PACX-1vExampleWhitepaperLink/pub';
+
+const highlights = [
+  { icon: TrendingUp, label: 'Leverage Mechanism', desc: 'Up to 100x on any Pump.fun memecoin' },
+  { icon: Coins, label: 'Tokenomics', desc: '1B total supply, 12-stage presale' },
+  { icon: Shield, label: 'Security & Audits', desc: 'Multi-sig treasury, planned audits' },
+  { icon: Users, label: 'Governance', desc: 'Community-driven DAO voting rights' },
+];
 
 export function WhitePaperSection() {
   useEffect(() => {
-    // Quick fade-in animation when modal opens (triggered by Dialog open state)
-    const modal = document.querySelector('[data-radix-dialog-content]');
-    if (modal) {
-      gsap.fromTo(modal,
-        { opacity: 0, scale: 0.95, y: 40 },
-        { opacity: 1, scale: 1, y: 0, duration: 0.6, ease: 'power2.out' }
-      );
-    }
-  }, []); // Runs once on mount; can be improved with open state if using controlled Dialog
+    // Quick fade-in on load + stagger for highlights & CTA
+    gsap.fromTo('.wp-container',
+      { opacity: 0, y: 40 },
+      { opacity: 1, y: 0, duration: 0.6, ease: 'power2.out' }
+    );
+
+    gsap.fromTo('.wp-highlight',
+      { opacity: 0, y: 20, scale: 0.95 },
+      {
+        opacity: 1,
+        y: 0,
+        scale: 1,
+        duration: 0.5,
+        stagger: 0.1,
+        ease: 'power3.out',
+        scrollTrigger: {
+          trigger: '.wp-container',
+          start: 'top 85%',
+          toggleActions: 'play none none reverse'
+        }
+      }
+    );
+
+    gsap.fromTo('.wp-cta',
+      { opacity: 0, y: 20 },
+      {
+        opacity: 1,
+        y: 0,
+        duration: 0.5,
+        ease: 'power2.out',
+        scrollTrigger: {
+          trigger: '.wp-container',
+          start: 'top 80%',
+          toggleActions: 'play none none reverse'
+        }
+      }
+    );
+  }, []);
 
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <button className="px-8 py-4 bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-400 hover:to-cyan-500 text-black font-bold rounded-full transition-all duration-300 shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 hover:scale-105">
-          View Whitepaper
-        </button>
-      </DialogTrigger>
+    <section className="fade-in-section relative py-16 overflow-hidden bg-gradient-to-b from-black to-gray-900">
+      <div className="wp-container max-w-4xl mx-auto px-6">
+        {/* Main CTA Card */}
+        <div className="glass-card rounded-2xl p-8 md:p-10 text-center relative overflow-hidden border border-cyan-500/20">
+          {/* Inner Glow */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background: 'radial-gradient(ellipse at 50% 0%, rgba(43,255,241,0.12) 0%, transparent 60%)'
+            }}
+          />
 
-      <DialogContent className="fade-in-section w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-gradient-to-b from-gray-950 to-black border border-cyan-500/30 text-white rounded-2xl shadow-2xl shadow-cyan-900/30 backdrop-blur-md mx-4 sm:mx-auto">
-        <DialogHeader className="sticky top-0 bg-gradient-to-b from-black to-transparent pb-6 pt-8 z-10">
-          <DialogTitle className="text-4xl md:text-5xl font-extrabold text-center bg-gradient-to-r from-cyan-400 via-cyan-300 to-purple-500 bg-clip-text text-transparent">
-            Kaleo Whitepaper
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="prose prose-invert prose-cyan max-w-none space-y-8 px-6 pb-12">
-          {/* 1. Introduction */}
-          <h2 className="text-3xl font-bold text-cyan-300 mt-12 border-b border-cyan-500/30 pb-4">
-            1. Introduction
-          </h2>
-          <p className="text-gray-300 leading-relaxed text-lg">
-            Kaleo is a next-generation memecoin leverage platform built on Polygon, designed to empower traders with up to 100x leverage on Pump.fun tokens while maintaining strong risk controls and liquidation protection.
-          </p>
-
-          {/* 2. Tokenomics */}
-          <h2 className="text-3xl font-bold text-cyan-300 mt-16 border-b border-cyan-500/30 pb-4">
-            2. Tokenomics
-          </h2>
-          <ul className="list-disc pl-8 space-y-4 text-gray-300 text-lg">
-            <li><strong>Total Supply:</strong> 1,000,000,000 KLEO</li>
-            <li><strong>Presale Allocation:</strong> 40% (400M tokens)</li>
-            <li><strong>Liquidity & Marketing:</strong> 20%</li>
-            <li><strong>Team & Advisors:</strong> 10% (vested 24 months)</li>
-            <li><strong>Ecosystem & Rewards:</strong> 15%</li>
-            <li><strong>Community Airdrops:</strong> 15%</li>
-          </ul>
-
-          {/* 3. Roadmap */}
-          <h2 className="text-3xl font-bold text-cyan-300 mt-16 border-b border-cyan-500/30 pb-4">
-            3. Roadmap
-          </h2>
-          <div className="grid md:grid-cols-2 gap-8 mt-8">
-            <div className="p-6 bg-gray-900/50 rounded-xl border border-cyan-500/20">
-              <h3 className="text-xl font-bold text-cyan-400 mb-4">Q1 2026 – Launch</h3>
-              <ul className="list-disc pl-6 space-y-2 text-gray-300">
-                <li>Presale & Token Generation</li>
-                <li>DEX Listing</li>
-                <li>Initial Community Marketing</li>
-              </ul>
+          <div className="relative">
+            {/* Icon */}
+            <div className="flex items-center justify-center mb-6">
+              <div className="w-14 h-14 rounded-xl bg-[#2BFFF1]/10 border border-[#2BFFF1]/30 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                <FileText className="w-7 h-7 text-[#2BFFF1]" />
+              </div>
             </div>
-            <div className="p-6 bg-gray-900/50 rounded-xl border border-cyan-500/20">
-              <h3 className="text-xl font-bold text-cyan-400 mb-4">Q2 2026 – Platform</h3>
-              <ul className="list-disc pl-6 space-y-2 text-gray-300">
-                <li>Leverage Dashboard</li>
-                <li>Advanced Orders</li>
-                <li>Mobile App Beta</li>
-              </ul>
+
+            {/* Badge */}
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#2BFFF1]/10 border border-[#2BFFF1]/30 text-[#2BFFF1] text-sm font-medium uppercase tracking-widest mb-4">
+              Technical Documentation
             </div>
-            {/* Add more phases as needed */}
+
+            {/* Title */}
+            <h2 className="text-[clamp(28px,3.5vw,40px)] font-bold text-[#F4F6FA] mb-4 text-balance">
+              Kaleo <span className="text-[#2BFFF1]">Whitepaper</span>
+            </h2>
+
+            {/* Description */}
+            <p className="text-[#A7B0B7] text-base max-w-xl mx-auto leading-relaxed mb-8">
+              Read our comprehensive whitepaper covering the Kaleo platform architecture,
+              tokenomics, leverage trading mechanism, security model, and governance framework.
+            </p>
+
+            {/* Highlights Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
+              {highlights.map((item, i) => (
+                <div
+                  key={i}
+                  className="wp-highlight flex items-start gap-3 p-4 rounded-xl bg-white/[0.03] border border-white/[0.06] transition-all duration-300 hover:border-[#2BFFF1]/30 hover:scale-[1.02]"
+                >
+                  <item.icon className="w-5 h-5 text-[#2BFFF1] mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-[#F4F6FA] text-sm font-semibold">{item.label}</p>
+                    <p className="text-[#A7B0B7] text-xs leading-relaxed">{item.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* CTA Button */}
+            <a
+              href={WHITEPAPER_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="wp-cta neon-button inline-flex items-center gap-2.5 px-8 py-4 text-base font-semibold hover:gap-3.5 transition-all shadow-lg shadow-cyan-500/20"
+            >
+              Read Full Whitepaper
+              <ExternalLink className="w-5 h-5" />
+            </a>
+
+            {/* Version note */}
+            <p className="text-[#A7B0B7]/50 text-xs mt-6">
+              v1.0 &middot; Last updated February 2026
+            </p>
           </div>
-
-          {/* Closing */}
-          <p className="text-sm text-gray-500 mt-16 text-center italic">
-            © 2026 Kaleo Team. All rights reserved. This document is for informational purposes only.
-          </p>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </section>
   );
 }
