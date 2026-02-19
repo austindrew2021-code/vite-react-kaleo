@@ -260,7 +260,7 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-[#2BFFF1] hover:text-white flex items-center gap-2 text-sm"
-                      >
+                   {'>'}
                         View Tx <ArrowRight className="w-4 h-4" />
                       </a>
                     </div>
