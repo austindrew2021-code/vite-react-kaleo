@@ -14,10 +14,9 @@ import {
 } from '../store/presaleStore';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL || '',
-  import.meta.env.VITE_SUPABASE_ANON_KEY || ''
-);
+const _sbUrl = import.meta.env.VITE_SUPABASE_URL;
+const _sbKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabase = _sbUrl && _sbKey ? createClient(_sbUrl, _sbKey) : null;
 
 interface PresaleProgressProps {
   direction: 'up' | 'down' | 'neutral';
@@ -49,7 +48,7 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
   const [supabaseTokens, setSupabaseTokens] = useState<number>(0);
 
   useEffect(() => {
-    if (!isConnected || !address) return;
+    if (!isConnected || !address || !supabase) return;
 
     const fetchTokens = async () => {
       const { data, error } = await supabase
