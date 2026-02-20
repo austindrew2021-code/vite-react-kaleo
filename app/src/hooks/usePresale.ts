@@ -234,13 +234,21 @@ export function usePresale() {
           }),
         });
 
-        const { sessionId, error } = await res.json();
+        const { url, sessionId, error } = await res.json();
         if (error) throw new Error(error);
 
-        const stripe = await import('@stripe/stripe-js').then(m => m.loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY));
-        if (!stripe) throw new Error('Stripe failed to load');
+        // Use the session URL directly (most reliable cross-browser approach)
+        if (url) {
+          window.location.href = url;
+          return;
+        }
 
-        await stripe.redirectToCheckout({ sessionId });
+        // Fallback: use Stripe.js redirectToCheckout
+        if (sessionId) {
+          const stripe = await import('@stripe/stripe-js').then(m => m.loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY));
+          if (!stripe) throw new Error('Stripe failed to load');
+          await stripe.redirectToCheckout({ sessionId });
+        }
       } catch (err: any) {
         setTxError(err.message || 'Card payment failed');
       } finally {
