@@ -69,8 +69,8 @@ export default async function handler(req: any, res: any) {
       },
     });
 
-    // Return session ID to frontend so it can redirect to Stripe
-    return res.status(200).json({ sessionId: session.id });
+    // Return session ID and URL to frontend
+    return res.status(200).json({ sessionId: session.id, url: session.url });
   } catch (err: any) {
     console.error('Stripe checkout session creation failed:', err);
 
