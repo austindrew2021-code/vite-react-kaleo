@@ -97,15 +97,15 @@ export function StakingCTASection() {
           </div>
 
           <h2 className="cta-element text-[clamp(28px,3.5vw,40px)] font-bold text-[#F4F6FA] mb-6 leading-tight">
-            Start leverage <span className="text-[#2BFFF1]">trading</span> today
+            Join the <span className="text-[#2BFFF1]">presale</span> today
           </h2>
 
           <p className="cta-element text-[#A7B0B7] text-[clamp(14px,1.2vw,16px)] mb-8 leading-relaxed max-w-[480px] mx-auto">
-            Connect your wallet, buy Kaleo, and start leverage trading any Pump.fun memecoin with up to 100x leverage.
+            Secure your KLEO allocation at the lowest price. Presale investors receive governance voting rights and priority access when the platform launches.
           </p>
 
           <div className="cta-element flex flex-wrap justify-center gap-3 mb-10">
-            {['100x Leverage', 'Pump.fun Integration', 'Fee Contests'].map((badge) => (
+            {['Governance Rights', 'Stage 1 Pricing', 'Priority Access'].map((badge) => (
               <span key={badge} className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-[#A7B0B7] text-sm font-medium hover:scale-105 transition-transform">
                 {badge}
               </span>
