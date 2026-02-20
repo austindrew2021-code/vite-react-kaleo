@@ -100,7 +100,7 @@ export function FAQSection() {
         scrollTrigger: {
           trigger: '.faq-container',
           start: 'top 85%',
-          toggleActions: 'play none none reverse'
+          toggleActions: 'play none none none',
         }
       }
     );
@@ -116,7 +116,7 @@ export function FAQSection() {
         scrollTrigger: {
           trigger: '.faq-container',
           start: 'top 80%',
-          toggleActions: 'play none none reverse'
+          toggleActions: 'play none none none',
         }
       }
     );
@@ -152,7 +152,7 @@ export function FAQSection() {
                 {cat.questions.map((faq, idx) => (
                   <AccordionItem
                     key={idx}
-                    value={`\( {catIdx}- \){idx}`}
+                    value={`faq-${catIdx}-${idx}`}
                     className="faq-item glass-card rounded-xl overflow-hidden border border-white/[0.08] data-[state=open]:border-[#2BFFF1]/30 transition-all duration-300 hover:border-[#2BFFF1]/20"
                   >
                     <AccordionTrigger className="px-6 py-5 text-left text-[#F4F6FA] hover:text-[#2BFFF1] transition-colors font-medium text-base [&[data-state=open]]:text-[#2BFFF1]">
