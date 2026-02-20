@@ -66,7 +66,7 @@ const queryClient = new QueryClient();
 function AppContent() {
   const { address, isConnected } = useAccount();
   const [userTokens, setUserTokens] = useState<number>(0);
-  const [direction, setDirection] = useState<'up' | 'down' | 'neutral'>('neutral');
+  const [direction, setDirection] = useState<'up' | 'down' | 'neutral'>('up');
 
   useEffect(() => {
     if (!isConnected || !address || !supabase) return;
@@ -95,9 +95,11 @@ function AppContent() {
   }, [address, isConnected]);
 
   useEffect(() => {
+    const bullishStates: Array<'up' | 'neutral'> = ['up', 'up', 'up', 'neutral', 'up', 'up'];
+    let bullishIdx = 0;
     const interval = setInterval(() => {
-      const rand = Math.random();
-      setDirection(rand > 0.65 ? 'up' : rand > 0.35 ? 'down' : 'neutral');
+      bullishIdx = (bullishIdx + 1) % bullishStates.length;
+      setDirection(bullishStates[bullishIdx]);
     }, 20000);
     return () => clearInterval(interval);
   }, []);
