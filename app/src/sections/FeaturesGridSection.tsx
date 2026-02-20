@@ -13,7 +13,7 @@ export function FeaturesGridSection() {
       { opacity: 1, y: 0, duration: 0.6, ease: 'power2.out' }
     );
 
-    // Stagger fade-in + slight scale for cards & thumbnails
+    // Simple fade-in for cards — no parallax scrub
     gsap.fromTo('.grid-card',
       { opacity: 0, y: 30, scale: 0.95 },
       {
@@ -26,22 +26,7 @@ export function FeaturesGridSection() {
         scrollTrigger: {
           trigger: '.features-grid-section',
           start: 'top 85%',
-          toggleActions: 'play none none reverse'
-        }
-      }
-    );
-
-    // Parallax on thumbnails (subtle movement)
-    gsap.fromTo('.grid-thumb',
-      { y: 30 },
-      {
-        y: -15,
-        ease: 'none',
-        scrollTrigger: {
-          trigger: '.features-grid-section',
-          start: 'top bottom',
-          end: 'bottom top',
-          scrub: true
+          toggleActions: 'play none none none',
         }
       }
     );
