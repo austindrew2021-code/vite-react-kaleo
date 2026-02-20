@@ -26,22 +26,21 @@ import './index.css';
 
 gsap.registerPlugin(ScrollTrigger);
 
-// Supabase client (use env vars — add to .env.local or Vercel dashboard)
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 const supabase = supabaseUrl && supabaseAnonKey
   ? createClient(supabaseUrl, supabaseAnonKey)
-  : null; // fallback — show warning in console if missing
+  : null;
 
 const queryClient = new QueryClient();
 
-function App() {
+// ── Inner component — sits INSIDE all providers so hooks work correctly ──
+function AppContent() {
   const { address, isConnected } = useAccount();
   const [userTokens, setUserTokens] = useState<number>(0);
   const [direction, setDirection] = useState<'up' | 'down' | 'neutral'>('neutral');
 
-  // Fetch user's purchased token balance from Supabase on connect
   useEffect(() => {
     if (!isConnected || !address || !supabase) return;
 
@@ -50,19 +49,12 @@ function App() {
         .from('presale_purchases')
         .select('tokens')
         .eq('wallet_address', address.toLowerCase());
-
-      if (error) {
-        console.error('Supabase fetch error:', error);
-        return;
-      }
-
+      if (error) { console.error('Supabase fetch error:', error); return; }
       const total = data?.reduce((sum, row) => sum + Number(row.tokens || 0), 0) || 0;
       setUserTokens(total);
     };
-
     fetchBalance();
 
-    // Optional: Realtime subscription for live updates
     const channel = supabase
       .channel('presale-changes')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'presale_purchases' }, (payload) => {
@@ -72,49 +64,29 @@ function App() {
       })
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [address, isConnected]);
 
-  // Simple direction indicator logic (update later with real price/volume data)
   useEffect(() => {
     const interval = setInterval(() => {
-      // Placeholder: in real version, fetch recent buys vs price change
       const rand = Math.random();
       setDirection(rand > 0.65 ? 'up' : rand > 0.35 ? 'down' : 'neutral');
-    }, 20000); // refresh every 20s
-
+    }, 20000);
     return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
-    // Fade-in animations for sections
     gsap.utils.toArray('.fade-in-section').forEach((el: any) => {
-      gsap.fromTo(
-        el,
-        { opacity: 0, y: 40 },
-        {
-          opacity: 1,
-          y: 0,
-          duration: 0.8,
-          ease: 'power3.out',
-          scrollTrigger: {
-            trigger: el,
-            start: 'top 80%',
-            toggleActions: 'play none none none',
-            once: true,
-          },
-        }
-      );
+      gsap.fromTo(el, { opacity: 0, y: 40 }, {
+        opacity: 1, y: 0, duration: 0.8, ease: 'power3.out',
+        scrollTrigger: { trigger: el, start: 'top 80%', toggleActions: 'play none none none', once: true },
+      });
     });
 
-    // RainbowKit modal scroll lock
     const handleModalChange = () => {
       const modal = document.querySelector('[data-rk] [role="dialog"]');
       document.body.classList.toggle('modal-open', !!modal);
     };
-
     const observer = new MutationObserver(handleModalChange);
     observer.observe(document.body, { childList: true, subtree: true });
 
@@ -124,6 +96,29 @@ function App() {
     };
   }, []);
 
+  return (
+    <div className="relative bg-[#05060B] min-h-screen overflow-x-hidden">
+      <div className="noise-overlay pointer-events-none" />
+      <Navigation />
+      <main className="relative">
+        <HeroSection />
+        <PresaleProgress direction={direction} />
+        <BuySection userTokens={userTokens} direction={direction} supabase={supabase} walletAddress={address} />
+        <StatsSection />
+        <FeatureSection />
+        <FeaturesGridSection />
+        <StakingCTASection />
+        <RoadmapSection />
+        <WhitePaperSection />
+        <FAQSection />
+        <FooterSection />
+      </main>
+    </div>
+  );
+}
+
+// ── Root — sets up providers, then renders AppContent inside them ──
+function App() {
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
@@ -136,29 +131,7 @@ function App() {
           })}
           modalSize="compact"
         >
-          <div className="relative bg-[#05060B] min-h-screen overflow-x-hidden">
-            <div className="noise-overlay pointer-events-none" />
-            <Navigation />
-
-            <main className="relative">
-              <HeroSection />
-              <PresaleProgress direction={direction} />
-              <BuySection
-                userTokens={userTokens}
-                direction={direction}
-                supabase={supabase}
-                walletAddress={address}
-              />
-              <StatsSection />
-              <FeatureSection />
-              <FeaturesGridSection />
-              <StakingCTASection />
-              <RoadmapSection />
-              <WhitePaperSection />
-              <FAQSection />
-              <FooterSection />
-            </main>
-          </div>
+          <AppContent />
         </RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>
