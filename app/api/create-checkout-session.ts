@@ -9,7 +9,7 @@ if (!stripeSecretKey) {
 }
 
 const stripe = new Stripe(stripeSecretKey || '', {
-  apiVersion: '2026-01-28.clover',
+  apiVersion: '2024-12-18.acacia',
 });
 
 export default async function handler(req: any, res: any) {
