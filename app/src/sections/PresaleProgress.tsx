@@ -177,14 +177,16 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
           {/* Stage Grid */}
           <div className="mb-8">
             <p className="text-[#A7B0B7] text-base font-medium mb-4">Presale Stages</p>
-            <div className="grid grid-cols-6 sm:grid-cols-12 gap-2">
+            <div className="grid grid-cols-6 gap-2">
               {PRESALE_STAGES.map((stage) => {
                 const isCompleted = totalRaised >= stage.cumulativeEth;
                 const isCurrent = stage.stage === currentStage.stage;
+                // Shorten price for display: "0.000035" → "0.000035" but strip leading zeros for brevity
+                const shortPrice = String(stage.priceEth).replace('0.000', '.000').replace('0.00', '.00');
                 return (
                   <div
                     key={stage.stage}
-                    className={`p-2 rounded-xl border text-center transition-all duration-300 ${
+                    className={`p-1.5 rounded-xl border text-center transition-all duration-300 min-w-0 ${
                       isCurrent
                         ? 'border-[#2BFFF1]/60 bg-[#2BFFF1]/15 shadow-lg shadow-[#2BFFF1]/20 animate-pulse'
                         : isCompleted
@@ -192,21 +194,21 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
                         : 'border-white/10 bg-white/5'
                     }`}
                   >
-                    <div className="flex items-center justify-center mb-1">
+                    <div className="flex items-center justify-center mb-0.5">
                       {isCompleted ? (
-                        <CheckCircle2 className="w-5 h-5 text-green-400" />
+                        <CheckCircle2 className="w-4 h-4 text-green-400" />
                       ) : isCurrent ? (
-                        <div className="w-5 h-5 rounded-full bg-[#2BFFF1] animate-pulse" />
+                        <div className="w-4 h-4 rounded-full bg-[#2BFFF1] animate-pulse" />
                       ) : (
-                        <Circle className="w-5 h-5 text-[#A7B0B7]/50" />
+                        <Circle className="w-4 h-4 text-[#A7B0B7]/50" />
                       )}
                     </div>
-                    <p className={`text-xs font-bold ${
+                    <p className={`text-[10px] font-bold leading-tight ${
                       isCurrent ? 'text-[#2BFFF1]' : isCompleted ? 'text-green-400' : 'text-[#A7B0B7]'
                     }`}>
                       S{stage.stage}
                     </p>
-                    <p className="text-[10px] text-[#A7B0B7] mt-0.5">{stage.priceEth}</p>
+                    <p className="text-[8px] text-[#A7B0B7] leading-tight mt-0.5 truncate">{shortPrice}</p>
                   </div>
                 );
               })}
