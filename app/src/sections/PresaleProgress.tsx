@@ -32,6 +32,7 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
   const overallProgress = getOverallProgress(totalRaised);
 
   const totalEthSpent = purchases.reduce((sum, p) => sum + p.ethSpent, 0);
+  const storeKleo = purchases.reduce((sum, p) => sum + p.kleoReceived, 0);
 
   const stageStartEth = currentStage.cumulativeEth - currentStage.ethTarget;
   const raisedInCurrentStage = Math.max(0, totalRaised - stageStartEth);
@@ -46,6 +47,10 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
     : { text: 'Building momentum', color: 'bg-gray-600/20 border-gray-500/30 text-gray-400' };
 
   const [supabaseTokens, setSupabaseTokens] = useState<number>(0);
+
+  // Use whichever is higher: Supabase total or local store total
+  // Handles race condition after Stripe redirect where store has data before Supabase fetch returns
+  const displayKleo = Math.max(supabaseTokens, storeKleo);
 
   useEffect(() => {
     if (!isConnected || !address || !supabase) return;
@@ -177,14 +182,14 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
           {/* Stage Grid */}
           <div className="mb-8">
             <p className="text-[#A7B0B7] text-base font-medium mb-4">Presale Stages</p>
-            <div className="grid grid-cols-6 gap-2">
+            <div className="grid grid-cols-6 sm:grid-cols-12 gap-2">
               {PRESALE_STAGES.map((stage) => {
                 const isCompleted = totalRaised >= stage.cumulativeEth;
                 const isCurrent = stage.stage === currentStage.stage;
                 return (
                   <div
                     key={stage.stage}
-                    className={`p-1 rounded-xl border text-center transition-all duration-300 min-w-0 ${
+                    className={`p-2 rounded-xl border text-center transition-all duration-300 ${
                       isCurrent
                         ? 'border-[#2BFFF1]/60 bg-[#2BFFF1]/15 shadow-lg shadow-[#2BFFF1]/20 animate-pulse'
                         : isCompleted
@@ -192,23 +197,21 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
                         : 'border-white/10 bg-white/5'
                     }`}
                   >
-                    <div className="flex items-center justify-center mb-0.5">
+                    <div className="flex items-center justify-center mb-1">
                       {isCompleted ? (
-                        <CheckCircle2 className="w-4 h-4 text-green-400" />
+                        <CheckCircle2 className="w-5 h-5 text-green-400" />
                       ) : isCurrent ? (
-                        <div className="w-4 h-4 rounded-full bg-[#2BFFF1] animate-pulse" />
+                        <div className="w-5 h-5 rounded-full bg-[#2BFFF1] animate-pulse" />
                       ) : (
-                        <Circle className="w-4 h-4 text-[#A7B0B7]/50" />
+                        <Circle className="w-5 h-5 text-[#A7B0B7]/50" />
                       )}
                     </div>
-                    <p className={`text-[10px] font-bold leading-tight ${
+                    <p className={`text-xs font-bold ${
                       isCurrent ? 'text-[#2BFFF1]' : isCompleted ? 'text-green-400' : 'text-[#A7B0B7]'
                     }`}>
                       S{stage.stage}
                     </p>
-                    <p className="text-[6px] text-[#A7B0B7] leading-tight mt-0.5 overflow-hidden whitespace-nowrap">
-                      {stage.priceEth}
-                    </p>
+                    <p className="text-[10px] text-[#A7B0B7] mt-0.5">{stage.priceEth}</p>
                   </div>
                 );
               })}
@@ -223,7 +226,7 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
               <div className="text-center sm:text-left">
                 <p className="text-[#A7B0B7] text-base mb-2">Your Presale Allocation</p>
                 <p className="text-[#2BFFF1] text-4xl font-bold">
-                  {supabaseTokens.toLocaleString('en-US', { maximumFractionDigits: 0 })} KLEO
+                  {displayKleo.toLocaleString('en-US', { maximumFractionDigits: 0 })} KLEO
                 </p>
                 <p className="text-[#A7B0B7] text-sm mt-2">
                   {totalEthSpent.toFixed(4)} ETH spent across {purchases.length} purchase{purchases.length !== 1 ? 's' : ''}
