@@ -7,6 +7,7 @@ import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { createClient } from '@supabase/supabase-js';
 import { useAccount } from 'wagmi';
+import { usePresaleStore, getCurrentStage } from './store/presaleStore';
 
 import { config } from './wagmi';
 import { Navigation } from './components/Navigation';
@@ -67,6 +68,68 @@ function AppContent() {
   const { address, isConnected } = useAccount();
   const [userTokens, setUserTokens] = useState<number>(0);
   const [direction, setDirection] = useState<'up' | 'down' | 'neutral'>('up');
+  const [stripeSuccess, setStripeSuccess] = useState<string | null>(null);
+  const [stripeCanceled, setStripeCanceled] = useState(false);
+
+  const { totalRaised, addRaised, addPurchase } = usePresaleStore();
+
+  // Handle Stripe redirect — record purchase to Supabase + update store
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+
+    if (params.get('success') === 'true') {
+      const tokensParam = params.get('tokens');
+      const walletParam = params.get('wallet');
+      const sessionId = params.get('session_id') || 'stripe';
+      const tokens = tokensParam ? parseFloat(tokensParam) : 0;
+
+      if (tokens > 0) {
+        const stage = getCurrentStage(totalRaised);
+        const ethEquivalent = tokens * stage.priceEth;
+
+        // Update local store immediately so UI refreshes
+        addRaised(ethEquivalent);
+        addPurchase({
+          ethSpent: ethEquivalent,
+          kleoReceived: tokens,
+          stage: stage.stage,
+          priceEth: stage.priceEth,
+          txHash: sessionId,
+          timestamp: Date.now(),
+        });
+
+        // Also update the displayed user token balance
+        setUserTokens((prev) => prev + tokens);
+
+        // Persist to Supabase
+        if (supabase && walletParam) {
+          supabase
+            .from('presale_purchases')
+            .insert({
+              wallet_address: walletParam.toLowerCase(),
+              tokens,
+              eth_spent: ethEquivalent,
+              stage: stage.stage,
+              price_eth: stage.priceEth,
+              tx_hash: sessionId,
+              method: 'card',
+            })
+            .then(({ error }) => {
+              if (error) console.error('Supabase card insert failed:', error);
+            });
+        }
+      }
+
+      setStripeSuccess(tokens > 0 ? tokens.toLocaleString() : 'Your');
+      window.history.replaceState({}, '', '/');
+    }
+
+    if (params.get('canceled') === 'true') {
+      setStripeCanceled(true);
+      window.history.replaceState({}, '', '/');
+      setTimeout(() => setStripeCanceled(false), 5000);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!isConnected || !address || !supabase) return;
@@ -95,11 +158,9 @@ function AppContent() {
   }, [address, isConnected]);
 
   useEffect(() => {
-    const bullishStates: Array<'up' | 'neutral'> = ['up', 'up', 'up', 'neutral', 'up', 'up'];
-    let bullishIdx = 0;
     const interval = setInterval(() => {
-      bullishIdx = (bullishIdx + 1) % bullishStates.length;
-      setDirection(bullishStates[bullishIdx]);
+      const rand = Math.random();
+      setDirection(rand > 0.65 ? 'up' : rand > 0.35 ? 'down' : 'neutral');
     }, 20000);
     return () => clearInterval(interval);
   }, []);
@@ -123,6 +184,31 @@ function AppContent() {
   return (
     <div className="relative bg-[#05060B] min-h-screen overflow-x-hidden">
       <div className="noise-overlay pointer-events-none" />
+
+      {/* Stripe payment success toast */}
+      {stripeSuccess && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] w-[min(92vw,480px)] bg-[#0B1A1A] border border-[#2BFFF1]/40 rounded-2xl px-6 py-4 shadow-2xl shadow-cyan-500/20 flex items-start gap-4">
+          <div className="w-10 h-10 rounded-full bg-[#2BFFF1]/15 border border-[#2BFFF1]/30 flex items-center justify-center shrink-0 mt-0.5">
+            <span className="text-[#2BFFF1] text-lg">✓</span>
+          </div>
+          <div className="flex-1">
+            <p className="text-[#F4F6FA] font-bold text-base mb-1">Payment Successful!</p>
+            <p className="text-[#A7B0B7] text-sm leading-relaxed">
+              {stripeSuccess} KLEO tokens have been reserved for your wallet and will be credited at mainnet launch.
+            </p>
+          </div>
+          <button onClick={() => setStripeSuccess(null)} className="text-[#A7B0B7] hover:text-white text-xl leading-none shrink-0 mt-0.5">×</button>
+        </div>
+      )}
+
+      {/* Stripe payment canceled toast */}
+      {stripeCanceled && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] w-[min(92vw,400px)] bg-[#1A0B0B] border border-red-500/30 rounded-2xl px-6 py-4 shadow-xl flex items-center gap-3">
+          <span className="text-red-400 text-lg">✕</span>
+          <p className="text-[#A7B0B7] text-sm">Payment canceled. No charge was made.</p>
+        </div>
+      )}
+
       <Navigation />
       <main className="relative">
         <HeroSection />
