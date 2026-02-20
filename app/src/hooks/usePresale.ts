@@ -221,6 +221,7 @@ export function usePresale() {
       }
 
       setStripeLoading(true);
+      resetTx();
       try {
         const tokens = calculateTokenAmount(usdAmount, false);
         const res = await fetch('/api/create-checkout-session', {
@@ -234,23 +235,32 @@ export function usePresale() {
           }),
         });
 
-        const { url, sessionId, error } = await res.json();
-        if (error) throw new Error(error);
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`API error ${res.status}: ${text.slice(0, 200)}`);
+        }
+
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
 
         // Use the session URL directly (most reliable cross-browser approach)
-        if (url) {
-          window.location.href = url;
+        if (data.url) {
+          window.location.href = data.url;
           return;
         }
 
         // Fallback: use Stripe.js redirectToCheckout
-        if (sessionId) {
+        if (data.sessionId) {
           const stripe = await import('@stripe/stripe-js').then(m => m.loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY));
           if (!stripe) throw new Error('Stripe failed to load');
-          await stripe.redirectToCheckout({ sessionId });
+          const result = await stripe.redirectToCheckout({ sessionId: data.sessionId });
+          if (result.error) throw new Error(result.error.message);
+        } else {
+          throw new Error('No checkout URL returned from server');
         }
       } catch (err: any) {
-        setTxError(err.message || 'Card payment failed');
+        setTxStatus('error');
+        setTxError(err.message || 'Card payment failed. Please try again.');
       } finally {
         setStripeLoading(false);
       }
