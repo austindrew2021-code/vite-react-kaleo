@@ -22,10 +22,9 @@ import {
 } from '../store/presaleStore';
 import { SEPOLIA_CHAIN_ID } from '../wagmi';
 
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL || '',
-  import.meta.env.VITE_SUPABASE_ANON_KEY || ''
-);
+const _sbUrl = import.meta.env.VITE_SUPABASE_URL;
+const _sbKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabase = _sbUrl && _sbKey ? createClient(_sbUrl, _sbKey) : null;
 
 export function usePresale() {
   const { address, isConnected } = useAccount();
@@ -116,20 +115,22 @@ export function usePresale() {
     });
 
     // Persist to Supabase
-    supabase
-      .from('presale_purchases')
-      .insert({
-        wallet_address: address.toLowerCase(),
-        tokens: kleoReceived,
-        eth_spent: eth,
-        stage: stage.stage,
-        price_eth: stage.priceEth,
-        tx_hash: sendTxHash,
-        method: 'eth',
-      })
-      .then(({ error }) => {
-        if (error) console.error('Supabase insert failed:', error);
-      });
+    if (supabase) {
+      supabase
+        .from('presale_purchases')
+        .insert({
+          wallet_address: address.toLowerCase(),
+          tokens: kleoReceived,
+          eth_spent: eth,
+          stage: stage.stage,
+          price_eth: stage.priceEth,
+          tx_hash: sendTxHash,
+          method: 'eth',
+        })
+        .then(({ error }) => {
+          if (error) console.error('Supabase insert failed:', error);
+        });
+    }
 
     refetchBalance();
   }, [isConfirmed, sendTxHash, ethAmount, address, totalRaised, addRaised, addPurchase, refetchBalance]);
