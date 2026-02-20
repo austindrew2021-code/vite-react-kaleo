@@ -60,7 +60,7 @@ export default async function handler(req: any, res: any) {
           quantity: 1,
         },
       ],
-      success_url: `\( {req.headers.origin}/?success=true&session_id={CHECKOUT_SESSION_ID}&wallet= \){encodeURIComponent(wallet)}&tokens=${tokens}`,
+      success_url: `${req.headers.origin}/?success=true&session_id={CHECKOUT_SESSION_ID}&wallet=${encodeURIComponent(wallet)}&tokens=${tokens}`,
       cancel_url: `${req.headers.origin}/?canceled=true`,
       metadata: {
         wallet,
