@@ -103,13 +103,8 @@ function AppContent() {
   }, []);
 
   useEffect(() => {
-    gsap.utils.toArray('.fade-in-section').forEach((el: any) => {
-      gsap.fromTo(el, { opacity: 0, y: 40 }, {
-        opacity: 1, y: 0, duration: 0.8, ease: 'power3.out',
-        scrollTrigger: { trigger: el, start: 'top 80%', toggleActions: 'play none none none', once: true },
-      });
-    });
-
+    // Only animate sections that don't have their own GSAP animations
+    // (sections with their own useEffect handle their own entrance)
     const handleModalChange = () => {
       const modal = document.querySelector('[data-rk] [role="dialog"]');
       document.body.classList.toggle('modal-open', !!modal);
