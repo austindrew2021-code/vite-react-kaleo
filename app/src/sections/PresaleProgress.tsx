@@ -181,12 +181,10 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
               {PRESALE_STAGES.map((stage) => {
                 const isCompleted = totalRaised >= stage.cumulativeEth;
                 const isCurrent = stage.stage === currentStage.stage;
-                // Shorten price for display: "0.000035" → "0.000035" but strip leading zeros for brevity
-                const shortPrice = String(stage.priceEth).replace('0.000', '.000').replace('0.00', '.00');
                 return (
                   <div
                     key={stage.stage}
-                    className={`p-1.5 rounded-xl border text-center transition-all duration-300 min-w-0 ${
+                    className={`p-1 rounded-xl border text-center transition-all duration-300 min-w-0 ${
                       isCurrent
                         ? 'border-[#2BFFF1]/60 bg-[#2BFFF1]/15 shadow-lg shadow-[#2BFFF1]/20 animate-pulse'
                         : isCompleted
@@ -208,7 +206,9 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
                     }`}>
                       S{stage.stage}
                     </p>
-                    <p className="text-[8px] text-[#A7B0B7] leading-tight mt-0.5 truncate">{shortPrice}</p>
+                    <p className="text-[6px] text-[#A7B0B7] leading-tight mt-0.5 overflow-hidden whitespace-nowrap">
+                      {stage.priceEth}
+                    </p>
                   </div>
                 );
               })}
