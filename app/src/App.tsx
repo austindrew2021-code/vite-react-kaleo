@@ -159,8 +159,9 @@ function AppContent() {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      const rand = Math.random();
-      setDirection(rand > 0.65 ? 'up' : rand > 0.35 ? 'down' : 'neutral');
+      const bullishStates: Array<'up' | 'neutral'> = ['up', 'up', 'up', 'neutral', 'up', 'up'];
+      let idx = Math.floor(Math.random() * bullishStates.length);
+      setDirection(bullishStates[idx]);
     }, 20000);
     return () => clearInterval(interval);
   }, []);
