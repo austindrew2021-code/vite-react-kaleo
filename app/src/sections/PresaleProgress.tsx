@@ -25,7 +25,7 @@ interface PresaleProgressProps {
 export function PresaleProgress({ direction }: PresaleProgressProps) {
   const { address, isConnected } = useAccount();
   const { data: balance } = useBalance({ address });
-  const { totalRaised, purchases } = usePresaleStore();
+  const { totalRaised, purchases, addRaised } = usePresaleStore();
 
   const currentStage = getCurrentStage(totalRaised);
   const stageProgress = getStageProgress(totalRaised);
@@ -48,10 +48,30 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
 
   const [supabaseTokens, setSupabaseTokens] = useState<number>(0);
 
-  // Use whichever is higher: Supabase total or local store total
-  // Handles race condition after Stripe redirect where store has data before Supabase fetch returns
+  // Show the higher of Supabase or local store — handles race conditions after Stripe redirect
   const displayKleo = Math.max(supabaseTokens, storeKleo);
 
+  // ── Fetch GLOBAL total raised on every page load (no wallet needed) ──
+  // This restores the progress bars after a refresh
+  useEffect(() => {
+    if (!supabase) return;
+    const fetchGlobalRaised = async () => {
+      const { data, error } = await supabase
+        .from('presale_purchases')
+        .select('eth_spent');
+      if (error) {
+        console.error('Supabase global fetch error:', error.message, error.code);
+        return;
+      }
+      const total = data?.reduce((sum, row) => sum + Number(row.eth_spent || 0), 0) || 0;
+      if (total > totalRaised) {
+        addRaised(total - totalRaised); // top up the store to match DB
+      }
+    };
+    fetchGlobalRaised();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Fetch user-specific tokens when wallet connects ──
   useEffect(() => {
     if (!isConnected || !address || !supabase) return;
 
@@ -62,7 +82,8 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
         .eq('wallet_address', address.toLowerCase());
 
       if (error) {
-        console.error('Supabase balance fetch error:', error);
+        console.error('Supabase user token fetch error:', error.message, error.code,
+          '— If code is "42501" you need to enable RLS policies in Supabase dashboard');
         return;
       }
 
@@ -73,7 +94,7 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
     fetchTokens();
 
     const channel = supabase
-      .channel('presale-updates')
+      .channel(`presale-user-${address}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'presale_purchases' }, (payload) => {
         if (payload.new.wallet_address.toLowerCase() === address.toLowerCase()) {
           setSupabaseTokens(prev => prev + Number(payload.new.tokens || 0));
@@ -189,8 +210,7 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
                 return (
                   <div
                     key={stage.stage}
-                    title={`Stage ${stage.stage}: ${stage.priceEth} ETH/KLEO`}
-                    className={`py-2 px-1 rounded-xl border text-center transition-all duration-300 ${
+                    className={`p-2 rounded-xl border text-center transition-all duration-300 ${
                       isCurrent
                         ? 'border-[#2BFFF1]/60 bg-[#2BFFF1]/15 shadow-lg shadow-[#2BFFF1]/20 animate-pulse'
                         : isCompleted
@@ -198,21 +218,21 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
                         : 'border-white/10 bg-white/5'
                     }`}
                   >
-                    <div className="flex items-center justify-center mb-0.5">
+                    <div className="flex items-center justify-center mb-1">
                       {isCompleted ? (
-                        <CheckCircle2 className="w-4 h-4 text-green-400" />
+                        <CheckCircle2 className="w-5 h-5 text-green-400" />
                       ) : isCurrent ? (
-                        <div className="w-4 h-4 rounded-full bg-[#2BFFF1] animate-pulse" />
+                        <div className="w-5 h-5 rounded-full bg-[#2BFFF1] animate-pulse" />
                       ) : (
-                        <Circle className="w-4 h-4 text-[#A7B0B7]/50" />
+                        <Circle className="w-5 h-5 text-[#A7B0B7]/50" />
                       )}
                     </div>
-                    <p className={`text-xs font-bold leading-none mb-0.5 ${
+                    <p className={`text-xs font-bold ${
                       isCurrent ? 'text-[#2BFFF1]' : isCompleted ? 'text-green-400' : 'text-[#A7B0B7]'
-                    }`}>S{stage.stage}</p>
-                    <p className={`text-[8px] leading-none tracking-tight ${
-                      isCurrent ? 'text-[#2BFFF1]' : isCompleted ? 'text-green-300' : 'text-[#A7B0B7]'
-                    }`}>{stage.priceEth}</p>
+                    }`}>
+                      S{stage.stage}
+                    </p>
+                    <p className="text-[9px] text-[#A7B0B7] mt-0.5 leading-tight">{stage.priceEth}</p>
                   </div>
                 );
               })}
