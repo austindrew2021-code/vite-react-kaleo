@@ -36,11 +36,112 @@ type BitcoinProvider = {
   sendBitcoin: (toAddress: string, satoshis: number) => Promise<string>;
   disconnect?: () => Promise<void>;
 };
+// All known Solana wallet injection points
+type SolflareProvider = { isConnected: boolean; publicKey?: { toString: () => string }; connect: () => Promise<void>; signAndSendTransaction: (tx: unknown) => Promise<{ signature: string }> };
+type BackpackProvider = { isConnected: boolean; publicKey?: { toString: () => string }; connect: () => Promise<{ publicKey: { toString: () => string } }>; sendAndConfirm: (tx: unknown) => Promise<string> };
+type XverseBtcProvider = { connect: () => Promise<{ addresses: { address: string; publicKey: string; purpose: string }[] }>; sendBtc?: (opts: { recipients: { address: string; amount: number }[] }) => Promise<{ txid: string }> };
+
 declare global {
   interface Window {
-    phantom?: { solana?: PhantomProvider; bitcoin?: BitcoinProvider };
-    solana?: PhantomProvider;
+    phantom?:   { solana?: PhantomProvider; bitcoin?: BitcoinProvider };
+    solana?:    PhantomProvider;
+    solflare?:  SolflareProvider;
+    backpack?:  BackpackProvider;
+    xverse?:    XverseBtcProvider;
+    BitcoinProvider?: BitcoinProvider;
+    okxwallet?: { bitcoin?: BitcoinProvider; solana?: PhantomProvider };
   }
+}
+
+// ── Wallet registry: detects all installed wallets ─────────────────────────
+interface DetectedWallet {
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+  connect: () => Promise<string>; // returns address
+  sendSol?: (to: string, lamports: number, connection: unknown) => Promise<string>;
+  sendBtc?: (to: string, satoshis: number) => Promise<string>;
+}
+
+function detectSolanaWallets(): DetectedWallet[] {
+  const wallets: DetectedWallet[] = [];
+  if (window.phantom?.solana) wallets.push({
+    id: 'phantom', name: 'Phantom', icon: '👻', color: 'text-purple-400',
+    connect: async () => {
+      const resp = await window.phantom!.solana!.connect();
+      return resp.publicKey.toString();
+    },
+    sendSol: async (to, lamports, conn) => {
+      const { PublicKey, SystemProgram, Transaction } = await import('@solana/web3.js');
+      const pk = window.phantom!.solana!.publicKey!;
+      const tx = new Transaction().add(SystemProgram.transfer({ fromPubkey: new PublicKey(pk.toString()), toPubkey: new PublicKey(to), lamports }));
+      const { blockhash } = await (conn as any).getLatestBlockhash();
+      tx.recentBlockhash = blockhash; tx.feePayer = new PublicKey(pk.toString());
+      const { signature } = await window.phantom!.solana!.signAndSendTransaction(tx);
+      return signature;
+    },
+  });
+  if (window.solflare) wallets.push({
+    id: 'solflare', name: 'Solflare', icon: '🔥', color: 'text-orange-400',
+    connect: async () => {
+      await window.solflare!.connect();
+      return window.solflare!.publicKey!.toString();
+    },
+    sendSol: async (to, lamports, conn) => {
+      const { PublicKey, SystemProgram, Transaction } = await import('@solana/web3.js');
+      const pk = window.solflare!.publicKey!;
+      const tx = new Transaction().add(SystemProgram.transfer({ fromPubkey: new PublicKey(pk.toString()), toPubkey: new PublicKey(to), lamports }));
+      const { blockhash } = await (conn as any).getLatestBlockhash();
+      tx.recentBlockhash = blockhash; tx.feePayer = new PublicKey(pk.toString());
+      const { signature } = await window.solflare!.signAndSendTransaction(tx);
+      return signature;
+    },
+  });
+  if (window.backpack) wallets.push({
+    id: 'backpack', name: 'Backpack', icon: '🎒', color: 'text-red-400',
+    connect: async () => {
+      const resp = await window.backpack!.connect();
+      return resp.publicKey.toString();
+    },
+  });
+  if (window.okxwallet?.solana) wallets.push({
+    id: 'okx-sol', name: 'OKX Wallet', icon: '⭕', color: 'text-gray-300',
+    connect: async () => {
+      const resp = await window.okxwallet!.solana!.connect();
+      return resp.publicKey.toString();
+    },
+  });
+  return wallets;
+}
+
+function detectBitcoinWallets(): DetectedWallet[] {
+  const wallets: DetectedWallet[] = [];
+  if (window.phantom?.bitcoin) wallets.push({
+    id: 'phantom-btc', name: 'Phantom', icon: '👻', color: 'text-purple-400',
+    connect: async () => {
+      const accounts = await window.phantom!.bitcoin!.connect();
+      return accounts[0]?.address || '';
+    },
+    sendBtc: async (to, satoshis) => window.phantom!.bitcoin!.sendBitcoin(to, satoshis),
+  });
+  if (window.xverse) wallets.push({
+    id: 'xverse', name: 'Xverse', icon: '✦', color: 'text-blue-400',
+    connect: async () => {
+      const resp = await window.xverse!.connect();
+      const payment = resp.addresses.find((a: { purpose: string }) => a.purpose === 'payment') || resp.addresses[0];
+      return payment?.address || '';
+    },
+  });
+  if (window.okxwallet?.bitcoin) wallets.push({
+    id: 'okx-btc', name: 'OKX Wallet', icon: '⭕', color: 'text-gray-300',
+    connect: async () => {
+      const accounts = await window.okxwallet!.bitcoin!.connect();
+      return accounts[0]?.address || '';
+    },
+    sendBtc: async (to, satoshis) => window.okxwallet!.bitcoin!.sendBitcoin(to, satoshis),
+  });
+  return wallets;
 }
 
 // CoinGecko IDs for live price fetching
@@ -94,6 +195,13 @@ export function BuySection() {
   const [liveRates,     setLiveRates]    = useState<Record<string, number>>({ ETH: 3200, BNB: 580, SOL: 170, BTC: 65000 });
   const [priceLoading,  setPriceLoading] = useState(false);
   const [priceError,    setPriceError]   = useState(false);
+
+  // Wallet picker modal state
+  const [showWalletPicker, setShowWalletPicker]  = useState(false);
+  const [pickerWallets,    setPickerWallets]      = useState<DetectedWallet[]>([]);
+  const [pickerType,       setPickerType]         = useState<'sol' | 'btc'>('sol');
+  // Active wallet instance for sending (SOL/BTC)
+  const [activeWallet,     setActiveWallet]       = useState<DetectedWallet | null>(null);
 
   const selected  = CURRENCIES.find(c => c.id === currency)!;
   const isEvm     = selected.chain === 'evm';
@@ -180,74 +288,59 @@ export function BuySection() {
     }
   }, [addRaised, addPurchase, currentStage]);
 
-  // ── Connect Phantom Solana ───────────────────────────────────────────────
-  const connectSolana = async () => {
-    const phantom = window.phantom?.solana || window.solana;
-    if (!phantom) {
+  // ── Open wallet picker for SOL or BTC ──────────────────────────────────────
+  const openWalletPicker = (type: 'sol' | 'btc') => {
+    const wallets = type === 'sol' ? detectSolanaWallets() : detectBitcoinWallets();
+    if (wallets.length === 0) {
+      // No wallet detected — open Phantom as default install page
       window.open('https://phantom.app/', '_blank');
       return;
     }
-    try {
-      const resp = await phantom.connect();
-      setSolAddr(resp.publicKey.toString());
-      setSolConnected(true);
-    } catch {
-      // user rejected
+    if (wallets.length === 1) {
+      // Only one wallet installed — connect directly, no picker needed
+      connectWallet(wallets[0], type);
+      return;
     }
+    // Multiple wallets detected — show picker
+    setPickerWallets(wallets);
+    setPickerType(type);
+    setShowWalletPicker(true);
   };
 
-  // ── Connect Bitcoin wallet (Phantom BTC / MetaMask BTC) ─────────────────
-  const connectBtc = async () => {
-    const btcProvider = window.phantom?.bitcoin;
-    if (!btcProvider) {
-      window.open('https://phantom.app/', '_blank');
-      return;
-    }
+  const connectWallet = async (wallet: DetectedWallet, type: 'sol' | 'btc') => {
+    setShowWalletPicker(false);
     try {
-      const accounts = await btcProvider.connect();
-      if (accounts?.[0]?.address) {
-        setBtcAddr(accounts[0].address);
+      const addr = await wallet.connect();
+      if (!addr) throw new Error('No address returned');
+      if (type === 'sol') {
+        setSolAddr(addr);
+        setSolConnected(true);
+      } else {
+        setBtcAddr(addr);
         setBtcConnected(true);
       }
+      setActiveWallet(wallet);
     } catch {
-      // user rejected
+      // user rejected or error
     }
   };
 
-  // ── Send BTC transaction via Phantom/MetaMask Bitcoin ────────────────────
+  // openWalletPicker handles both SOL and BTC — see above
+
+  // ── Send BTC via the active wallet ──────────────────────────────────────
   const sendBtc = async (): Promise<string> => {
-    const btcProvider = window.phantom?.bitcoin;
-    if (!btcProvider) throw new Error('No Bitcoin wallet detected. Install Phantom.');
-    const n = parseFloat(amount);
-    if (!n || n <= 0) throw new Error('Invalid amount');
-    const satoshis = Math.round(n * 100_000_000); // 1 BTC = 100,000,000 satoshis
-    const txid = await btcProvider.sendBitcoin(PRESALE_BTC_WALLET, satoshis);
-    return txid;
+    if (!activeWallet?.sendBtc) throw new Error('Connected wallet does not support BTC sends — try Phantom or Xverse');
+    const satoshis = Math.round(parseFloat(amount) * 100_000_000);
+    return activeWallet.sendBtc(PRESALE_BTC_WALLET, satoshis);
   };
 
-  // ── Send SOL transaction via Phantom ────────────────────────────────────
-  const sendSol = async () => {
-    const phantom = window.phantom?.solana || window.solana;
-    if (!phantom?.isConnected || !phantom.publicKey) throw new Error('Phantom not connected');
-
-    // Dynamic import to avoid bundling Solana web3 if not needed
-    const { Connection, PublicKey, SystemProgram, Transaction, LAMPORTS_PER_SOL } =
-      await import('@solana/web3.js');
-
+  // ── Send SOL via the active wallet ──────────────────────────────────────
+  const sendSol = async (): Promise<string> => {
+    if (!activeWallet?.sendSol) throw new Error('Wallet does not support SOL transfers directly — try Phantom or Solflare');
+    const { Connection, LAMPORTS_PER_SOL } = await import('@solana/web3.js');
     const conn = new Connection('https://api.mainnet-beta.solana.com', 'confirmed');
-    const tx = new Transaction().add(
-      SystemProgram.transfer({
-        fromPubkey: new PublicKey(phantom.publicKey.toString()),
-        toPubkey:   new PublicKey(PRESALE_SOL_WALLET),
-        lamports:   Math.round(parseFloat(amount) * LAMPORTS_PER_SOL),
-      })
-    );
-    const { blockhash } = await conn.getLatestBlockhash();
-    tx.recentBlockhash = blockhash;
-    tx.feePayer = new PublicKey(phantom.publicKey.toString());
-
-    const { signature } = await phantom.signAndSendTransaction(tx);
-    return signature;
+    const lamports = Math.round(parseFloat(amount) * LAMPORTS_PER_SOL);
+    return activeWallet.sendSol(PRESALE_SOL_WALLET, lamports, conn);
   };
 
   // ── Main buy handler ────────────────────────────────────────────────────
@@ -431,7 +524,7 @@ export function BuySection() {
                     <span className="text-orange-400 font-semibold text-sm">Bitcoin</span>
                   </div>
                 ) : (
-                  <button onClick={connectBtc}
+                  <button onClick={() => openWalletPicker('btc')}
                     className="w-full flex items-center justify-center gap-3 bg-orange-600/20 border border-orange-500/40 hover:border-orange-400/70 hover:bg-orange-600/30 rounded-xl px-4 py-3.5 transition-all">
                     <span className="text-2xl leading-none text-orange-400">₿</span>
                     <span className="text-orange-300 font-semibold">Connect Bitcoin Wallet</span>
@@ -452,7 +545,7 @@ export function BuySection() {
                     <span className="text-purple-300 font-semibold text-sm">Phantom</span>
                   </div>
                 ) : (
-                  <button onClick={connectSolana}
+                  <button onClick={() => openWalletPicker('sol')}
                     className="w-full flex items-center justify-center gap-3 bg-purple-600/20 border border-purple-500/40 hover:border-purple-400/70 hover:bg-purple-600/30 rounded-xl px-4 py-3.5 transition-all">
                     <span className="text-2xl leading-none">◎</span>
                     <span className="text-purple-300 font-semibold">Connect Phantom / Solflare</span>
@@ -611,6 +704,39 @@ export function BuySection() {
           </div>
         )}
       </div>
+
+      {/* ── Wallet Picker Modal ──────────────────────────────────────────── */}
+      {showWalletPicker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          onClick={() => setShowWalletPicker(false)}>
+          <div className="bg-[#0B0E14] border border-white/10 rounded-2xl p-6 w-[min(92vw,340px)] shadow-2xl"
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-[#F4F6FA] font-bold text-lg">
+                Connect {pickerType === 'sol' ? 'Solana' : 'Bitcoin'} Wallet
+              </h3>
+              <button onClick={() => setShowWalletPicker(false)}
+                className="text-[#A7B0B7] hover:text-white text-xl leading-none">×</button>
+            </div>
+            <div className="space-y-3">
+              {pickerWallets.map(w => (
+                <button key={w.id}
+                  onClick={() => connectWallet(w, pickerType)}
+                  className="w-full flex items-center gap-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#2BFFF1]/30 rounded-xl px-4 py-4 transition-all">
+                  <span className="text-2xl">{w.icon}</span>
+                  <span className={`font-semibold text-base ${w.color}`}>{w.name}</span>
+                  <span className="ml-auto text-[#A7B0B7] text-xs">Detected</span>
+                </button>
+              ))}
+            </div>
+            <p className="text-[#A7B0B7] text-xs text-center mt-4">
+              Don&apos;t see your wallet?{' '}
+              <a href="https://phantom.app/" target="_blank" rel="noopener noreferrer"
+                className="text-[#2BFFF1] hover:underline">Install Phantom</a>
+            </p>
+          </div>
+        </div>
+      )}
     </section>
   );
-}
+    }
