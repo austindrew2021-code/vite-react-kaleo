@@ -66,7 +66,6 @@ const queryClient = new QueryClient();
 // ── Inner component — sits INSIDE all providers so hooks work correctly ──
 function AppContent() {
   const { address, isConnected } = useAccount();
-  const [userTokens, setUserTokens] = useState<number>(0);
   const [direction, setDirection] = useState<'up' | 'down' | 'neutral'>('up');
   const [stripeSuccess, setStripeSuccess] = useState<string | null>(null);
   const [stripeCanceled, setStripeCanceled] = useState(false);
@@ -78,13 +77,12 @@ function AppContent() {
     if (!isConnected || !address || !supabase) return;
 
     const fetchBalance = async () => {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('presale_purchases')
         .select('tokens')
         .eq('wallet_address', address.toLowerCase());
       if (error) { console.error('Supabase fetch error:', error.message, error.code); return; }
-      const total = data?.reduce((sum, row) => sum + Number(row.tokens || 0), 0) || 0;
-      setUserTokens(total);
+      // const total = data?.reduce((sum, row) => sum + Number(row.tokens || 0), 0) || 0;
     };
     fetchBalance();
 
@@ -92,7 +90,7 @@ function AppContent() {
       .channel(`presale-${address}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'presale_purchases' }, (payload) => {
         if (payload.new.wallet_address.toLowerCase() === address.toLowerCase()) {
-          setUserTokens((prev) => prev + Number(payload.new.tokens || 0));
+          // realtime: token balance updated via supabase fetch
         }
       })
       .subscribe();
@@ -111,31 +109,32 @@ function AppContent() {
       const tokens = tokensParam ? parseFloat(tokensParam) : 0;
 
       if (tokens > 0) {
+        const usdParam = params.get('usd') || '0';
+        const usdSpent = parseFloat(usdParam) || 0;
         const stage = getCurrentStage(totalRaised);
-        const ethEquivalent = tokens * stage.priceEth;
 
-        addRaised(ethEquivalent);
+        addRaised(usdSpent);
         addPurchase({
-          ethSpent: ethEquivalent,
+          usdSpent,
           kleoReceived: tokens,
           stage: stage.stage,
-          priceEth: stage.priceEth,
+          priceUsd: stage.priceUsd,
           txHash: sessionId,
           timestamp: Date.now(),
+          cryptoType: 'card',
         });
 
-        setUserTokens((prev) => prev + tokens);
-
-        // Insert using exact column names from your Supabase table
+        // Insert to Supabase with correct column names
         if (supabase && walletParam) {
           supabase
             .from('presale_purchases')
             .insert({
               wallet_address: walletParam.toLowerCase(),
               tokens,
-              eth_spent: ethEquivalent,
+              eth_spent: 0,
+              usd_amount: usdSpent,
               stage: stage.stage,
-              price_eth: stage.priceEth,
+              price_eth: stage.priceUsd,
               tx_hash: sessionId,
               payment_method: 'card',
             })
@@ -213,7 +212,7 @@ function AppContent() {
       <main className="relative">
         <HeroSection />
         <PresaleProgress direction={direction} />
-        <BuySection userTokens={userTokens} direction={direction} supabase={supabase} walletAddress={address} />
+        <BuySection />
         <StatsSection />
         <FeatureSection />
         <FeaturesGridSection />
