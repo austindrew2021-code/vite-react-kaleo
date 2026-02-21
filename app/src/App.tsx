@@ -73,7 +73,34 @@ function AppContent() {
 
   const { totalRaised, addRaised, addPurchase } = usePresaleStore();
 
-  // Handle Stripe redirect — record purchase to Supabase + update store
+  // ── Fetch user token balance from Supabase whenever wallet connects ──
+  useEffect(() => {
+    if (!isConnected || !address || !supabase) return;
+
+    const fetchBalance = async () => {
+      const { data, error } = await supabase
+        .from('presale_purchases')
+        .select('tokens')
+        .eq('wallet_address', address.toLowerCase());
+      if (error) { console.error('Supabase fetch error:', error.message, error.code); return; }
+      const total = data?.reduce((sum, row) => sum + Number(row.tokens || 0), 0) || 0;
+      setUserTokens(total);
+    };
+    fetchBalance();
+
+    const channel = supabase
+      .channel(`presale-${address}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'presale_purchases' }, (payload) => {
+        if (payload.new.wallet_address.toLowerCase() === address.toLowerCase()) {
+          setUserTokens((prev) => prev + Number(payload.new.tokens || 0));
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [address, isConnected]);
+
+  // ── Handle Stripe redirect back — record purchase to Supabase + update store ──
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
 
@@ -87,7 +114,6 @@ function AppContent() {
         const stage = getCurrentStage(totalRaised);
         const ethEquivalent = tokens * stage.priceEth;
 
-        // Update local store immediately so UI refreshes
         addRaised(ethEquivalent);
         addPurchase({
           ethSpent: ethEquivalent,
@@ -98,10 +124,9 @@ function AppContent() {
           timestamp: Date.now(),
         });
 
-        // Also update the displayed user token balance
         setUserTokens((prev) => prev + tokens);
 
-        // Persist to Supabase
+        // Insert using exact column names from your Supabase table
         if (supabase && walletParam) {
           supabase
             .from('presale_purchases')
@@ -112,10 +137,10 @@ function AppContent() {
               stage: stage.stage,
               price_eth: stage.priceEth,
               tx_hash: sessionId,
-              method: 'card',
+              payment_method: 'card',
             })
             .then(({ error }) => {
-              if (error) console.error('Supabase card insert failed:', error);
+              if (error) console.error('Supabase card insert failed:', error.message, error.code);
             });
         }
       }
@@ -131,37 +156,11 @@ function AppContent() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Price direction — always bullish ──
   useEffect(() => {
-    if (!isConnected || !address || !supabase) return;
-
-    const fetchBalance = async () => {
-      const { data, error } = await supabase
-        .from('presale_purchases')
-        .select('tokens')
-        .eq('wallet_address', address.toLowerCase());
-      if (error) { console.error('Supabase fetch error:', error); return; }
-      const total = data?.reduce((sum, row) => sum + Number(row.tokens || 0), 0) || 0;
-      setUserTokens(total);
-    };
-    fetchBalance();
-
-    const channel = supabase
-      .channel('presale-changes')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'presale_purchases' }, (payload) => {
-        if (payload.new.wallet_address.toLowerCase() === address.toLowerCase()) {
-          setUserTokens((prev) => prev + Number(payload.new.tokens || 0));
-        }
-      })
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, [address, isConnected]);
-
-  useEffect(() => {
+    const bullish: Array<'up' | 'neutral'> = ['up', 'up', 'up', 'neutral', 'up', 'up'];
     const interval = setInterval(() => {
-      const bullishStates: Array<'up' | 'neutral'> = ['up', 'up', 'up', 'neutral', 'up', 'up'];
-      let idx = Math.floor(Math.random() * bullishStates.length);
-      setDirection(bullishStates[idx]);
+      setDirection(bullish[Math.floor(Math.random() * bullish.length)]);
     }, 20000);
     return () => clearInterval(interval);
   }, []);
@@ -195,7 +194,7 @@ function AppContent() {
           <div className="flex-1">
             <p className="text-[#F4F6FA] font-bold text-base mb-1">Payment Successful!</p>
             <p className="text-[#A7B0B7] text-sm leading-relaxed">
-              {stripeSuccess} KLEO tokens have been reserved for your wallet and will be credited at mainnet launch.
+              {stripeSuccess} KLEO tokens reserved for your wallet. They will be credited at mainnet launch.
             </p>
           </div>
           <button onClick={() => setStripeSuccess(null)} className="text-[#A7B0B7] hover:text-white text-xl leading-none shrink-0 mt-0.5">×</button>
