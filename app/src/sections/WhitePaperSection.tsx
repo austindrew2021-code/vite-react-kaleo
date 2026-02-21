@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { gsap } from 'gsap';
 import { FileText, ExternalLink, Shield, Coins, TrendingUp, Users } from 'lucide-react';
 
-const WHITEPAPER_URL = 'https://docs.google.com/document/d/e/2PACX-1vExampleWhitepaperLink/pub';
+const WHITEPAPER_URL = 'https://telegra.ph/Kaleo-AI-Powered-Leverage-Trading-Platform-Whitepaper-02-21';
 
 const highlights = [
   { icon: TrendingUp, label: 'Leverage Mechanism', desc: 'Up to 100x on any Pump.fun memecoin' },
