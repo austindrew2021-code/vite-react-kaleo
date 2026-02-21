@@ -207,7 +207,7 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
                         <Circle className="w-3 h-3 text-[#A7B0B7]/50" />
                       )}
                     </div>
-                    <p className={`text-[8px] font-bold leading-none mb-0.5 ${
+                    <p className={`text-[9px] font-bold leading-none mb-0.5 ${
                       isCurrent ? 'text-[#2BFFF1]' : isCompleted ? 'text-green-400' : 'text-[#A7B0B7]'
                     }`}>S{stage.stage}</p>
                     <p className={`text-[6px] leading-none tracking-tight ${
