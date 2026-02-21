@@ -182,18 +182,21 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
           {/* Stage Grid */}
           <div className="mb-8">
             <p className="text-[#A7B0B7] text-base font-medium mb-4">Presale Stages</p>
-            <div className="grid grid-cols-6 sm:grid-cols-12 gap-1.5">
+            <div className="grid grid-cols-12 gap-1">
               {PRESALE_STAGES.map((stage) => {
                 const isCompleted = totalRaised >= stage.cumulativeEth;
                 const isCurrent = stage.stage === currentStage.stage;
-                // Abbreviate price: 0.000035 → "35μ", 0.0002 → "200μ"
-                const microPrice = Math.round(stage.priceEth * 1_000_000);
-                const shortPrice = microPrice >= 100 ? `${microPrice}μ` : `${microPrice}μ`;
+                const priceStr = String(stage.priceEth);
+                const dotIdx = priceStr.indexOf('.');
+                const decimals = dotIdx >= 0 ? priceStr.slice(dotIdx + 1) : '';
+                const sigStart = decimals.search(/[1-9]/);
+                const leadPart = '0.' + (sigStart > 0 ? decimals.slice(0, sigStart) : '');
+                const sigPart = sigStart >= 0 ? decimals.slice(sigStart) : decimals;
                 return (
                   <div
                     key={stage.stage}
                     title={`Stage ${stage.stage}: ${stage.priceEth} ETH/KLEO`}
-                    className={`py-2 px-1 rounded-xl border text-center transition-all duration-300 ${
+                    className={`py-1 px-0 rounded-lg border text-center transition-all duration-300 ${
                       isCurrent
                         ? 'border-[#2BFFF1]/60 bg-[#2BFFF1]/15 shadow-lg shadow-[#2BFFF1]/20 animate-pulse'
                         : isCompleted
@@ -201,21 +204,22 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
                         : 'border-white/10 bg-white/5'
                     }`}
                   >
-                    <div className="flex items-center justify-center mb-1">
+                    <div className="flex items-center justify-center mb-0.5">
                       {isCompleted ? (
-                        <CheckCircle2 className="w-4 h-4 text-green-400" />
+                        <CheckCircle2 className="w-3 h-3 text-green-400" />
                       ) : isCurrent ? (
-                        <div className="w-4 h-4 rounded-full bg-[#2BFFF1] animate-pulse" />
+                        <div className="w-3 h-3 rounded-full bg-[#2BFFF1] animate-pulse" />
                       ) : (
-                        <Circle className="w-4 h-4 text-[#A7B0B7]/50" />
+                        <Circle className="w-3 h-3 text-[#A7B0B7]/50" />
                       )}
                     </div>
-                    <p className={`text-[10px] font-bold leading-tight ${
+                    <p className={`text-[8px] font-bold leading-none ${
                       isCurrent ? 'text-[#2BFFF1]' : isCompleted ? 'text-green-400' : 'text-[#A7B0B7]'
-                    }`}>
-                      S{stage.stage}
-                    </p>
-                    <p className="text-[9px] text-[#A7B0B7] leading-tight">{shortPrice}</p>
+                    }`}>S{stage.stage}</p>
+                    <p className="text-[7px] text-[#A7B0B7] leading-none mt-px">{leadPart}</p>
+                    <p className={`text-[7px] font-semibold leading-none ${
+                      isCurrent ? 'text-[#2BFFF1]' : isCompleted ? 'text-green-400' : 'text-[#A7B0B7]'
+                    }`}>{sigPart}</p>
                   </div>
                 );
               })}
