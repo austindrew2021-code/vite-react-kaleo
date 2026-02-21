@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { ArrowRight, TrendingUp, Users, Trophy, Zap } from 'lucide-react';
@@ -6,8 +6,13 @@ import {
   usePresaleStore,
   getCurrentStage,
   getOverallProgress,
-  HARD_CAP_ETH,
+  HARD_CAP_USD,
 } from '../store/presaleStore';
+import { createClient } from '@supabase/supabase-js';
+
+const _sbUrl = import.meta.env.VITE_SUPABASE_URL;
+const _sbKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabase = _sbUrl && _sbKey ? createClient(_sbUrl, _sbKey) : null;
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -16,10 +21,35 @@ export function StatsSection() {
   const panelRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
 
-  const { totalRaised, purchases } = usePresaleStore();
+  const { totalRaised } = usePresaleStore();
   const currentStage = getCurrentStage(totalRaised);
   const overallProgress = getOverallProgress(totalRaised);
-  const totalBuyers = purchases.length;
+
+  const [totalBuyers, setTotalBuyers] = useState<number>(0);
+
+  // Fetch distinct buyer count from Supabase on mount
+  useEffect(() => {
+    if (!supabase) return;
+    const fetchBuyers = async () => {
+      const { data, error } = await supabase
+        .from('presale_purchases')
+        .select('wallet_address');
+      if (error) { console.error('Buyers fetch error:', error.message); return; }
+      const unique = new Set(data?.map((r: { wallet_address: string }) => r.wallet_address.toLowerCase()));
+      setTotalBuyers(unique.size);
+    };
+    fetchBuyers();
+
+    // Listen for new purchases and increment buyer count
+    const channel = supabase
+      .channel('stats-buyers')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'presale_purchases' }, () => {
+        fetchBuyers(); // re-fetch to get accurate unique count
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   useEffect(() => {
     const section = sectionRef.current;
@@ -83,7 +113,7 @@ export function StatsSection() {
   const statItems = [
     { icon: Users, label: 'Buyers', value: totalBuyers.toLocaleString() },
     { icon: TrendingUp, label: 'Current Stage', value: `${currentStage.stage}/12` },
-    { icon: Zap, label: 'Price/KLEO', value: `${currentStage.priceEth} ETH`, highlight: true },
+    { icon: Zap, label: 'Price/KLEO', value: `$${currentStage.priceUsd.toFixed(4)}`, highlight: true },
     { icon: Trophy, label: 'Discount', value: `${currentStage.discount}%`, highlight: true },
   ];
 
@@ -110,7 +140,7 @@ export function StatsSection() {
         <div className="relative">
           <div className="stats-number mb-4 text-center">
             <h2 className="text-[clamp(32px,5vw,56px)] font-bold text-[#2BFFF1] leading-none">
-              {totalRaised.toFixed(4)} ETH
+              ${totalRaised.toLocaleString('en-US', {maximumFractionDigits: 0})} USD
             </h2>
           </div>
 
@@ -132,7 +162,7 @@ export function StatsSection() {
             </div>
             <div className="flex justify-between text-xs mt-2 text-[#A7B0B7]">
               <span>0</span>
-              <span>Hard Cap: {HARD_CAP_ETH.toLocaleString()} ETH</span>
+              <span>Hard Cap: ${HARD_CAP_USD.toLocaleString()} USD</span>
             </div>
           </div>
 
