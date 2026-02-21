@@ -186,17 +186,11 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
               {PRESALE_STAGES.map((stage) => {
                 const isCompleted = totalRaised >= stage.cumulativeEth;
                 const isCurrent = stage.stage === currentStage.stage;
-                const priceStr = String(stage.priceEth);
-                const dotIdx = priceStr.indexOf('.');
-                const decimals = dotIdx >= 0 ? priceStr.slice(dotIdx + 1) : '';
-                const sigStart = decimals.search(/[1-9]/);
-                const leadPart = '0.' + (sigStart > 0 ? decimals.slice(0, sigStart) : '');
-                const sigPart = sigStart >= 0 ? decimals.slice(sigStart) : decimals;
                 return (
                   <div
                     key={stage.stage}
                     title={`Stage ${stage.stage}: ${stage.priceEth} ETH/KLEO`}
-                    className={`py-1 px-0 rounded-lg border text-center transition-all duration-300 ${
+                    className={`py-1.5 px-0 rounded-lg border text-center transition-all duration-300 ${
                       isCurrent
                         ? 'border-[#2BFFF1]/60 bg-[#2BFFF1]/15 shadow-lg shadow-[#2BFFF1]/20 animate-pulse'
                         : isCompleted
@@ -213,13 +207,12 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
                         <Circle className="w-3 h-3 text-[#A7B0B7]/50" />
                       )}
                     </div>
-                    <p className={`text-[8px] font-bold leading-none ${
+                    <p className={`text-[8px] font-bold leading-none mb-0.5 ${
                       isCurrent ? 'text-[#2BFFF1]' : isCompleted ? 'text-green-400' : 'text-[#A7B0B7]'
                     }`}>S{stage.stage}</p>
-                    <p className="text-[7px] text-[#A7B0B7] leading-none mt-px">{leadPart}</p>
-                    <p className={`text-[7px] font-semibold leading-none ${
-                      isCurrent ? 'text-[#2BFFF1]' : isCompleted ? 'text-green-400' : 'text-[#A7B0B7]'
-                    }`}>{sigPart}</p>
+                    <p className={`text-[6px] leading-none tracking-tight ${
+                      isCurrent ? 'text-[#2BFFF1]' : isCompleted ? 'text-green-300' : 'text-[#A7B0B7]'
+                    }`}>{stage.priceEth}</p>
                   </div>
                 );
               })}
