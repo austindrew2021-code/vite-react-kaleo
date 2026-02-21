@@ -125,10 +125,10 @@ export function usePresale() {
           stage: stage.stage,
           price_eth: stage.priceEth,
           tx_hash: sendTxHash,
-          method: 'eth',
+          payment_method: 'eth',
         })
         .then(({ error }) => {
-          if (error) console.error('Supabase insert failed:', error);
+          if (error) console.error('Supabase insert failed:', error.message, error.code);
         });
     }
 
@@ -221,7 +221,6 @@ export function usePresale() {
       }
 
       setStripeLoading(true);
-      resetTx();
       try {
         const tokens = calculateTokenAmount(usdAmount, false);
         const res = await fetch('/api/create-checkout-session', {
@@ -235,32 +234,15 @@ export function usePresale() {
           }),
         });
 
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(`API error ${res.status}: ${text.slice(0, 200)}`);
-        }
+        const { sessionId, error } = await res.json();
+        if (error) throw new Error(error);
 
-        const data = await res.json();
-        if (data.error) throw new Error(data.error);
+        const stripe = await import('@stripe/stripe-js').then(m => m.loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY));
+        if (!stripe) throw new Error('Stripe failed to load');
 
-        // Use the session URL directly (most reliable cross-browser approach)
-        if (data.url) {
-          window.location.href = data.url;
-          return;
-        }
-
-        // Fallback: use Stripe.js redirectToCheckout
-        if (data.sessionId) {
-          const stripe = await import('@stripe/stripe-js').then(m => m.loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY));
-          if (!stripe) throw new Error('Stripe failed to load');
-          const result = await stripe.redirectToCheckout({ sessionId: data.sessionId });
-          if (result.error) throw new Error(result.error.message);
-        } else {
-          throw new Error('No checkout URL returned from server');
-        }
+        await stripe.redirectToCheckout({ sessionId });
       } catch (err: any) {
-        setTxStatus('error');
-        setTxError(err.message || 'Card payment failed. Please try again.');
+        setTxError(err.message || 'Card payment failed');
       } finally {
         setStripeLoading(false);
       }
