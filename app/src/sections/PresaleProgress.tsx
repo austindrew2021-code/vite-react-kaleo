@@ -182,7 +182,7 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
           {/* Stage Grid */}
           <div className="mb-8">
             <p className="text-[#A7B0B7] text-base font-medium mb-4">Presale Stages</p>
-            <div className="grid grid-cols-12 gap-1">
+            <div className="grid grid-cols-6 gap-2">
               {PRESALE_STAGES.map((stage) => {
                 const isCompleted = totalRaised >= stage.cumulativeEth;
                 const isCurrent = stage.stage === currentStage.stage;
@@ -190,7 +190,7 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
                   <div
                     key={stage.stage}
                     title={`Stage ${stage.stage}: ${stage.priceEth} ETH/KLEO`}
-                    className={`py-1.5 px-0 rounded-lg border text-center transition-all duration-300 ${
+                    className={`py-2 px-1 rounded-xl border text-center transition-all duration-300 ${
                       isCurrent
                         ? 'border-[#2BFFF1]/60 bg-[#2BFFF1]/15 shadow-lg shadow-[#2BFFF1]/20 animate-pulse'
                         : isCompleted
@@ -200,17 +200,17 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
                   >
                     <div className="flex items-center justify-center mb-0.5">
                       {isCompleted ? (
-                        <CheckCircle2 className="w-3 h-3 text-green-400" />
+                        <CheckCircle2 className="w-4 h-4 text-green-400" />
                       ) : isCurrent ? (
-                        <div className="w-3 h-3 rounded-full bg-[#2BFFF1] animate-pulse" />
+                        <div className="w-4 h-4 rounded-full bg-[#2BFFF1] animate-pulse" />
                       ) : (
-                        <Circle className="w-3 h-3 text-[#A7B0B7]/50" />
+                        <Circle className="w-4 h-4 text-[#A7B0B7]/50" />
                       )}
                     </div>
-                    <p className={`text-[9px] font-bold leading-none mb-0.5 ${
+                    <p className={`text-xs font-bold leading-none mb-0.5 ${
                       isCurrent ? 'text-[#2BFFF1]' : isCompleted ? 'text-green-400' : 'text-[#A7B0B7]'
                     }`}>S{stage.stage}</p>
-                    <p className={`text-[6px] leading-none tracking-tight ${
+                    <p className={`text-[8px] leading-none tracking-tight ${
                       isCurrent ? 'text-[#2BFFF1]' : isCompleted ? 'text-green-300' : 'text-[#A7B0B7]'
                     }`}>{stage.priceEth}</p>
                   </div>
