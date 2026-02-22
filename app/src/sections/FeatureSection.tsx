@@ -157,7 +157,7 @@ export function FeatureSection() {
             </h2>
 
             <p className="text-[#A7B0B7] text-[clamp(14px,1.2vw,16px)] mb-8 leading-relaxed max-w-[420px]">
-              Connect your wallet and start leverage trading any memecoin from Pump.fun instantly. No waiting, no restrictions.
+              Connect your wallet and secure your KLEO allocation now. Presale holders gain governance voting rights and priority access to platform features at launch.
             </p>
 
             {/* Feature Bullets */}
@@ -180,7 +180,7 @@ export function FeatureSection() {
               href="#buy"
               className="neon-button w-fit px-6 py-3 text-sm font-semibold flex items-center gap-2 hover:gap-3 transition-all shadow-lg shadow-cyan-500/20"
             >
-              Start Trading
+              Join Presale
               <ArrowRight className="w-4 h-4" />
             </a>
           </div>

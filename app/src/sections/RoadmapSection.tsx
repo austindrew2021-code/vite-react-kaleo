@@ -87,7 +87,7 @@ export function RoadmapSection() {
   }, []);
 
   return (
-    <section className="fade-in-section roadmap-section relative py-20 bg-gradient-to-b from-black to-gray-900 overflow-hidden">
+    <section id="roadmap" className="fade-in-section roadmap-section relative py-20 bg-gradient-to-b from-black to-gray-900 overflow-hidden">
       <div className="relative max-w-6xl mx-auto px-6">
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#2BFFF1]/10 border border-[#2BFFF1]/30 text-[#2BFFF1] text-sm font-medium uppercase tracking-widest mb-4">

@@ -10,9 +10,9 @@ const productLinks = [
 ];
 
 const resourceLinks = [
-  { label: 'Whitepaper', href: '#whitepaper' },
+  { label: 'Whitepaper', href: 'https://telegra.ph/Kaleo-AI-Powered-Leverage-Trading-Platform-Whitepaper-02-21' },
   { label: 'FAQ', href: '#faq' },
-  { label: 'Tokenomics', href: '#whitepaper' },
+  { label: 'Tokenomics', href: 'https://telegra.ph/Kaleo-AI-Powered-Leverage-Trading-Platform-Whitepaper-02-21' },
   { label: 'Smart Contracts', href: '#', external: true },
 ];
 
@@ -94,7 +94,7 @@ export function FooterSection() {
                 <ArrowRight className="w-4 h-4 md:w-5 md:h-5" />
               </a>
               <a
-                href="#whitepaper"
+                href="https://telegra.ph/Kaleo-AI-Powered-Leverage-Trading-Platform-Whitepaper-02-21"
                 className="px-6 py-3 rounded-xl bg-white/5 border border-white/10 text-[#A7B0B7] text-sm md:text-base font-medium hover:border-[#2BFFF1]/50 hover:text-[#2BFFF1] transition-colors flex items-center gap-2"
               >
                 Read Whitepaper

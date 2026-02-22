@@ -100,7 +100,7 @@ export function FAQSection() {
         scrollTrigger: {
           trigger: '.faq-container',
           start: 'top 85%',
-          toggleActions: 'play none none reverse'
+          toggleActions: 'play none none none',
         }
       }
     );
@@ -116,14 +116,14 @@ export function FAQSection() {
         scrollTrigger: {
           trigger: '.faq-container',
           start: 'top 80%',
-          toggleActions: 'play none none reverse'
+          toggleActions: 'play none none none',
         }
       }
     );
   }, []);
 
   return (
-    <section className="fade-in-section relative py-20 bg-gradient-to-b from-black to-gray-900 overflow-hidden">
+    <section id="faq" className="fade-in-section relative py-20 bg-gradient-to-b from-black to-gray-900 overflow-hidden">
       <div className="faq-container max-w-5xl mx-auto px-6">
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#2BFFF1]/10 border border-[#2BFFF1]/30 text-[#2BFFF1] text-sm font-medium uppercase tracking-widest mb-4">
@@ -152,7 +152,7 @@ export function FAQSection() {
                 {cat.questions.map((faq, idx) => (
                   <AccordionItem
                     key={idx}
-                    value={`\( {catIdx}- \){idx}`}
+                    value={`faq-${catIdx}-${idx}`}
                     className="faq-item glass-card rounded-xl overflow-hidden border border-white/[0.08] data-[state=open]:border-[#2BFFF1]/30 transition-all duration-300 hover:border-[#2BFFF1]/20"
                   >
                     <AccordionTrigger className="px-6 py-5 text-left text-[#F4F6FA] hover:text-[#2BFFF1] transition-colors font-medium text-base [&[data-state=open]]:text-[#2BFFF1]">

@@ -1,23 +1,21 @@
 import { gsap } from 'gsap';
 import { useEffect, useState } from 'react';
-import { useAccount, useBalance } from 'wagmi';
-import { formatEther } from 'viem';
-import { ArrowUp, CheckCircle2, Circle, ArrowRight, Zap } from 'lucide-react';
+import { useAccount } from 'wagmi';
+import { ArrowUp, CheckCircle2, Circle, Zap } from 'lucide-react';
 import {
   usePresaleStore,
   getCurrentStage,
   getStageProgress,
   getOverallProgress,
   PRESALE_STAGES,
-  HARD_CAP_ETH,
-  LISTING_PRICE,
+  HARD_CAP_USD,
+  LISTING_PRICE_USD,
 } from '../store/presaleStore';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL || '',
-  import.meta.env.VITE_SUPABASE_ANON_KEY || ''
-);
+const _sbUrl = import.meta.env.VITE_SUPABASE_URL;
+const _sbKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabase = _sbUrl && _sbKey ? createClient(_sbUrl, _sbKey) : null;
 
 interface PresaleProgressProps {
   direction: 'up' | 'down' | 'neutral';
@@ -25,18 +23,16 @@ interface PresaleProgressProps {
 
 export function PresaleProgress({ direction }: PresaleProgressProps) {
   const { address, isConnected } = useAccount();
-  const { data: balance } = useBalance({ address });
   const { totalRaised, purchases } = usePresaleStore();
 
   const currentStage = getCurrentStage(totalRaised);
   const stageProgress = getStageProgress(totalRaised);
   const overallProgress = getOverallProgress(totalRaised);
 
-  const _totalKleoPurchased = purchases.reduce((sum, p) => sum + p.kleoReceived, 0);
-  const totalEthSpent = purchases.reduce((sum, p) => sum + p.ethSpent, 0);
 
-  const stageStartEth = currentStage.cumulativeEth - currentStage.ethTarget;
-  const raisedInCurrentStage = Math.max(0, totalRaised - stageStartEth);
+
+  const stageStartUsd = currentStage.cumulativeUsd - currentStage.usdTarget;
+  const raisedInCurrentStage = Math.max(0, totalRaised - stageStartUsd);
 
   const now = Date.now();
   const recentBuys = purchases.filter(p => now - p.timestamp < 15 * 60 * 1000).length;
@@ -50,7 +46,7 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
   const [supabaseTokens, setSupabaseTokens] = useState<number>(0);
 
   useEffect(() => {
-    if (!isConnected || !address) return;
+    if (!isConnected || !address || !supabase) return;
 
     const fetchTokens = async () => {
       const { data, error } = await supabase
@@ -126,20 +122,20 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
               </div>
 
               <p className="text-[#F4F6FA] text-4xl sm:text-5xl font-bold">
-                {currentStage.priceEth} <span className="text-[#A7B0B7] text-2xl font-normal">ETH/KLEO</span>
+                ${currentStage.priceUsd.toFixed(4)} <span className="text-[#A7B0B7] text-2xl font-normal">USD/KLEO</span>
               </p>
               <p className="text-[#A7B0B7] text-base mt-2">
-                {currentStage.discount}% discount vs listing ({LISTING_PRICE} ETH)
+                {currentStage.discount}% discount vs listing (${LISTING_PRICE_USD})
               </p>
             </div>
 
             <div className="text-right">
               <p className="text-[#A7B0B7] text-base">Total Raised</p>
               <p className="text-[#2BFFF1] text-4xl sm:text-5xl font-bold">
-                {totalRaised.toFixed(4)} <span className="text-xl font-normal">ETH</span>
+                ${totalRaised.toLocaleString('en-US', {maximumFractionDigits: 0})} <span className="text-xl font-normal">USD</span>
               </p>
               <p className="text-[#A7B0B7] text-sm mt-2">
-                of {HARD_CAP_ETH.toLocaleString()} ETH hard cap
+                of ${HARD_CAP_USD.toLocaleString()} USD hard cap
               </p>
             </div>
           </div>
@@ -157,8 +153,8 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
               />
             </div>
             <div className="flex justify-between text-sm mt-3 text-[#A7B0B7]">
-              <span>{raisedInCurrentStage.toFixed(4)} ETH raised</span>
-              <span>{currentStage.ethTarget.toLocaleString()} ETH target</span>
+              <span>${raisedInCurrentStage.toLocaleString('en-US', {maximumFractionDigits:0})} USD raised</span>
+              <span>${currentStage.usdTarget.toLocaleString()} USD target</span>
             </div>
           </div>
 
@@ -179,9 +175,9 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
           {/* Stage Grid */}
           <div className="mb-8">
             <p className="text-[#A7B0B7] text-base font-medium mb-4">Presale Stages</p>
-            <div className="grid grid-cols-6 sm:grid-cols-12 gap-2">
+            <div className="grid grid-cols-6 gap-2">
               {PRESALE_STAGES.map((stage) => {
-                const isCompleted = totalRaised >= stage.cumulativeEth;
+                const isCompleted = totalRaised >= stage.cumulativeUsd;
                 const isCurrent = stage.stage === currentStage.stage;
                 return (
                   <div
@@ -208,7 +204,7 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
                     }`}>
                       S{stage.stage}
                     </p>
-                    <p className="text-[10px] text-[#A7B0B7] mt-0.5">{stage.priceEth}</p>
+                    <p className="text-[9px] text-[#A7B0B7] mt-0.5 leading-tight">${stage.priceUsd.toFixed(4)}</p>
                   </div>
                 );
               })}
@@ -226,15 +222,16 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
                   {supabaseTokens.toLocaleString('en-US', { maximumFractionDigits: 0 })} KLEO
                 </p>
                 <p className="text-[#A7B0B7] text-sm mt-2">
-                  {totalEthSpent.toFixed(4)} ETH spent across {purchases.length} purchase{purchases.length !== 1 ? 's' : ''}
+                  ${purchases.reduce((s,p) => s + (p.usdSpent||0), 0).toLocaleString('en-US',{maximumFractionDigits:0})} USD spent across {purchases.length} purchase{purchases.length !== 1 ? 's' : ''}
                 </p>
               </div>
 
               <div className="text-center sm:text-right">
-                <p className="text-[#A7B0B7] text-base mb-2">Wallet Balance</p>
-                <p className="text-[#F4F6FA] text-4xl font-bold">
-                  {balance ? parseFloat(formatEther(balance.value)).toFixed(4) : '0'} ETH
+                <p className="text-[#A7B0B7] text-base mb-2">KLEO at Launch</p>
+                <p className="text-[#F4F6FA] text-2xl font-bold text-[#2BFFF1]">
+                  Solana / Pump.fun
                 </p>
+                <p className="text-[#A7B0B7] text-sm mt-1">Tokens sent at mainnet launch</p>
               </div>
             </div>
 
@@ -252,17 +249,11 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
                           {p.kleoReceived.toLocaleString('en-US', { maximumFractionDigits: 0 })} KLEO
                         </span>
                         <span className="text-[#A7B0B7]">
-                          @ Stage {p.stage} &ndash; {p.ethSpent.toFixed(4)} ETH
+                          @ Stage {p.stage} – ${(p.usdSpent||0).toLocaleString('en-US',{maximumFractionDigits:0})} USD
                         </span>
                       </div>
-                      
-                        href={`https://sepolia.etherscan.io/tx/${p.txHash}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[#2BFFF1] hover:text-white flex items-center gap-2 text-sm"
-                      >
-                        View Tx <ArrowRight className="w-4 h-4" />
-                      </a>
+
+                      <span className="text-[#A7B0B7] text-xs font-mono">{p.cryptoType || 'card'}</span>
                     </div>
                   ))}
                 </div>

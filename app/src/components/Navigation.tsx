@@ -4,7 +4,7 @@ import { Menu, X, ExternalLink } from 'lucide-react';
 import { gsap } from 'gsap';
 import { Link } from 'react-scroll'; // for smooth internal scrolling
 
-const WHITEPAPER_URL = 'https://docs.google.com/document/d/e/2PACX-1vExampleWhitepaperLink/pub';
+const WHITEPAPER_URL = 'https://telegra.ph/Kaleo-AI-Powered-Leverage-Trading-Platform-Whitepaper-02-21';
 
 const navLinks = [
   { label: 'Buy', href: 'buy', isExternal: false },
@@ -191,4 +191,4 @@ export function Navigation() {
       )}
     </>
   );
-              }
+}
