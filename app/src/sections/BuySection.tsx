@@ -498,9 +498,39 @@ export function BuySection() {
 
   const openXverseInApp = () => {
     const url = encodeURIComponent(window.location.href);
-    if (isAndroid()) window.location.href = `intent://browse?url=${url}#Intent;scheme=xverse;package=com.secretkeylabs.xverse;end`;
-    else if (isIOS()) window.location.href = `https://www.xverse.app/browser?url=${url}`;
-    else window.open('https://www.xverse.app/', '_blank');
+
+    if (isAndroid()) {
+      // Android: intent URI opens installed app directly, falls back to Play Store
+      window.location.href = `intent://browser?url=${url}#Intent;scheme=xverse;package=com.secretkeylabs.xverse;S.browser_fallback_url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.secretkeylabs.xverse;end`;
+      return;
+    }
+
+    if (isIOS()) {
+      // iOS: try custom URL scheme first — opens app if installed without going through website
+      // The website (universal link) gets intercepted by Chrome and loads the web page
+      // which detects no injection and shows the App Store link
+      const customScheme = `xverse://browser?url=${url}`;
+
+      // Try custom scheme; if app not installed iOS will show an error briefly
+      // then we fall back to universal link after a short delay
+      const fallback = setTimeout(() => {
+        // If custom scheme didn't open the app in 1.5s, try universal link
+        window.location.href = `https://www.xverse.app/browser?url=${url}`;
+      }, 1500);
+
+      // If the page goes hidden the app opened — cancel fallback
+      const cancelFallback = () => {
+        clearTimeout(fallback);
+        document.removeEventListener('visibilitychange', cancelFallback);
+      };
+      document.addEventListener('visibilitychange', cancelFallback);
+
+      window.location.href = customScheme;
+      return;
+    }
+
+    // Desktop: open in new tab
+    window.open('https://www.xverse.app/', '_blank');
   };
 
   // ── Send SOL ──────────────────────────────────────────────────────────
