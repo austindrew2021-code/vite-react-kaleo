@@ -12,7 +12,7 @@ import {
   safepalWallet,
 } from '@rainbow-me/rainbowkit/wallets';
 import { createConfig, http } from 'wagmi';
-import { mainnet, bsc } from 'wagmi/chains';
+import { sepolia, bscTestnet } from 'wagmi/chains';
 
 const projectId = import.meta.env.VITE_WALLET_CONNECT_PROJECT_ID || '69b686259ac98fa35d4188e56796ca47';
 
@@ -40,10 +40,10 @@ const connectors = connectorsForWallets(
 
 export const config = createConfig({
   connectors,
-  chains: [mainnet, bsc],
+  chains: [sepolia, bscTestnet],
   transports: {
-    [mainnet.id]: http('https://ethereum-rpc.publicnode.com'),
-    [bsc.id]:     http('https://bsc-rpc.publicnode.com'),
+    [sepolia.id]:     http('https://ethereum-sepolia-rpc.publicnode.com'),
+    [bscTestnet.id]: http('https://bsc-testnet-rpc.publicnode.com'),
   },
   ssr: false,
 });
