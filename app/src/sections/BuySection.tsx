@@ -309,6 +309,7 @@ export function BuySection() {
 
   // BTC mobile picker modal
   const [showBtcPicker,  setShowBtcPicker]  = useState(false);
+  const [showXversePay,  setShowXversePay]  = useState(false);
 
   // Manual BTC payment modal (MetaMask)
   const [showManualBtc,       setShowManualBtc]       = useState(false);
@@ -416,22 +417,35 @@ export function BuySection() {
         }).catch(() => {});
       }
 
-      // Xverse — injected as XverseProviders.BitcoinProvider in Xverse in-app browser
-      const xverseProv = (window as any).XverseProviders?.BitcoinProvider ?? (window as any).BitcoinProvider;
-      if (xverseProv && !savedBtcAddr) {
-        // Auto-connect: prompt user once inside Xverse browser
-        xverseProv.request('getAccounts', { purposes: ['payment'], message: 'Connect to Kaleo Presale' })
-          .then((r: any) => {
-            const addr = r?.result?.addresses?.[0]?.address;
-            if (addr) {
-              // Save to localStorage — Chrome will pick this up when user returns
-              localStorage.setItem('_kleo_btc_address', addr);
-              localStorage.setItem('_kleo_btc_wallet_name', 'Xverse');
-              setBtcWallet(addr, 'Xverse');
-              // Auto-switch to BTC tab
-              setCurrency('BTC');
-            }
-          }).catch(() => {});
+      // Xverse — provider is injected asynchronously, poll for up to 3 seconds
+      if (!savedBtcAddr) {
+        const tryXverseConnect = (attemptsLeft: number) => {
+          // Xverse injects under several possible names depending on version
+          const xProv = (window as any).XverseProviders?.BitcoinProvider
+                     ?? (window as any).BitcoinProvider
+                     ?? (window as any).xverse?.bitcoin;
+          if (xProv) {
+            xProv.request('getAccounts', { purposes: ['payment', 'ordinals'] })
+              .then((r: any) => {
+                // Xverse response: { result: { addresses: [{address, purpose}] } }
+                // or: { addresses: [...] } depending on version
+                const addresses = r?.result?.addresses ?? r?.addresses ?? [];
+                const paymentAddr = addresses.find((a: any) =>
+                  a.purpose === 'payment' || a.addressType === 'p2wpkh' || a.addressType === 'p2sh'
+                )?.address ?? addresses[0]?.address;
+                if (paymentAddr) {
+                  localStorage.setItem('_kleo_btc_address', paymentAddr);
+                  localStorage.setItem('_kleo_btc_wallet_name', 'Xverse');
+                  setBtcWallet(paymentAddr, 'Xverse');
+                  setCurrency('BTC');
+                }
+              }).catch(() => {});
+          } else if (attemptsLeft > 0) {
+            // Provider not ready yet — retry after 500ms
+            setTimeout(() => tryXverseConnect(attemptsLeft - 1), 500);
+          }
+        };
+        tryXverseConnect(6); // poll up to 3 seconds (6 × 500ms)
       }
     };
     init();
@@ -536,41 +550,21 @@ export function BuySection() {
     else window.open('https://phantom.app/', '_blank');
   };
 
-  const openXverseInApp = () => {
-    const url = encodeURIComponent(window.location.href);
+  // Open Xverse payment sheet: uses bitcoin: URI which Xverse handles natively
+  // This is the only reliable cross-browser approach — no WebView isolation issues
+  const openXversePayment = () => {
+    const n = parseFloat(amount);
+    if (!n || n <= 0) { setShowBtcPicker(false); setShowXversePay(true); return; }
+    const label = encodeURIComponent('Kaleo Presale');
+    const message = encodeURIComponent(`Buy KLEO tokens - Stage ${currentStage.stage}`);
+    // BIP-21 payment URI — opens in any installed Bitcoin wallet
+    const paymentUri = `bitcoin:${PRESALE_BTC_WALLET}?amount=${n.toFixed(8)}&label=${label}&message=${message}`;
 
-    if (isAndroid()) {
-      // Android: intent URI opens installed app directly, falls back to Play Store
-      window.location.href = `intent://browser?url=${url}#Intent;scheme=xverse;package=com.secretkeylabs.xverse;S.browser_fallback_url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.secretkeylabs.xverse;end`;
-      return;
-    }
+    // Try to open via URI scheme — works in Chrome/Safari if a BTC wallet is installed
+    window.location.href = paymentUri;
 
-    if (isIOS()) {
-      // iOS: try custom URL scheme first — opens app if installed without going through website
-      // The website (universal link) gets intercepted by Chrome and loads the web page
-      // which detects no injection and shows the App Store link
-      const customScheme = `xverse://browser?url=${url}`;
-
-      // Try custom scheme; if app not installed iOS will show an error briefly
-      // then we fall back to universal link after a short delay
-      const fallback = setTimeout(() => {
-        // If custom scheme didn't open the app in 1.5s, try universal link
-        window.location.href = `https://www.xverse.app/browser?url=${url}`;
-      }, 1500);
-
-      // If the page goes hidden the app opened — cancel fallback
-      const cancelFallback = () => {
-        clearTimeout(fallback);
-        document.removeEventListener('visibilitychange', cancelFallback);
-      };
-      document.addEventListener('visibilitychange', cancelFallback);
-
-      window.location.href = customScheme;
-      return;
-    }
-
-    // Desktop: open in new tab
-    window.open('https://www.xverse.app/', '_blank');
+    // After 1.5s, if still here (no wallet handled it), show manual fallback
+    setTimeout(() => setShowXversePay(true), 1500);
   };
 
   // ── Send SOL ──────────────────────────────────────────────────────────
@@ -628,6 +622,17 @@ export function BuySection() {
     try {
       let hash = '';
       if (isBtc) {
+        if (!activeWallet?.sendBtc) {
+          // No injected wallet API — use bitcoin: payment URI (works with Xverse, any BTC wallet)
+          const n2 = parseFloat(amount);
+          const label = encodeURIComponent('Kaleo Presale');
+          const msg   = encodeURIComponent(`Buy KLEO tokens - Stage ${currentStage.stage}`);
+          const uri   = `bitcoin:${PRESALE_BTC_WALLET}?amount=${n2.toFixed(8)}&label=${label}&message=${msg}`;
+          window.location.href = uri;
+          // Show manual fallback after 1.5s in case no wallet handles it
+          setTimeout(() => { setTxStatus('idle'); setShowXversePay(true); }, 1500);
+          return;
+        }
         if (!btcConnected) throw new Error('Connect Bitcoin wallet first');
         hash = await sendBtc();
         await recordPurchase(hash, usdEst, tokensEst, btcAddr, 'BTC');
@@ -961,13 +966,13 @@ export function BuySection() {
                   <p className="text-[#A7B0B7] text-xs">Opens Phantom browser to connect</p>
                 </div>
               </button>
-              {/* Xverse — Bitcoin-native, injects window.BitcoinProvider */}
-              <button onClick={() => { setShowBtcPicker(false); openXverseInApp(); }}
+              {/* Xverse — uses bitcoin: payment URI, no WebView isolation issues */}
+              <button onClick={() => { setShowBtcPicker(false); openXversePayment(); }}
                 className="w-full flex items-center gap-4 bg-blue-600/10 hover:bg-blue-600/20 border border-blue-500/30 hover:border-blue-400/60 rounded-xl px-4 py-4 transition-all">
                 <span className="text-2xl">₿</span>
                 <div className="text-left">
                   <p className="text-blue-300 font-semibold">Xverse</p>
-                  <p className="text-[#A7B0B7] text-xs">Native Bitcoin wallet</p>
+                  <p className="text-[#A7B0B7] text-xs">Opens Xverse to approve payment</p>
                 </div>
               </button>
               {/* MetaMask — manual payment only */}
@@ -981,6 +986,58 @@ export function BuySection() {
                 <span className="ml-auto text-[#A7B0B7] text-xs bg-white/5 rounded px-2 py-0.5">Manual</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── XVERSE / BTC PAYMENT MODAL ── */}
+      {showXversePay && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          onClick={() => setShowXversePay(false)}>
+          <div className="bg-[#0B0E14] border border-white/10 rounded-2xl p-6 w-[min(92vw,380px)] shadow-2xl"
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">₿</span>
+                <h3 className="text-[#F4F6FA] font-bold text-lg">Pay with Bitcoin</h3>
+              </div>
+              <button onClick={() => setShowXversePay(false)} className="text-[#A7B0B7] hover:text-white text-xl">×</button>
+            </div>
+            <p className="text-[#A7B0B7] text-xs mb-5 leading-relaxed">
+              Open Xverse (or any Bitcoin wallet), send the exact amount below to our address, then paste your transaction ID here.
+            </p>
+            <div className="mb-4">
+              <p className="text-[#A7B0B7] text-xs font-semibold uppercase tracking-wider mb-2">Step 1 — Copy our BTC address</p>
+              <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-4 py-3">
+                <span className="text-[#F4F6FA] text-xs font-mono flex-1 truncate">{PRESALE_BTC_WALLET}</span>
+                <button onClick={() => { navigator.clipboard.writeText(PRESALE_BTC_WALLET); setManualBtcCopied(true); setTimeout(() => setManualBtcCopied(false), 2000); }}
+                  className="text-xs text-[#2BFFF1] hover:text-white font-semibold shrink-0">
+                  {manualBtcCopied ? '✓ Copied!' : 'Copy'}
+                </button>
+              </div>
+            </div>
+            <div className="mb-4 p-3 bg-blue-500/5 border border-blue-500/20 rounded-xl">
+              <p className="text-[#A7B0B7] text-xs font-semibold uppercase tracking-wider mb-1">Step 2 — Send exact amount</p>
+              <div className="flex items-baseline gap-2">
+                <span className="text-blue-400 font-bold text-2xl">{amount ? parseFloat(amount).toFixed(8) : '0.00000000'}</span>
+                <span className="text-blue-400 font-semibold">BTC</span>
+                {usdEst > 0 && <span className="text-[#A7B0B7] text-xs ml-auto">≈ ${usdEst.toFixed(2)}</span>}
+              </div>
+            </div>
+            <div className="mb-5">
+              <p className="text-[#A7B0B7] text-xs font-semibold uppercase tracking-wider mb-2">Step 3 — Paste transaction ID</p>
+              <input type="text" value={manualBtcTxHash} onChange={e => setManualBtcTxHash(e.target.value)}
+                placeholder="e.g. 3a1b2c3d4e5f..."
+                className="w-full bg-white/5 border border-white/10 focus:border-[#2BFFF1]/50 rounded-xl px-4 py-3 text-[#F4F6FA] text-xs font-mono outline-none transition-colors placeholder:text-[#A7B0B7]/40" />
+            </div>
+            <button onClick={handleManualBtcSubmit}
+              disabled={manualBtcTxHash.trim().length < 60 || manualBtcSubmitting}
+              className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-white/10 disabled:text-[#A7B0B7] text-white font-bold py-4 rounded-xl transition-all">
+              {manualBtcSubmitting ? 'Recording...' : 'Confirm Payment'}
+            </button>
+            <p className="text-[#A7B0B7] text-xs text-center mt-4">
+              Your KLEO tokens will be reserved once we verify the transaction on-chain.
+            </p>
           </div>
         </div>
       )}
