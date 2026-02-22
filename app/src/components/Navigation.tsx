@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
+import { useWalletStore } from '../store/presaleStore';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { useAccount } from 'wagmi';
 import { Menu, X, ExternalLink } from 'lucide-react';
 import { gsap } from 'gsap';
 import { Link } from 'react-scroll'; // for smooth internal scrolling
 
-const WHITEPAPER_URL = 'https://telegra.ph/Kaleo-AI-Powered-Leverage-Trading-Platform-Whitepaper-02-21';
+const WHITEPAPER_URL = 'https://docs.google.com/document/d/e/2PACX-1vExampleWhitepaperLink/pub';
 
 const navLinks = [
   { label: 'Buy', href: 'buy', isExternal: false },
@@ -17,6 +19,9 @@ const navLinks = [
 export function Navigation() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const { solAddress, btcAddress, solWalletName, btcWalletName, disconnectSol, disconnectBtc } = useWalletStore();
+  const { isConnected: evmConnected } = useAccount();
+  const anyWalletConnected = evmConnected || !!solAddress || !!btcAddress;
 
   useEffect(() => {
     const handleScroll = () => {
@@ -116,8 +121,38 @@ export function Navigation() {
         </div>
 
         <div className="flex items-center gap-4">
+          {/* SOL connected pill */}
+          {solAddress && !evmConnected && (
+            <div className="flex items-center gap-2 bg-purple-500/10 border border-purple-500/30 rounded-xl px-3 py-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
+              <span className="text-[#F4F6FA] text-xs font-medium hidden sm:block">
+                {solAddress.slice(0,4)}...{solAddress.slice(-4)}
+              </span>
+              <span className="text-purple-300 text-xs font-semibold">{solWalletName}</span>
+              <button onClick={disconnectSol}
+                className="text-[#A7B0B7] hover:text-red-400 text-xs ml-1 transition-colors leading-none"
+                title="Disconnect">
+                ×
+              </button>
+            </div>
+          )}
+
+          {/* BTC connected pill */}
+          {btcAddress && !evmConnected && (
+            <div className="flex items-center gap-2 bg-orange-500/10 border border-orange-500/30 rounded-xl px-3 py-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
+              <span className="text-orange-400 text-xs font-semibold">₿ {btcWalletName}</span>
+              <button onClick={disconnectBtc}
+                className="text-[#A7B0B7] hover:text-red-400 text-xs ml-1 transition-colors leading-none"
+                title="Disconnect">
+                ×
+              </button>
+            </div>
+          )}
+
+          {/* EVM wallet via RainbowKit — always shown, handles ETH/BNB */}
           <ConnectButton
-            label="Connect Wallet"
+            label={anyWalletConnected && !evmConnected ? 'Connect EVM' : 'Connect Wallet'}
             showBalance={false}
             chainStatus="icon"
             accountStatus={{
