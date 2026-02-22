@@ -10,7 +10,7 @@ import { useAccount, useSendTransaction, useBalance, useSwitchChain } from 'wagm
 import { parseEther } from 'viem';
 import { mainnet, bsc } from 'wagmi/chains';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { usePresaleStore, getCurrentStage, LISTING_PRICE_USD } from '../store/presaleStore';
+import { usePresaleStore, getCurrentStage, LISTING_PRICE_USD, useWalletStore } from '../store/presaleStore';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -253,6 +253,10 @@ export function BuySection() {
   const cardRef    = useRef<HTMLDivElement>(null);
 
   const { totalRaised, addRaised, addPurchase } = usePresaleStore();
+  const {
+    solAddress, btcAddress, solWalletName, btcWalletName,
+    setSolWallet, setBtcWallet, disconnectSol, disconnectBtc,
+  } = useWalletStore();
   const currentStage = getCurrentStage(totalRaised);
 
   // EVM (wagmi)
@@ -275,14 +279,25 @@ export function BuySection() {
   const [priceLoading,  setPriceLoading] = useState(false);
   const [priceError,    setPriceError]   = useState(false);
 
-  // SOL wallet state
-  const [solAddr,      setSolAddr]      = useState('');
-  const [solConnected, setSolConnected] = useState(false);
-  const [solViaDeeplink, setSolViaDeeplink] = useState(false); // true = connected via Phantom deeplink
+  // SOL/BTC connection booleans
+  const solConnected = !!solAddress;
+  const btcConnected = !!btcAddress;
+  const solAddr      = solAddress;
+  const btcAddr      = btcAddress;
+  const [solViaDeeplink, setSolViaDeeplink] = useState(!!localStorage.getItem('_kleo_phantom_session'));
 
-  // BTC wallet state
-  const [btcAddr,      setBtcAddr]      = useState('');
-  const [btcConnected, setBtcConnected] = useState(false);
+  const handleDisconnectSol = () => {
+    disconnectSol();
+    setSolViaDeeplink(false);
+    setActiveWallet(null);
+    reset();
+  };
+
+  const handleDisconnectBtc = () => {
+    disconnectBtc();
+    setActiveWallet(null);
+    reset();
+  };
 
   // Picker modals
   const [showInjectedPicker, setShowInjectedPicker] = useState(false);
@@ -342,8 +357,8 @@ export function BuySection() {
             // Store session + Phantom's public key for later transaction signing
             localStorage.setItem('_kleo_phantom_session', payload.session);
             localStorage.setItem('_kleo_phantom_pubkey', phantomPubKey);
-            setSolAddr(payload.public_key);
-            setSolConnected(true);
+            localStorage.setItem('_kleo_sol_address', payload.public_key);
+            setSolWallet(payload.public_key, 'Phantom');
             setSolViaDeeplink(true);
             setCurrency('SOL');
 
@@ -369,21 +384,19 @@ export function BuySection() {
       const storedSess  = localStorage.getItem('_kleo_phantom_session');
       const storedPubk  = localStorage.getItem('_kleo_phantom_pubkey');
       if (storedAddr && storedSess && storedPubk && !params.get('phantom_encryption_public_key')) {
-        setSolAddr(storedAddr);
-        setSolConnected(true);
+        setSolWallet(storedAddr, 'Phantom');
         setSolViaDeeplink(true);
       }
 
       // ── Also detect injected wallets (desktop extensions / in-app browsers) ──
       const phantom = window.phantom?.solana || window.solana;
       if (phantom?.isConnected && phantom.publicKey) {
-        setSolAddr(phantom.publicKey.toString());
-        setSolConnected(true);
+        setSolWallet(phantom.publicKey.toString(), 'Phantom');
       }
       const btcProv = window.phantom?.bitcoin;
       if (btcProv) {
         btcProv.requestAccounts().then(accs => {
-          if (accs?.[0]?.address) { setBtcAddr(accs[0].address); setBtcConnected(true); }
+          if (accs?.[0]?.address) { setBtcWallet(accs[0].address, 'Phantom'); }
         }).catch(() => {});
       }
     };
@@ -433,7 +446,7 @@ export function BuySection() {
       // Desktop or already inside wallet browser — use injected API directly
       if (injected.length === 1) {
         const addr = await injected[0].connect();
-        setSolAddr(addr); setSolConnected(true); setActiveWallet(injected[0]);
+        setSolWallet(addr, injected[0].name); setActiveWallet(injected[0]);
       } else {
         setInjectedWallets(injected); setPickerType('sol'); setShowInjectedPicker(true);
       }
@@ -452,7 +465,7 @@ export function BuySection() {
     if (injected.length > 0) {
       if (injected.length === 1) {
         injected[0].connect().then(addr => {
-          setBtcAddr(addr); setBtcConnected(true); setActiveWallet(injected[0]);
+          setBtcWallet(addr, injected[0].name); setActiveWallet(injected[0]);
         }).catch(() => {});
       } else {
         setInjectedWallets(injected); setPickerType('btc'); setShowInjectedPicker(true);
@@ -468,8 +481,8 @@ export function BuySection() {
     try {
       const addr = await wallet.connect();
       if (!addr) return;
-      if (type === 'sol') { setSolAddr(addr); setSolConnected(true); }
-      else                { setBtcAddr(addr); setBtcConnected(true); }
+      if (type === 'sol') { setSolWallet(addr, wallet.name); }
+      else                { setBtcWallet(addr, wallet.name); }
       setActiveWallet(wallet);
     } catch {}
   };
@@ -675,8 +688,12 @@ export function BuySection() {
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-green-400" />
                       <span className="text-[#F4F6FA] text-sm font-medium">{btcAddr.slice(0,8)}...{btcAddr.slice(-6)}</span>
+                      <span className="text-orange-400 text-xs font-medium">{btcWalletName} ✓</span>
                     </div>
-                    <span className="text-orange-400 font-semibold text-sm">Bitcoin ✓</span>
+                    <button onClick={handleDisconnectBtc}
+                      className="text-[#A7B0B7] hover:text-red-400 text-xs transition-colors px-2 py-1 rounded-lg hover:bg-red-500/10">
+                      Disconnect
+                    </button>
                   </div>
                 ) : (
                   <button onClick={connectBtc}
@@ -691,8 +708,12 @@ export function BuySection() {
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-green-400" />
                       <span className="text-[#F4F6FA] text-sm font-medium">{solAddr.slice(0,6)}...{solAddr.slice(-4)}</span>
+                      <span className="text-purple-300 text-xs font-medium">{solWalletName} ✓</span>
                     </div>
-                    <span className="text-purple-300 font-semibold text-sm">Phantom ✓</span>
+                    <button onClick={handleDisconnectSol}
+                      className="text-[#A7B0B7] hover:text-red-400 text-xs transition-colors px-2 py-1 rounded-lg hover:bg-red-500/10">
+                      Disconnect
+                    </button>
                   </div>
                 ) : (
                   <button onClick={connectSol}
