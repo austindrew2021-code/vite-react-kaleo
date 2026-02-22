@@ -20,7 +20,7 @@ export function Navigation() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const { solAddress, btcAddress, solWalletName, btcWalletName, disconnectSol, disconnectBtc } = useWalletStore();
-  const { address: evmAddress, isConnected: evmConnected } = useAccount();
+  const { address: evmAddress, isConnected: evmConnected, connector: evmConnector } = useAccount();
   const { openConnectModal } = useConnectModal();
   const { disconnect: evmDisconnect } = useDisconnect();
 
@@ -153,12 +153,15 @@ export function Navigation() {
 
           {/* EVM wallet via RainbowKit — always shown, handles ETH/BNB */}
           {evmConnected && evmAddress ? (
-            /* Connected: show address pill with disconnect */
+            /* Connected: show address + wallet name pill with disconnect */
             <div className="flex items-center gap-2 bg-[#2BFFF1]/10 border border-[#2BFFF1]/30 rounded-xl px-3 py-2">
               <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
               <span className="text-[#F4F6FA] text-xs font-medium hidden sm:block">
                 {evmAddress.slice(0, 6)}...{evmAddress.slice(-4)}
               </span>
+              {evmConnector?.name && (
+                <span className="text-[#2BFFF1] text-xs font-semibold hidden sm:block">{evmConnector.name}</span>
+              )}
               <button
                 onClick={() => evmDisconnect()}
                 className="text-[#A7B0B7] hover:text-red-400 text-xs ml-1 transition-colors leading-none"
