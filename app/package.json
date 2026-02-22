@@ -40,7 +40,9 @@
     "viem": "^2.21.1",
     "wagmi": "^2.12.0",
     "zod": "^3.23.8",
-    "zustand": "^5.0.0-rc.2"
+    "zustand": "^5.0.0-rc.2",
+    "tweetnacl": "^1.0.3",
+    "bs58": "^4.0.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.0",
