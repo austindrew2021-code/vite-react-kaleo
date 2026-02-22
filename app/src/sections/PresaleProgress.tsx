@@ -175,14 +175,14 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
           {/* Stage Grid */}
           <div className="mb-8">
             <p className="text-[#A7B0B7] text-base font-medium mb-4">Presale Stages</p>
-            <div className="grid grid-cols-6 gap-2">
+            <div className="grid grid-cols-6 gap-1.5">
               {PRESALE_STAGES.map((stage) => {
                 const isCompleted = totalRaised >= stage.cumulativeUsd;
                 const isCurrent = stage.stage === currentStage.stage;
                 return (
                   <div
                     key={stage.stage}
-                    className={`p-2 rounded-xl border text-center transition-all duration-300 ${
+                    className={`py-3 px-1 rounded-xl border text-center transition-all duration-300 ${
                       isCurrent
                         ? 'border-[#2BFFF1]/60 bg-[#2BFFF1]/15 shadow-lg shadow-[#2BFFF1]/20 animate-pulse'
                         : isCompleted
@@ -204,7 +204,7 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
                     }`}>
                       S{stage.stage}
                     </p>
-                    <p className="text-[9px] text-[#A7B0B7] mt-0.5 leading-tight">${stage.priceUsd.toFixed(4)}</p>
+                    <p className="text-[9px] text-[#A7B0B7] mt-1 leading-tight whitespace-nowrap">${stage.priceUsd < 0.01 ? stage.priceUsd.toFixed(4).replace(/0+$/, '') : stage.priceUsd.toFixed(3).replace(/0+$/, '').replace(/\.$/, '')}</p>
                   </div>
                 );
               })}
