@@ -1001,4 +1001,4 @@ export function BuySection() {
       )}
     </section>
   );
-    }
+  }
