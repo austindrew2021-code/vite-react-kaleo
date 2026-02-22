@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useWalletStore } from '../store/presaleStore';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { useAccount } from 'wagmi';
+import { useConnectModal } from '@rainbow-me/rainbowkit';
+import { useAccount, useDisconnect } from 'wagmi';
 import { Menu, X, ExternalLink } from 'lucide-react';
 import { gsap } from 'gsap';
 import { Link } from 'react-scroll'; // for smooth internal scrolling
@@ -20,8 +20,9 @@ export function Navigation() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const { solAddress, btcAddress, solWalletName, btcWalletName, disconnectSol, disconnectBtc } = useWalletStore();
-  const { isConnected: evmConnected } = useAccount();
-  const anyWalletConnected = evmConnected || !!solAddress || !!btcAddress;
+  const { address: evmAddress, isConnected: evmConnected } = useAccount();
+  const { openConnectModal } = useConnectModal();
+  const { disconnect: evmDisconnect } = useDisconnect();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -151,15 +152,28 @@ export function Navigation() {
           )}
 
           {/* EVM wallet via RainbowKit — always shown, handles ETH/BNB */}
-          <ConnectButton
-            label={anyWalletConnected && !evmConnected ? 'Connect EVM' : 'Connect Wallet'}
-            showBalance={false}
-            chainStatus="none"
-            accountStatus={{
-              smallScreen: 'avatar',
-              largeScreen: 'full',
-            }}
-          />
+          {evmConnected && evmAddress ? (
+            /* Connected: show address pill with disconnect */
+            <div className="flex items-center gap-2 bg-[#2BFFF1]/10 border border-[#2BFFF1]/30 rounded-xl px-3 py-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
+              <span className="text-[#F4F6FA] text-xs font-medium hidden sm:block">
+                {evmAddress.slice(0, 6)}...{evmAddress.slice(-4)}
+              </span>
+              <button
+                onClick={() => evmDisconnect()}
+                className="text-[#A7B0B7] hover:text-red-400 text-xs ml-1 transition-colors leading-none"
+                title="Disconnect">
+                ×
+              </button>
+            </div>
+          ) : (
+            /* Not connected: open RainbowKit modal */
+            <button
+              onClick={() => openConnectModal?.()}
+              className="neon-button px-5 py-2.5 text-sm font-semibold rounded-xl">
+              Connect Wallet
+            </button>
+          )}
 
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
