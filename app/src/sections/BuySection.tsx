@@ -6,7 +6,7 @@ import {
   ExternalLink, AlertCircle, CheckCircle2,
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
-import { useAccount, useSendTransaction, useBalance, useSwitchChain } from 'wagmi';
+import { useAccount, useSendTransaction, useSwitchChain, useDisconnect } from 'wagmi';
 import { parseEther } from 'viem';
 import { mainnet, bsc } from 'wagmi/chains';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
@@ -70,15 +70,39 @@ async function phantomDeeplinkConnect(type: 'sol') {
   const bs58 = (await import('bs58')).default;
   const kp = await getDappKeypair();
   localStorage.setItem('_kleo_connect_type', type);
-  // Clean base URL (no query params) so Phantom can redirect back cleanly
-  const redirectLink = window.location.origin + window.location.pathname;
+
+  // Use the exact current URL so Phantom returns to the same page/tab.
+  // Adding a #phantom-return hash prevents some browsers from treating it as a new page.
+  const redirectLink = window.location.origin + window.location.pathname + '#phantom-return';
+
   const params = new URLSearchParams({
     app_url: window.location.origin,
     dapp_encryption_public_key: bs58.encode(kp.publicKey),
     redirect_link: redirectLink,
     cluster: 'mainnet-beta',
   });
-  window.location.href = `${PHANTOM_UL}/connect?${params}`;
+
+  // On iOS: phantom:// deep link scheme opens the app without navigating away.
+  // Phantom can then return to exactly this tab via the redirect_link.
+  // On Android: use intent:// which also keeps the current tab.
+  // Fallback: https://phantom.app/ul/ (may open new tab on some browsers).
+  const ua = navigator.userAgent;
+  const deeplinkUrl = `${PHANTOM_UL}/connect?${params}`;
+  const phantomScheme = `phantom://v1/connect?${params}`;
+
+  if (/iPhone|iPad|iPod/i.test(ua)) {
+    // iOS: try phantom:// first (no tab navigation), fallback to https after 600ms
+    const fallback = setTimeout(() => { window.location.href = deeplinkUrl; }, 600);
+    const cancel = () => { clearTimeout(fallback); document.removeEventListener('visibilitychange', cancel); };
+    document.addEventListener('visibilitychange', cancel);
+    window.location.href = phantomScheme;
+  } else if (/Android/i.test(ua)) {
+    // Android: intent scheme keeps current tab
+    const intentUrl = `intent://v1/connect?${params}#Intent;scheme=phantom;package=app.phantom;S.browser_fallback_url=${encodeURIComponent(deeplinkUrl)};end`;
+    window.location.href = intentUrl;
+  } else {
+    window.location.href = deeplinkUrl;
+  }
 }
 
 // Redirect to Phantom to sign & broadcast a SOL transaction
@@ -116,7 +140,7 @@ async function phantomDeeplinkSignAndSend(
   // Store purchase metadata so we can record it when Phantom redirects back
   localStorage.setItem('_kleo_pending_purchase', JSON.stringify(purchaseMeta));
 
-  const redirectLink = window.location.origin + window.location.pathname;
+  const redirectLink = window.location.origin + window.location.pathname + '#phantom-return';
   const p = new URLSearchParams({
     dapp_encryption_public_key: bs58.encode(kp.publicKey),
     nonce:   bs58.encode(nonce),
@@ -260,8 +284,8 @@ export function BuySection() {
   const currentStage = getCurrentStage(totalRaised);
 
   // EVM (wagmi)
-  const { address, isConnected, chain } = useAccount();
-  const { data: evmBalance }            = useBalance({ address });
+  const { address, isConnected, chain, connector } = useAccount();
+  const { disconnect: evmDisconnect } = useDisconnect();
   const { sendTransactionAsync }        = useSendTransaction();
   const { switchChainAsync }            = useSwitchChain();
 
@@ -346,9 +370,9 @@ export function BuySection() {
       const nonce         = params.get('nonce');
       const errorCode     = params.get('errorCode');
 
-      // Always clean the URL after a Phantom redirect
+      // Always clean the URL after a Phantom redirect (strip query params + hash)
       if (phantomPubKey || errorCode) {
-        window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+        window.history.replaceState({}, '', window.location.pathname);
       }
 
       if (phantomPubKey && data && nonce && !errorCode) {
@@ -684,8 +708,6 @@ export function BuySection() {
     SOL: [0.5, 1, 2, 5], ETH: [0.01, 0.05, 0.1, 0.5],
     BNB: [0.05, 0.2, 0.5, 1], BTC: [0.0005, 0.001, 0.005, 0.01],
   };
-  const balanceDisplay = isEvm && evmBalance
-    ? `${parseFloat(evmBalance.formatted).toFixed(4)} ${evmBalance.symbol}` : null;
   const walletReady = isBtc ? btcConnected : isEvm ? isConnected : solConnected;
 
   // ── RENDER ─────────────────────────────────────────────────────────────
@@ -744,13 +766,19 @@ export function BuySection() {
             {/* Wallet connect section */}
             <div className="mb-5">
               {isEvm ? (
-                isConnected && evmBalance ? (
+                isConnected && address ? (
                   <div className="flex items-center justify-between bg-[#2BFFF1]/5 border border-[#2BFFF1]/20 rounded-xl px-4 py-3">
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-green-400" />
-                      <span className="text-[#F4F6FA] text-sm font-medium">{address?.slice(0,6)}...{address?.slice(-4)}</span>
+                      <span className="text-[#F4F6FA] text-sm font-medium">{address.slice(0,6)}...{address.slice(-4)}</span>
+                      {connector?.name && (
+                        <span className="text-[#2BFFF1] text-xs font-semibold">{connector.name} ✓</span>
+                      )}
                     </div>
-                    <span className="text-[#2BFFF1] font-semibold text-sm">{balanceDisplay}</span>
+                    <button onClick={() => evmDisconnect()}
+                      className="text-[#A7B0B7] hover:text-red-400 text-xs transition-colors px-2 py-1 rounded-lg hover:bg-red-500/10">
+                      Disconnect
+                    </button>
                   </div>
                 ) : (
                   <div className="[&>div]:w-full [&_button]:!w-full [&_button]:!py-3.5 [&_button]:!rounded-xl [&_button]:!font-semibold [&_button]:!text-sm">
