@@ -118,3 +118,35 @@ export const usePresaleStore = create<PresaleState>()(
     }
   )
 );
+
+// ── Connected wallet state (shared between Navigation + BuySection) ──────
+interface WalletState {
+  solAddress: string;
+  btcAddress: string;
+  solWalletName: string; // e.g. "Phantom", "Solflare"
+  btcWalletName: string;
+  setSolWallet: (address: string, name: string) => void;
+  setBtcWallet: (address: string, name: string) => void;
+  disconnectSol: () => void;
+  disconnectBtc: () => void;
+}
+
+export const useWalletStore = create<WalletState>()((set) => ({
+  solAddress: '',
+  btcAddress: '',
+  solWalletName: '',
+  btcWalletName: '',
+  setSolWallet: (address, name) => set({ solAddress: address, solWalletName: name }),
+  setBtcWallet: (address, name) => set({ btcAddress: address, btcWalletName: name }),
+  disconnectSol: () => {
+    localStorage.removeItem('_kleo_phantom_session');
+    localStorage.removeItem('_kleo_phantom_pubkey');
+    localStorage.removeItem('_kleo_sol_address');
+    localStorage.removeItem('_kleo_dapp_kp');
+    localStorage.removeItem('_kleo_connect_type');
+    set({ solAddress: '', solWalletName: '' });
+  },
+  disconnectBtc: () => {
+    set({ btcAddress: '', btcWalletName: '' });
+  },
+}));
