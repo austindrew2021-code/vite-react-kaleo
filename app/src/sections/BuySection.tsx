@@ -39,27 +39,29 @@ function isIOS(): boolean {
 // This fixes the "opens phantom.com" bug when no wallet is injected into Chrome.
 
 function openPhantomMobile() {
+  // ref param is REQUIRED — without it Phantom opens but does nothing
   const dappUrl = encodeURIComponent(window.location.href);
+  const ref = encodeURIComponent(window.location.origin);
   if (isAndroid()) {
-    // Android Intent URL — opens Phantom app and navigates to dapp
-    window.location.href = `intent://browse?url=${dappUrl}#Intent;scheme=phantom;package=app.phantom;end`;
+    // Android Intent URL with ref param
+    window.location.href = `intent://browse/${dappUrl}?ref=${ref}#Intent;scheme=phantom;package=app.phantom;end`;
   } else if (isIOS()) {
-    // iOS Universal Link
-    window.location.href = `https://phantom.app/ul/browse/${dappUrl}`;
+    // iOS Universal Link with ref param
+    window.location.href = `https://phantom.app/ul/browse/${dappUrl}?ref=${ref}`;
   } else {
     window.open('https://phantom.app/', '_blank');
   }
 }
 
-function openMetaMaskMobile() {
-  const host = window.location.host;
-  const path = window.location.pathname;
+function openXverseMobile() {
+  // Xverse is a Bitcoin-native wallet that DOES expose window.BitcoinProvider to web pages
+  const dappUrl = encodeURIComponent(window.location.href);
   if (isAndroid()) {
-    window.location.href = `intent://browse?url=${encodeURIComponent(window.location.href)}#Intent;scheme=metamask;package=io.metamask;end`;
+    window.location.href = `intent://browse?url=${dappUrl}#Intent;scheme=xverse;package=com.secretkeylabs.xverse;end`;
   } else if (isIOS()) {
-    window.location.href = `https://metamask.app.link/dapp/${host}${path}`;
+    window.location.href = `https://www.xverse.app/browser?url=${dappUrl}`;
   } else {
-    window.open('https://metamask.io/', '_blank');
+    window.open('https://www.xverse.app/', '_blank');
   }
 }
 
@@ -245,6 +247,11 @@ export function BuySection() {
   const [mobilePicker,        setMobilePicker]        = useState<'sol' | 'btc'>('sol');
   // Active wallet instance for sending (SOL/BTC)
   const [activeWallet,        setActiveWallet]        = useState<DetectedWallet | null>(null);
+  // Manual BTC payment modal (for MetaMask users — MetaMask Bitcoin has no web API)
+  const [showManualBtc,       setShowManualBtc]       = useState(false);
+  const [manualBtcTxHash,     setManualBtcTxHash]     = useState('');
+  const [manualBtcCopied,     setManualBtcCopied]     = useState(false);
+  const [manualBtcSubmitting, setManualBtcSubmitting] = useState(false);
 
   const selected  = CURRENCIES.find(c => c.id === currency)!;
   const isEvm     = selected.chain === 'evm';
@@ -395,6 +402,26 @@ export function BuySection() {
   };
 
   // ── Main buy handler ────────────────────────────────────────────────────
+  // ── Manual BTC payment submit (MetaMask users) ──────────────────────────
+  // MetaMask's Bitcoin account has no web API — users send manually then paste tx hash.
+  const handleManualBtcSubmit = async () => {
+    const txid = manualBtcTxHash.trim();
+    if (!txid || txid.length < 60) return; // BTC txids are 64 hex chars
+    setManualBtcSubmitting(true);
+    try {
+      await recordPurchase(txid, usdEst, tokensEst, 'metamask-btc-manual', 'BTC');
+      setShowManualBtc(false);
+      setManualBtcTxHash('');
+      setTxHash(txid);
+      setTxStatus('success');
+    } catch {
+      setTxError('Failed to record — please contact support with your tx hash.');
+      setTxStatus('error');
+    } finally {
+      setManualBtcSubmitting(false);
+    }
+  };
+
   const handleBuy = async () => {
     const n = parseFloat(amount);
     if (!n || n <= 0) return;
@@ -812,16 +839,33 @@ export function BuySection() {
                 </div>
               </button>
 
-              {/* MetaMask — only relevant for BTC (MetaMask Snaps) */}
+              {/* Xverse — Bitcoin-native wallet that DOES inject window.BitcoinProvider into web pages */}
               {mobilePicker === 'btc' && (
                 <button
-                  onClick={() => { setShowMobilePicker(false); openMetaMaskMobile(); }}
+                  onClick={() => { setShowMobilePicker(false); openXverseMobile(); }}
+                  className="w-full flex items-center gap-4 bg-blue-600/10 hover:bg-blue-600/20 border border-blue-500/30 hover:border-blue-400/60 rounded-xl px-4 py-4 transition-all">
+                  <span className="text-2xl">₿</span>
+                  <div className="text-left">
+                    <p className="text-blue-300 font-semibold">Xverse</p>
+                    <p className="text-[#A7B0B7] text-xs">Native Bitcoin wallet</p>
+                  </div>
+                </button>
+              )}
+
+              {/* MetaMask — manual BTC payment (MetaMask has no Bitcoin web API) */}
+              {mobilePicker === 'btc' && (
+                <button
+                  onClick={() => {
+                    setShowMobilePicker(false);
+                    setShowManualBtc(true);
+                  }}
                   className="w-full flex items-center gap-4 bg-orange-600/10 hover:bg-orange-600/20 border border-orange-500/30 hover:border-orange-400/60 rounded-xl px-4 py-4 transition-all">
                   <span className="text-2xl">🦊</span>
                   <div className="text-left">
                     <p className="text-orange-300 font-semibold">MetaMask</p>
-                    <p className="text-[#A7B0B7] text-xs">Bitcoin via Snaps</p>
+                    <p className="text-[#A7B0B7] text-xs">Send manually · paste tx hash</p>
                   </div>
+                  <span className="ml-auto text-[#A7B0B7] text-xs bg-white/5 rounded px-2 py-0.5">Manual</span>
                 </button>
               )}
 
@@ -831,10 +875,11 @@ export function BuySection() {
                   onClick={() => {
                     setShowMobilePicker(false);
                     const dappUrl = encodeURIComponent(window.location.href);
+                    const ref = encodeURIComponent(window.location.origin);
                     if (isAndroid()) {
-                      window.location.href = `intent://browse?url=${dappUrl}#Intent;scheme=solflare;package=com.solflare.mobile;end`;
+                      window.location.href = `intent://browse/${dappUrl}?ref=${ref}#Intent;scheme=solflare;package=com.solflare.mobile;end`;
                     } else {
-                      window.location.href = `https://solflare.com/ul/v1/browse/${dappUrl}`;
+                      window.location.href = `https://solflare.com/ul/v1/browse/${dappUrl}?ref=${ref}`;
                     }
                   }}
                   className="w-full flex items-center gap-4 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-400/30 hover:border-orange-400/60 rounded-xl px-4 py-4 transition-all">
@@ -850,6 +895,88 @@ export function BuySection() {
               Don&apos;t have a wallet?{' '}
               <a href="https://phantom.app/" target="_blank" rel="noopener noreferrer"
                 className="text-[#2BFFF1] hover:underline">Install Phantom</a>
+            </p>
+          </div>
+        </div>
+      )}
+      {/* ── Manual BTC Payment Modal (MetaMask users) ── */}
+      {/* MetaMask Bitcoin cannot be connected to websites.                     */}
+      {/* User sends BTC manually from their MetaMask, then pastes tx hash here */}
+      {showManualBtc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          onClick={() => setShowManualBtc(false)}>
+          <div className="bg-[#0B0E14] border border-white/10 rounded-2xl p-6 w-[min(92vw,380px)] shadow-2xl"
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">🦊</span>
+                <h3 className="text-[#F4F6FA] font-bold text-lg">Pay with MetaMask Bitcoin</h3>
+              </div>
+              <button onClick={() => setShowManualBtc(false)}
+                className="text-[#A7B0B7] hover:text-white text-xl leading-none">×</button>
+            </div>
+            <p className="text-[#A7B0B7] text-xs mb-5 leading-relaxed">
+              MetaMask&apos;s Bitcoin account can&apos;t connect to websites directly. Send from your MetaMask Bitcoin wallet, then paste your transaction ID below.
+            </p>
+
+            {/* Step 1 — Copy address */}
+            <div className="mb-4">
+              <p className="text-[#A7B0B7] text-xs font-semibold uppercase tracking-wider mb-2">Step 1 — Copy our BTC address</p>
+              <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-4 py-3">
+                <span className="text-[#F4F6FA] text-xs font-mono flex-1 truncate">{PRESALE_BTC_WALLET}</span>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(PRESALE_BTC_WALLET);
+                    setManualBtcCopied(true);
+                    setTimeout(() => setManualBtcCopied(false), 2000);
+                  }}
+                  className="text-xs text-[#2BFFF1] hover:text-white font-semibold shrink-0 transition-colors">
+                  {manualBtcCopied ? '✓ Copied!' : 'Copy'}
+                </button>
+              </div>
+            </div>
+
+            {/* Step 2 — Send amount */}
+            <div className="mb-4 p-3 bg-orange-500/5 border border-orange-500/20 rounded-xl">
+              <p className="text-[#A7B0B7] text-xs font-semibold uppercase tracking-wider mb-1">Step 2 — Send exact amount</p>
+              <div className="flex items-baseline gap-2">
+                <span className="text-orange-400 font-bold text-2xl">
+                  {amount ? parseFloat(amount).toFixed(8) : '0.00000000'}
+                </span>
+                <span className="text-orange-400 font-semibold">BTC</span>
+                {usdEst > 0 && (
+                  <span className="text-[#A7B0B7] text-xs ml-auto">≈ ${usdEst.toFixed(2)}</span>
+                )}
+              </div>
+              <p className="text-[#A7B0B7] text-xs mt-1">
+                Open MetaMask → Bitcoin account → Send → paste address above
+              </p>
+            </div>
+
+            {/* Step 3 — Paste tx hash */}
+            <div className="mb-5">
+              <p className="text-[#A7B0B7] text-xs font-semibold uppercase tracking-wider mb-2">Step 3 — Paste your transaction ID</p>
+              <input
+                type="text"
+                value={manualBtcTxHash}
+                onChange={e => setManualBtcTxHash(e.target.value)}
+                placeholder="e.g. 3a1b2c3d4e5f..."
+                className="w-full bg-white/5 border border-white/10 focus:border-[#2BFFF1]/50 rounded-xl px-4 py-3 text-[#F4F6FA] text-xs font-mono outline-none transition-colors placeholder:text-[#A7B0B7]/40"
+              />
+              <p className="text-[#A7B0B7] text-xs mt-1">
+                After sending, copy the txid from MetaMask transaction history
+              </p>
+            </div>
+
+            <button
+              onClick={handleManualBtcSubmit}
+              disabled={manualBtcTxHash.trim().length < 60 || manualBtcSubmitting}
+              className="w-full bg-orange-500 hover:bg-orange-400 disabled:bg-white/10 disabled:text-[#A7B0B7] text-white font-bold py-4 rounded-xl transition-all">
+              {manualBtcSubmitting ? 'Recording...' : 'Confirm Payment'}
+            </button>
+
+            <p className="text-[#A7B0B7] text-xs text-center mt-4">
+              Your KLEO tokens will be reserved as soon as we verify the transaction on-chain.
             </p>
           </div>
         </div>
