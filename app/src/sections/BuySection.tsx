@@ -8,7 +8,7 @@ import {
 import { createClient } from '@supabase/supabase-js';
 import { useAccount, useSendTransaction, useSwitchChain, useDisconnect } from 'wagmi';
 import { parseEther } from 'viem';
-import { mainnet, bsc } from 'wagmi/chains';
+import { sepolia, bscTestnet } from 'wagmi/chains';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { usePresaleStore, getCurrentStage, LISTING_PRICE_USD, useWalletStore } from '../store/presaleStore';
 
@@ -19,8 +19,9 @@ const _sbKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase = _sbUrl && _sbKey ? createClient(_sbUrl, _sbKey) : null;
 
 // ── Receiving wallet addresses ────────────────────────────────────────────
-const PRESALE_ETH_WALLET = '0x0722ef1dcfa7849b3bf0db375793bfacc52b8e39' as `0x${string}`;
-const PRESALE_SOL_WALLET = 'HAEC8fjg9Wpg1wpL8j5EQFRmrq4dj8BqYQVKgZZdKmRM';
+// ⚠️ TESTNET — swap back to mainnet address before going live
+const PRESALE_ETH_WALLET = '0x0722ef1dcfa7849b3bf0db375793bfacc52b8e39' as `0x${string}`; // same address works on Sepolia + BSC testnet
+const PRESALE_SOL_WALLET = 'HAEC8fjg9Wpg1wpL8j5EQFRmrq4dj8BqYQVKgZZdKmRM'; // ⚠️ TESTNET: same address, just switch Phantom to Devnet
 const PRESALE_BTC_WALLET = 'bc1q3rdjpm36lcy30amzfkaqpvvm5xu8n8y665ajlx';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -79,7 +80,7 @@ async function phantomDeeplinkConnect(type: 'sol') {
     app_url: window.location.origin,
     dapp_encryption_public_key: bs58.encode(kp.publicKey),
     redirect_link: redirectLink,
-    cluster: 'mainnet-beta',
+    cluster: 'devnet', // ⚠️ TESTNET
   });
 
   // On iOS: phantom:// deep link scheme opens the app without navigating away.
@@ -266,8 +267,8 @@ const COINGECKO_IDS: Record<string, string> = {
 
 const CURRENCIES = [
   { id: 'SOL', label: 'Solana',   symbol: 'SOL', icon: '◎', color: 'text-purple-400', chain: 'sol' },
-  { id: 'ETH', label: 'Ethereum', symbol: 'ETH', icon: 'Ξ', color: 'text-blue-400',   chain: 'evm', chainId: mainnet.id },
-  { id: 'BNB', label: 'BNB',      symbol: 'BNB', icon: '◆', color: 'text-yellow-400', chain: 'evm', chainId: bsc.id },
+  { id: 'ETH', label: 'Ethereum', symbol: 'ETH', icon: 'Ξ', color: 'text-blue-400',   chain: 'evm', chainId: sepolia.id },
+  { id: 'BNB', label: 'BNB',      symbol: 'BNB', icon: '◆', color: 'text-yellow-400', chain: 'evm', chainId: bscTestnet.id },
   { id: 'BTC', label: 'Bitcoin',  symbol: 'BTC', icon: '₿', color: 'text-orange-400', chain: 'btc' },
 ];
 
@@ -610,7 +611,7 @@ export function BuySection() {
     // Injected wallet (desktop or in-app browser)
     if (!activeWallet?.sendSol) throw new Error('Connect a Solana wallet first');
     const { Connection } = await import('@solana/web3.js');
-    const conn = new Connection('https://api.mainnet-beta.solana.com', 'confirmed');
+    const conn = new Connection('https://api.devnet.solana.com', 'confirmed'); // ⚠️ TESTNET
     return activeWallet.sendSol(PRESALE_SOL_WALLET, lamports, conn);
   };
 
@@ -699,7 +700,7 @@ export function BuySection() {
   const explorerUrl = txHash
     ? isBtc   ? `https://mempool.space/tx/${txHash}`
     : !isEvm  ? `https://solscan.io/tx/${txHash}`
-    : selected.chainId === bsc.id ? `https://bscscan.com/tx/${txHash}`
+    : selected.chainId === bscTestnet.id ? `https://bscscan.com/tx/${txHash}`
     : `https://etherscan.io/tx/${txHash}`
     : null;
 
