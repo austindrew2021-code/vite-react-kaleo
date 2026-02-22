@@ -37,10 +37,10 @@ const PRESALE_BTC_WALLET = 'bc1q3rdjpm36lcy30amzfkaqpvvm5xu8n8y665ajlx';
 // ─────────────────────────────────────────────────────────────────────────────
 const PHANTOM_UL = 'https://phantom.app/ul/v1';
 
-// Retrieve or create the dApp encryption keypair (survives the redirect via sessionStorage)
+// Retrieve or create the dApp encryption keypair (stored in localStorage so it survives new tabs)
 async function getDappKeypair() {
   const nacl = (await import('tweetnacl')).default;
-  const stored = sessionStorage.getItem('_kleo_dapp_kp');
+  const stored = localStorage.getItem('_kleo_dapp_kp');
   if (stored) {
     try {
       const { pk, sk } = JSON.parse(stored);
@@ -48,7 +48,7 @@ async function getDappKeypair() {
     } catch {}
   }
   const kp = nacl.box.keyPair();
-  sessionStorage.setItem('_kleo_dapp_kp', JSON.stringify({
+  localStorage.setItem('_kleo_dapp_kp', JSON.stringify({
     pk: Array.from(kp.publicKey),
     sk: Array.from(kp.secretKey),
   }));
@@ -69,7 +69,7 @@ async function decryptPhantomPayload(phantomPubKey58: string, data58: string, no
 async function phantomDeeplinkConnect(type: 'sol') {
   const bs58 = (await import('bs58')).default;
   const kp = await getDappKeypair();
-  sessionStorage.setItem('_kleo_connect_type', type);
+  localStorage.setItem('_kleo_connect_type', type);
   // Clean base URL (no query params) so Phantom can redirect back cleanly
   const redirectLink = window.location.origin + window.location.pathname;
   const params = new URLSearchParams({
@@ -114,7 +114,7 @@ async function phantomDeeplinkSignAndSend(
   const encrypted = nacl.box.after(new TextEncoder().encode(JSON.stringify(payload)), nonce, shared);
 
   // Store purchase metadata so we can record it when Phantom redirects back
-  sessionStorage.setItem('_kleo_pending_purchase', JSON.stringify(purchaseMeta));
+  localStorage.setItem('_kleo_pending_purchase', JSON.stringify(purchaseMeta));
 
   const redirectLink = window.location.origin + window.location.pathname;
   const p = new URLSearchParams({
@@ -127,7 +127,7 @@ async function phantomDeeplinkSignAndSend(
 }
 
 // ── Mobile detection ──────────────────────────────────────────────────────
-function isMobile() { return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent); }
+// isMobile removed — deeplink used on all platforms
 function isAndroid() { return /Android/i.test(navigator.userAgent); }
 function isIOS()    { return /iPhone|iPad|iPod/i.test(navigator.userAgent); }
 
@@ -340,8 +340,8 @@ export function BuySection() {
           if (payload.public_key) {
             // ── CONNECT CALLBACK ──────────────────────────────────────────
             // Store session + Phantom's public key for later transaction signing
-            sessionStorage.setItem('_kleo_phantom_session', payload.session);
-            sessionStorage.setItem('_kleo_phantom_pubkey', phantomPubKey);
+            localStorage.setItem('_kleo_phantom_session', payload.session);
+            localStorage.setItem('_kleo_phantom_pubkey', phantomPubKey);
             setSolAddr(payload.public_key);
             setSolConnected(true);
             setSolViaDeeplink(true);
@@ -349,9 +349,9 @@ export function BuySection() {
 
           } else if (payload.signature) {
             // ── TRANSACTION CALLBACK ──────────────────────────────────────
-            const pendingStr = sessionStorage.getItem('_kleo_pending_purchase');
+            const pendingStr = localStorage.getItem('_kleo_pending_purchase');
             if (pendingStr) {
-              sessionStorage.removeItem('_kleo_pending_purchase');
+              localStorage.removeItem('_kleo_pending_purchase');
               const { usd, tokens, addr, method } = JSON.parse(pendingStr);
               await recordPurchase(payload.signature, usd, tokens, addr, method);
               setTxHash(payload.signature);
@@ -361,6 +361,17 @@ export function BuySection() {
         } catch (e) {
           console.error('Phantom callback error:', e);
         }
+      }
+
+      // ── Restore previous deeplink session from localStorage ─────────────
+      // Handles case where user connected in a prior visit / tab
+      const storedAddr  = localStorage.getItem('_kleo_sol_address');
+      const storedSess  = localStorage.getItem('_kleo_phantom_session');
+      const storedPubk  = localStorage.getItem('_kleo_phantom_pubkey');
+      if (storedAddr && storedSess && storedPubk && !params.get('phantom_encryption_public_key')) {
+        setSolAddr(storedAddr);
+        setSolConnected(true);
+        setSolViaDeeplink(true);
       }
 
       // ── Also detect injected wallets (desktop extensions / in-app browsers) ──
@@ -428,13 +439,11 @@ export function BuySection() {
       }
       return;
     }
-    // Mobile with no injected wallet → use Phantom Deeplink API
-    // Works from Chrome, Safari, any browser. No in-app browser required.
-    if (isMobile()) {
-      await phantomDeeplinkConnect('sol');
-    } else {
-      window.open('https://phantom.app/', '_blank');
-    }
+    // Use Phantom Deeplink API on all platforms.
+    // On mobile: opens Phantom app natively via universal link.
+    // On desktop: opens Phantom via phantom:// custom protocol if installed,
+    // or falls back to phantom.app download page.
+    await phantomDeeplinkConnect('sol');
   };
 
   // ── Connect BTC wallet ─────────────────────────────────────────────────
@@ -487,8 +496,8 @@ export function BuySection() {
     const lamports = Math.round(parseFloat(amount) * LAMPORTS_PER_SOL);
 
     // If connected via Phantom Deeplink, use deeplink for signing too
-    const session    = sessionStorage.getItem('_kleo_phantom_session');
-    const phantomPk  = sessionStorage.getItem('_kleo_phantom_pubkey');
+    const session    = localStorage.getItem('_kleo_phantom_session');
+    const phantomPk  = localStorage.getItem('_kleo_phantom_pubkey');
     if (solViaDeeplink && session && phantomPk) {
       await phantomDeeplinkSignAndSend(
         solAddr, PRESALE_SOL_WALLET, lamports, session, phantomPk,
