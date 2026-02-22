@@ -294,6 +294,8 @@ export function BuySection() {
   };
 
   const handleDisconnectBtc = () => {
+    localStorage.removeItem('_kleo_btc_address');
+    localStorage.removeItem('_kleo_btc_wallet_name');
     disconnectBtc();
     setActiveWallet(null);
     reset();
@@ -388,16 +390,48 @@ export function BuySection() {
         setSolViaDeeplink(true);
       }
 
-      // ── Also detect injected wallets (desktop extensions / in-app browsers) ──
+      // ── Restore saved BTC address from localStorage (set when in Xverse/Phantom browser) ──
+      const savedBtcAddr = localStorage.getItem('_kleo_btc_address');
+      const savedBtcName = localStorage.getItem('_kleo_btc_wallet_name');
+      if (savedBtcAddr && savedBtcName) {
+        setBtcWallet(savedBtcAddr, savedBtcName);
+      }
+
+      // ── Auto-detect + auto-connect injected wallets (in-app browsers) ──
       const phantom = window.phantom?.solana || window.solana;
       if (phantom?.isConnected && phantom.publicKey) {
         setSolWallet(phantom.publicKey.toString(), 'Phantom');
       }
-      const btcProv = window.phantom?.bitcoin;
-      if (btcProv) {
-        btcProv.requestAccounts().then(accs => {
-          if (accs?.[0]?.address) { setBtcWallet(accs[0].address, 'Phantom'); }
+
+      // Phantom Bitcoin
+      const phantomBtc = window.phantom?.bitcoin;
+      if (phantomBtc) {
+        phantomBtc.requestAccounts().then(accs => {
+          const addr = accs?.find((a: any) => a.purpose === 'payment')?.address ?? accs?.[0]?.address;
+          if (addr) {
+            localStorage.setItem('_kleo_btc_address', addr);
+            localStorage.setItem('_kleo_btc_wallet_name', 'Phantom');
+            setBtcWallet(addr, 'Phantom');
+          }
         }).catch(() => {});
+      }
+
+      // Xverse — injected as XverseProviders.BitcoinProvider in Xverse in-app browser
+      const xverseProv = (window as any).XverseProviders?.BitcoinProvider ?? (window as any).BitcoinProvider;
+      if (xverseProv && !savedBtcAddr) {
+        // Auto-connect: prompt user once inside Xverse browser
+        xverseProv.request('getAccounts', { purposes: ['payment'], message: 'Connect to Kaleo Presale' })
+          .then((r: any) => {
+            const addr = r?.result?.addresses?.[0]?.address;
+            if (addr) {
+              // Save to localStorage — Chrome will pick this up when user returns
+              localStorage.setItem('_kleo_btc_address', addr);
+              localStorage.setItem('_kleo_btc_wallet_name', 'Xverse');
+              setBtcWallet(addr, 'Xverse');
+              // Auto-switch to BTC tab
+              setCurrency('BTC');
+            }
+          }).catch(() => {});
       }
     };
     init();
@@ -481,8 +515,14 @@ export function BuySection() {
     try {
       const addr = await wallet.connect();
       if (!addr) return;
-      if (type === 'sol') { setSolWallet(addr, wallet.name); }
-      else                { setBtcWallet(addr, wallet.name); }
+      if (type === 'sol') {
+        setSolWallet(addr, wallet.name);
+      } else {
+        // Persist BTC address so it survives switching back from in-app browser to Chrome
+        localStorage.setItem('_kleo_btc_address', addr);
+        localStorage.setItem('_kleo_btc_wallet_name', wallet.name);
+        setBtcWallet(addr, wallet.name);
+      }
       setActiveWallet(wallet);
     } catch {}
   };
