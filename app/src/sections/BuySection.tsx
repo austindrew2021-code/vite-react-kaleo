@@ -762,7 +762,7 @@ export function BuySection() {
                 </div>
                 <button onClick={handleBuy} disabled={!amount || parseFloat(amount) <= 0}
                   className="neon-button w-full py-5 text-xl font-bold flex items-center justify-center gap-3 disabled:opacity-40 disabled:cursor-not-allowed">
-                  {txStatus === 'pending'
+                  {(txStatus as string) === 'pending'
                     ? <><svg className="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Processing...</>
                     : <>Buy KLEO with {selected.symbol} <ArrowRight className="w-5 h-5" /></>}
                 </button>
