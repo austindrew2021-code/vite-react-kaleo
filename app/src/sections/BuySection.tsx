@@ -163,7 +163,7 @@ function detectBitcoinWallets(): DetectedWallet[] {
   // Phantom Bitcoin — correct API is requestAccounts(), NOT connect()
   if (window.phantom?.bitcoin) wallets.push({
     id: 'phantom-btc', name: 'Phantom', icon: '👻', color: 'text-purple-400',
-    connect: async () => {
+    connect: async (): Promise<string> => {
       const accounts = await window.phantom!.bitcoin!.requestAccounts();
       // Prefer native segwit (p2wpkh) address, fall back to first
       const preferred = accounts.find((a: { purpose?: string }) => a.purpose === 'payment') ?? accounts[0];
@@ -176,7 +176,7 @@ function detectBitcoinWallets(): DetectedWallet[] {
   const xverseProvider = (window as any).XverseProviders?.BitcoinProvider ?? (window as any).BitcoinProvider;
   if (xverseProvider) wallets.push({
     id: 'xverse', name: 'Xverse', icon: '✦', color: 'text-blue-400',
-    connect: async () => {
+    connect: async (): Promise<string> => {
       const accounts = await xverseProvider.request('getAccounts', {
         purposes: ['payment'],
         message: 'Connect to Kaleo presale',
@@ -194,9 +194,9 @@ function detectBitcoinWallets(): DetectedWallet[] {
   // OKX Bitcoin
   if (window.okxwallet?.bitcoin) wallets.push({
     id: 'okx-btc', name: 'OKX Wallet', icon: '⭕', color: 'text-gray-300',
-    connect: async () => {
+    connect: async (): Promise<string> => {
       const accounts = await window.okxwallet!.bitcoin!.requestAccounts();
-      return accounts[0]?.address || accounts[0] || '';
+      return accounts[0]?.address || String(accounts[0] ?? '');
     },
     sendBtc: async (to, satoshis) => window.okxwallet!.bitcoin!.sendBitcoin(to, satoshis),
   });
@@ -1001,4 +1001,4 @@ export function BuySection() {
       )}
     </section>
   );
-  }
+}
