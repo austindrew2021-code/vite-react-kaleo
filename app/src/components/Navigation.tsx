@@ -154,10 +154,10 @@ export function Navigation() {
           <ConnectButton
             label={anyWalletConnected && !evmConnected ? 'Connect EVM' : 'Connect Wallet'}
             showBalance={false}
-            chainStatus="icon"
+            chainStatus="none"
             accountStatus={{
               smallScreen: 'avatar',
-              largeScreen: 'address',
+              largeScreen: 'full',
             }}
           />
 
