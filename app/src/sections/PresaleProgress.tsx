@@ -23,7 +23,7 @@ interface PresaleProgressProps {
 
 export function PresaleProgress({ direction }: PresaleProgressProps) {
   const { address, isConnected } = useAccount();
-  const { totalRaised, purchases } = usePresaleStore();
+  const { totalRaised, purchases, setTotalRaised } = usePresaleStore();
 
   const currentStage = getCurrentStage(totalRaised);
   const stageProgress = getStageProgress(totalRaised);
@@ -44,6 +44,34 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
     : { text: 'Building momentum', color: 'bg-gray-600/20 border-gray-500/30 text-gray-400' };
 
   const [supabaseTokens, setSupabaseTokens] = useState<number>(0);
+
+  // ── Fetch global total raised from Supabase on mount ──────────────────
+  useEffect(() => {
+    if (!supabase) return;
+    const fetchGlobalTotal = async () => {
+      const { data, error } = await supabase
+        .from('presale_purchases')
+        .select('usd_amount');
+      if (error) { console.error('Global total fetch:', error); return; }
+      const total = data?.reduce((sum, row) => sum + Number(row.usd_amount || 0), 0) || 0;
+      setTotalRaised(total);
+    };
+    fetchGlobalTotal();
+
+    // Subscribe to new purchases and update total in real-time
+    const globalChannel = supabase
+      .channel('global-raised')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'presale_purchases' }, (_payload) => {
+        // Re-fetch total so we get accurate number (avoid stale closure)
+        supabase.from('presale_purchases').select('usd_amount').then(({ data }) => {
+          const t = data?.reduce((s, r) => s + Number(r.usd_amount || 0), 0) || 0;
+          setTotalRaised(t);
+        });
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(globalChannel); };
+  }, []);
 
   useEffect(() => {
     if (!isConnected || !address || !supabase) return;
