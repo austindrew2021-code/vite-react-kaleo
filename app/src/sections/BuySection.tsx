@@ -148,7 +148,20 @@ async function phantomDeeplinkSignAndSend(
     redirect_link: redirectLink,
     payload: bs58.encode(encrypted),
   });
-  window.location.href = `${PHANTOM_UL}/signAndSendTransaction?${p}`;
+  const ua = navigator.userAgent;
+  const deeplinkUrl = `${PHANTOM_UL}/signAndSendTransaction?${p}`;
+  if (/iPhone|iPad|iPod/i.test(ua)) {
+    const phantomScheme = `phantom://v1/signAndSendTransaction?${p}`;
+    const fallback = setTimeout(() => { window.location.href = deeplinkUrl; }, 600);
+    const cancel = () => { clearTimeout(fallback); document.removeEventListener('visibilitychange', cancel); };
+    document.addEventListener('visibilitychange', cancel);
+    window.location.href = phantomScheme;
+  } else if (/Android/i.test(ua)) {
+    const intentUrl = `intent://v1/signAndSendTransaction?${p}#Intent;scheme=phantom;package=app.phantom;S.browser_fallback_url=${encodeURIComponent(deeplinkUrl)};end`;
+    window.location.href = intentUrl;
+  } else {
+    window.location.href = deeplinkUrl;
+  }
 }
 
 // ── Mobile detection ──────────────────────────────────────────────────────
@@ -668,12 +681,21 @@ export function BuySection() {
         // If no hash, we redirected to Phantom — status will be set on return
       } else {
         if (!address) throw new Error('Connect wallet first');
-        // Capture address now — wagmi may briefly clear it during chain switch
         const senderAddress = address;
         if (chain?.id !== selected.chainId) {
           await switchChainAsync({ chainId: selected.chainId! });
-          // Small pause to let wagmi sync the new chain state before sending
-          await new Promise(r => setTimeout(r, 800));
+          // Wait for wagmi to confirm the chain change before sending (max 5s)
+          await new Promise<void>((resolve) => {
+            const start = Date.now();
+            const check = () => {
+              // Check if wagmi's chain state has updated
+              if (Date.now() - start > 5000) { resolve(); return; }
+              setTimeout(check, 200);
+            };
+            setTimeout(check, 300);
+            // Also resolve after a safe minimum wait
+            setTimeout(resolve, 1200);
+          });
         }
         hash = await sendTransactionAsync({ to: PRESALE_ETH_WALLET, value: parseEther(amount) });
         await recordPurchase(hash, usdEst, tokensEst, senderAddress, selected.id);
