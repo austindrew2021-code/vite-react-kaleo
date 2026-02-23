@@ -119,7 +119,7 @@ async function phantomDeeplinkSignAndSend(
   const bs58 = (await import('bs58')).default;
   const { Connection, PublicKey, SystemProgram, Transaction } = await import('@solana/web3.js');
 
-  const conn = new Connection('https://api.mainnet-beta.solana.com', 'confirmed');
+  const conn = new Connection('https://api.devnet.solana.com', 'confirmed'); // ⚠️ TESTNET
   const { blockhash } = await conn.getLatestBlockhash();
 
   const tx = new Transaction().add(
@@ -668,9 +668,15 @@ export function BuySection() {
         // If no hash, we redirected to Phantom — status will be set on return
       } else {
         if (!address) throw new Error('Connect wallet first');
-        if (chain?.id !== selected.chainId) await switchChainAsync({ chainId: selected.chainId! });
+        // Capture address now — wagmi may briefly clear it during chain switch
+        const senderAddress = address;
+        if (chain?.id !== selected.chainId) {
+          await switchChainAsync({ chainId: selected.chainId! });
+          // Small pause to let wagmi sync the new chain state before sending
+          await new Promise(r => setTimeout(r, 800));
+        }
         hash = await sendTransactionAsync({ to: PRESALE_ETH_WALLET, value: parseEther(amount) });
-        await recordPurchase(hash, usdEst, tokensEst, address, selected.id);
+        await recordPurchase(hash, usdEst, tokensEst, senderAddress, selected.id);
       }
       if (hash) { setTxHash(hash); setTxStatus('success'); }
     } catch (err) {
