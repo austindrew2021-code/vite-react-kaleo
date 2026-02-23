@@ -74,7 +74,7 @@ async function phantomDeeplinkConnect(type: 'sol') {
 
   // Use the exact current URL so Phantom returns to the same page/tab.
   // Adding a #phantom-return hash prevents some browsers from treating it as a new page.
-  const redirectLink = window.location.origin + window.location.pathname + '#phantom-return';
+  const redirectLink = window.location.origin + window.location.pathname;
 
   const params = new URLSearchParams({
     app_url: window.location.origin,
@@ -141,27 +141,15 @@ async function phantomDeeplinkSignAndSend(
   // Store purchase metadata so we can record it when Phantom redirects back
   localStorage.setItem('_kleo_pending_purchase', JSON.stringify(purchaseMeta));
 
-  const redirectLink = window.location.origin + window.location.pathname + '#phantom-return';
+  const redirectLink = window.location.origin + window.location.pathname;
   const p = new URLSearchParams({
     dapp_encryption_public_key: bs58.encode(kp.publicKey),
     nonce:   bs58.encode(nonce),
     redirect_link: redirectLink,
     payload: bs58.encode(encrypted),
   });
-  const ua = navigator.userAgent;
-  const deeplinkUrl = `${PHANTOM_UL}/signAndSendTransaction?${p}`;
-  if (/iPhone|iPad|iPod/i.test(ua)) {
-    const phantomScheme = `phantom://v1/signAndSendTransaction?${p}`;
-    const fallback = setTimeout(() => { window.location.href = deeplinkUrl; }, 600);
-    const cancel = () => { clearTimeout(fallback); document.removeEventListener('visibilitychange', cancel); };
-    document.addEventListener('visibilitychange', cancel);
-    window.location.href = phantomScheme;
-  } else if (/Android/i.test(ua)) {
-    const intentUrl = `intent://v1/signAndSendTransaction?${p}#Intent;scheme=phantom;package=app.phantom;S.browser_fallback_url=${encodeURIComponent(deeplinkUrl)};end`;
-    window.location.href = intentUrl;
-  } else {
-    window.location.href = deeplinkUrl;
-  }
+  // Use the standard universal link — most reliable across all platforms
+  window.location.href = `${PHANTOM_UL}/signAndSendTransaction?${p}`;
 }
 
 // ── Mobile detection ──────────────────────────────────────────────────────
@@ -385,17 +373,36 @@ export function BuySection() {
       const errorCode     = params.get('errorCode');
 
       // Always clean the URL after a Phantom redirect (strip query params + hash)
-      if (phantomPubKey || errorCode) {
+      if (phantomPubKey || errorCode || params.get('errorMessage')) {
         window.history.replaceState({}, '', window.location.pathname);
       }
 
-      if (phantomPubKey && data && nonce && !errorCode) {
+      // ── Phantom returned an error ────────────────────────────────────────
+      if (errorCode) {
+        const msg = params.get('errorMessage') || '';
+        const isPending = !!localStorage.getItem('_kleo_pending_purchase');
+        if (isPending) {
+          localStorage.removeItem('_kleo_pending_purchase');
+          // Map Phantom error codes to human-readable messages
+          const errMap: Record<string, string> = {
+            '4001': 'Transaction rejected — nothing was sent.',
+            '4100': 'Session expired or cluster mismatch — disconnect and reconnect Phantom (ensure it is set to Devnet).',
+            '4900': 'Phantom disconnected from network — check your Phantom network settings.',
+          };
+          const friendly = errMap[errorCode] || `Phantom error ${errorCode}${msg ? ': ' + msg : ''} — please try again.`;
+          setTxError(friendly);
+          setTxStatus('error');
+        }
+        // If it was a connect error (no pending purchase), just silently ignore
+        return;
+      }
+
+      if (phantomPubKey && data && nonce) {
         try {
           const payload = await decryptPhantomPayload(phantomPubKey, data, nonce);
 
           if (payload.public_key) {
             // ── CONNECT CALLBACK ──────────────────────────────────────────
-            // Store session + Phantom's public key for later transaction signing
             localStorage.setItem('_kleo_phantom_session', payload.session);
             localStorage.setItem('_kleo_phantom_pubkey', phantomPubKey);
             localStorage.setItem('_kleo_sol_address', payload.public_key);
@@ -413,9 +420,21 @@ export function BuySection() {
               setTxHash(payload.signature);
               setTxStatus('success');
             }
+          } else {
+            // Unexpected payload — show raw info for debugging
+            const isPending = !!localStorage.getItem('_kleo_pending_purchase');
+            if (isPending) {
+              setTxError(`Phantom returned an unexpected response. Keys: ${Object.keys(payload).join(', ')}. Please try again.`);
+              setTxStatus('error');
+            }
           }
         } catch (e) {
           console.error('Phantom callback error:', e);
+          const isPending = !!localStorage.getItem('_kleo_pending_purchase');
+          if (isPending) {
+            setTxError(`Failed to process Phantom response: ${e instanceof Error ? e.message : String(e)}`);
+            setTxStatus('error');
+          }
         }
       }
 
