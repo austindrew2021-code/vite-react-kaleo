@@ -6,7 +6,7 @@ import {
   ExternalLink, AlertCircle, CheckCircle2,
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
-import { useAccount, useSendTransaction, useSwitchChain, useDisconnect } from 'wagmi';
+import { useAccount, useSendTransaction, useDisconnect } from 'wagmi';
 import { parseEther } from 'viem';
 import { sepolia, bscTestnet } from 'wagmi/chains';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
@@ -201,10 +201,9 @@ export function BuySection() {
   const currentStage = getCurrentStage(totalRaised);
 
   // EVM (wagmi)
-  const { address, isConnected, chain, connector } = useAccount();
+  const { address, isConnected, connector } = useAccount();
   const { disconnect: evmDisconnect } = useDisconnect();
   const { sendTransactionAsync }        = useSendTransaction();
-  const { switchChainAsync }            = useSwitchChain();
 
   // UI state
   const [tab,           setTab]          = useState<'crypto' | 'card'>('crypto');
@@ -661,22 +660,16 @@ export function BuySection() {
       } else {
         if (!address) throw new Error('Connect wallet first');
         const senderAddress = address;
-        if (chain?.id !== selected.chainId) {
-          await switchChainAsync({ chainId: selected.chainId! });
-          // Wait for wagmi to confirm the chain change before sending (max 5s)
-          await new Promise<void>((resolve) => {
-            const start = Date.now();
-            const check = () => {
-              // Check if wagmi's chain state has updated
-              if (Date.now() - start > 5000) { resolve(); return; }
-              setTimeout(check, 200);
-            };
-            setTimeout(check, 300);
-            // Also resolve after a safe minimum wait
-            setTimeout(resolve, 1200);
-          });
-        }
-        hash = await sendTransactionAsync({ to: PRESALE_ETH_WALLET, value: parseEther(amount) });
+        // Only switch chain if actually needed — chain.id may be stale closure,
+        // so also guard against switching to the chain we're already on.
+        // Pass chainId directly to sendTransactionAsync — wagmi/MetaMask will
+        // handle the chain switch + transaction approval in a single wallet flow
+        // rather than two separate popups (switch → approve).
+        hash = await sendTransactionAsync({
+          to: PRESALE_ETH_WALLET,
+          value: parseEther(amount),
+          chainId: selected.chainId,
+        });
         await recordPurchase(hash, usdEst, tokensEst, senderAddress, selected.id);
       }
       if (hash) { setTxHash(hash); setTxStatus('success'); }
