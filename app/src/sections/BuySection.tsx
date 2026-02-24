@@ -664,18 +664,19 @@ export function BuySection() {
         const liveChainHex = (window as any).ethereum?.chainId;
         const liveChainId = liveChainHex ? parseInt(liveChainHex, 16) : undefined;
         const targetChainId = selected.chainId!;
-        // Show debug info in error box so we can see what's happening
-        setTxError(`DEBUG: window.ethereum.chainId=${liveChainHex} (${liveChainId}), target=${targetChainId}, address=${senderAddress?.slice(0,10)}`);
+        alert(`STEP 1\naddress: ${senderAddress?.slice(0,10)}\nwindow.ethereum.chainId: ${liveChainHex} = ${liveChainId}\ntarget chainId: ${targetChainId}\nwagmi isConnected: ${isConnected}`);
         const onWrongChain = liveChainId !== undefined ? liveChainId !== targetChainId : true;
         if (onWrongChain) {
-          setTxError(`DEBUG: switching from ${liveChainId} to ${targetChainId}...`);
+          alert(`STEP 2: switching chain from ${liveChainId} → ${targetChainId}`);
           await switchChainAsync({ chainId: targetChainId });
-          setTxError(`DEBUG: switched! waiting 1.5s...`);
+          alert(`STEP 2 done: chain switched, waiting 1.5s`);
           await new Promise<void>(resolve => setTimeout(resolve, 1500));
+        } else {
+          alert(`STEP 2 skipped: already on correct chain (${liveChainId})`);
         }
-        setTxError(`DEBUG: calling sendTransactionAsync...`);
+        alert(`STEP 3: calling sendTransactionAsync now`);
         hash = await sendTransactionAsync({ to: PRESALE_ETH_WALLET, value: parseEther(amount) });
-        setTxError('');
+        alert(`STEP 3 done: hash=${hash}`);
         await recordPurchase(hash, usdEst, tokensEst, senderAddress, selected.id);
       }
       if (hash) { setTxHash(hash); setTxStatus('success'); }
