@@ -661,19 +661,21 @@ export function BuySection() {
       } else {
         if (!address) throw new Error('Connect wallet first');
         const senderAddress = address;
-        // Read live chainId directly from window.ethereum — avoids stale React closure
-        const liveChainId = (window as any).ethereum?.chainId
-          ? parseInt((window as any).ethereum.chainId, 16)
-          : undefined;
-        const onWrongChain = liveChainId !== undefined
-          ? liveChainId !== selected.chainId
-          : true;
+        const liveChainHex = (window as any).ethereum?.chainId;
+        const liveChainId = liveChainHex ? parseInt(liveChainHex, 16) : undefined;
+        const targetChainId = selected.chainId!;
+        // Show debug info in error box so we can see what's happening
+        setTxError(`DEBUG: window.ethereum.chainId=${liveChainHex} (${liveChainId}), target=${targetChainId}, address=${senderAddress?.slice(0,10)}`);
+        const onWrongChain = liveChainId !== undefined ? liveChainId !== targetChainId : true;
         if (onWrongChain) {
-          await switchChainAsync({ chainId: selected.chainId! });
-          // Give MetaMask time to finish reconnecting on the new chain
+          setTxError(`DEBUG: switching from ${liveChainId} to ${targetChainId}...`);
+          await switchChainAsync({ chainId: targetChainId });
+          setTxError(`DEBUG: switched! waiting 1.5s...`);
           await new Promise<void>(resolve => setTimeout(resolve, 1500));
         }
+        setTxError(`DEBUG: calling sendTransactionAsync...`);
         hash = await sendTransactionAsync({ to: PRESALE_ETH_WALLET, value: parseEther(amount) });
+        setTxError('');
         await recordPurchase(hash, usdEst, tokensEst, senderAddress, selected.id);
       }
       if (hash) { setTxHash(hash); setTxStatus('success'); }
