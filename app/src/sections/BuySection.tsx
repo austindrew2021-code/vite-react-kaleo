@@ -6,7 +6,7 @@ import {
   ExternalLink, AlertCircle, CheckCircle2,
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
-import { useAccount, useSendTransaction, useDisconnect, useSwitchChain } from 'wagmi';
+import { useAccount, useSendTransaction, useDisconnect, useSwitchChain, useChainId } from 'wagmi';
 import { parseEther } from 'viem';
 import { sepolia, bscTestnet } from 'wagmi/chains';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
@@ -205,6 +205,7 @@ export function BuySection() {
   const { disconnect: evmDisconnect } = useDisconnect();
   const { sendTransactionAsync }        = useSendTransaction();
   const { switchChainAsync }            = useSwitchChain();
+  const currentChainId                  = useChainId();
 
   // UI state
   const [tab,           setTab]          = useState<'crypto' | 'card'>('crypto');
@@ -661,22 +662,14 @@ export function BuySection() {
       } else {
         if (!address) throw new Error('Connect wallet first');
         const senderAddress = address;
-        const liveChainHex = (window as any).ethereum?.chainId;
-        const liveChainId = liveChainHex ? parseInt(liveChainHex, 16) : undefined;
         const targetChainId = selected.chainId!;
-        alert(`STEP 1\naddress: ${senderAddress?.slice(0,10)}\nwindow.ethereum.chainId: ${liveChainHex} = ${liveChainId}\ntarget chainId: ${targetChainId}\nwagmi isConnected: ${isConnected}`);
-        const onWrongChain = liveChainId !== undefined ? liveChainId !== targetChainId : true;
-        if (onWrongChain) {
-          alert(`STEP 2: switching chain from ${liveChainId} → ${targetChainId}`);
+        // Use wagmi's useChainId — works for both injected AND WalletConnect
+        if (currentChainId !== targetChainId) {
           await switchChainAsync({ chainId: targetChainId });
-          alert(`STEP 2 done: chain switched, waiting 1.5s`);
-          await new Promise<void>(resolve => setTimeout(resolve, 1500));
-        } else {
-          alert(`STEP 2 skipped: already on correct chain (${liveChainId})`);
+          // Brief pause for WalletConnect to settle after chain switch
+          await new Promise<void>(resolve => setTimeout(resolve, 800));
         }
-        alert(`STEP 3: calling sendTransactionAsync now`);
         hash = await sendTransactionAsync({ to: PRESALE_ETH_WALLET, value: parseEther(amount) });
-        alert(`STEP 3 done: hash=${hash}`);
         await recordPurchase(hash, usdEst, tokensEst, senderAddress, selected.id);
       }
       if (hash) { setTxHash(hash); setTxStatus('success'); }
