@@ -36,7 +36,6 @@ const PRESALE_BTC_WALLET = 'bc1q3rdjpm36lcy30amzfkaqpvvm5xu8n8y665ajlx';
 //   4. Page decrypts it → wallet shows as connected
 //   5. On Buy → same redirect flow for transaction approval
 // ─────────────────────────────────────────────────────────────────────────────
-const PHANTOM_UL = 'https://phantom.app/ul/v1';
 
 // Retrieve or create the dApp encryption keypair (stored in localStorage so it survives new tabs)
 async function getDappKeypair() {
@@ -66,91 +65,7 @@ async function decryptPhantomPayload(phantomPubKey58: string, data58: string, no
   return JSON.parse(new TextDecoder().decode(decrypted));
 }
 
-// Redirect to Phantom for wallet connection — works from Chrome, Safari, any browser
-async function phantomDeeplinkConnect(type: 'sol') {
-  const bs58 = (await import('bs58')).default;
-  const kp = await getDappKeypair();
-  localStorage.setItem('_kleo_connect_type', type);
 
-  // Use the exact current URL so Phantom returns to the same page/tab.
-  // Adding a #phantom-return hash prevents some browsers from treating it as a new page.
-  const redirectLink = window.location.origin + window.location.pathname;
-
-  const params = new URLSearchParams({
-    app_url: window.location.origin,
-    dapp_encryption_public_key: bs58.encode(kp.publicKey),
-    redirect_link: redirectLink,
-    cluster: 'devnet', // ⚠️ TESTNET
-  });
-
-  // On iOS: phantom:// deep link scheme opens the app without navigating away.
-  // Phantom can then return to exactly this tab via the redirect_link.
-  // On Android: use intent:// which also keeps the current tab.
-  // Fallback: https://phantom.app/ul/ (may open new tab on some browsers).
-  const ua = navigator.userAgent;
-  const deeplinkUrl = `${PHANTOM_UL}/connect?${params}`;
-  const phantomScheme = `phantom://v1/connect?${params}`;
-
-  if (/iPhone|iPad|iPod/i.test(ua)) {
-    // iOS: try phantom:// first (no tab navigation), fallback to https after 600ms
-    const fallback = setTimeout(() => { window.location.href = deeplinkUrl; }, 600);
-    const cancel = () => { clearTimeout(fallback); document.removeEventListener('visibilitychange', cancel); };
-    document.addEventListener('visibilitychange', cancel);
-    window.location.href = phantomScheme;
-  } else if (/Android/i.test(ua)) {
-    // Android: intent scheme keeps current tab
-    const intentUrl = `intent://v1/connect?${params}#Intent;scheme=phantom;package=app.phantom;S.browser_fallback_url=${encodeURIComponent(deeplinkUrl)};end`;
-    window.location.href = intentUrl;
-  } else {
-    window.location.href = deeplinkUrl;
-  }
-}
-
-// Redirect to Phantom to sign & broadcast a SOL transaction
-async function phantomDeeplinkSignAndSend(
-  fromAddress: string,
-  toAddress: string,
-  lamports: number,
-  session: string,
-  phantomPubKey58: string,
-  purchaseMeta: object
-) {
-  const nacl = (await import('tweetnacl')).default;
-  const bs58 = (await import('bs58')).default;
-  const { Connection, PublicKey, SystemProgram, Transaction } = await import('@solana/web3.js');
-
-  const conn = new Connection('https://api.devnet.solana.com', 'confirmed'); // ⚠️ TESTNET
-  const { blockhash } = await conn.getLatestBlockhash();
-
-  const tx = new Transaction().add(
-    SystemProgram.transfer({
-      fromPubkey: new PublicKey(fromAddress),
-      toPubkey:   new PublicKey(toAddress),
-      lamports,
-    })
-  );
-  tx.recentBlockhash = blockhash;
-  tx.feePayer = new PublicKey(fromAddress);
-
-  const kp = await getDappKeypair();
-  const shared = nacl.box.before(bs58.decode(phantomPubKey58), kp.secretKey);
-  const nonce = nacl.randomBytes(24);
-  const payload = { session, transaction: bs58.encode(tx.serialize({ requireAllSignatures: false })) };
-  const encrypted = nacl.box.after(new TextEncoder().encode(JSON.stringify(payload)), nonce, shared);
-
-  // Store purchase metadata so we can record it when Phantom redirects back
-  localStorage.setItem('_kleo_pending_purchase', JSON.stringify(purchaseMeta));
-
-  const redirectLink = window.location.origin + window.location.pathname;
-  const p = new URLSearchParams({
-    dapp_encryption_public_key: bs58.encode(kp.publicKey),
-    nonce:   bs58.encode(nonce),
-    redirect_link: redirectLink,
-    payload: bs58.encode(encrypted),
-  });
-  // Use the standard universal link — most reliable across all platforms
-  window.location.href = `${PHANTOM_UL}/signAndSendTransaction?${p}`;
-}
 
 // ── Mobile detection ──────────────────────────────────────────────────────
 // isMobile removed — deeplink used on all platforms
@@ -310,11 +225,9 @@ export function BuySection() {
   const btcConnected = !!btcAddress;
   const solAddr      = solAddress;
   const btcAddr      = btcAddress;
-  const [solViaDeeplink, setSolViaDeeplink] = useState(!!localStorage.getItem('_kleo_phantom_session'));
 
   const handleDisconnectSol = () => {
     disconnectSol();
-    setSolViaDeeplink(false);
     setActiveWallet(null);
     reset();
   };
@@ -336,6 +249,7 @@ export function BuySection() {
   // BTC mobile picker modal
   const [showBtcPicker,  setShowBtcPicker]  = useState(false);
   const [showXversePay,  setShowXversePay]  = useState(false);
+  const [showSolPay,     setShowSolPay]     = useState(false);
 
   // Manual BTC payment modal (MetaMask)
   const [showManualBtc,       setShowManualBtc]       = useState(false);
@@ -407,8 +321,7 @@ export function BuySection() {
             localStorage.setItem('_kleo_phantom_pubkey', phantomPubKey);
             localStorage.setItem('_kleo_sol_address', payload.public_key);
             setSolWallet(payload.public_key, 'Phantom');
-            setSolViaDeeplink(true);
-            setCurrency('SOL');
+                    setCurrency('SOL');
 
           } else if (payload.signature) {
             // ── TRANSACTION CALLBACK ──────────────────────────────────────
@@ -445,8 +358,7 @@ export function BuySection() {
       const storedPubk  = localStorage.getItem('_kleo_phantom_pubkey');
       if (storedAddr && storedSess && storedPubk && !params.get('phantom_encryption_public_key')) {
         setSolWallet(storedAddr, 'Phantom');
-        setSolViaDeeplink(true);
-      }
+          }
 
       // ── Restore saved BTC address from localStorage (set when in Xverse/Phantom browser) ──
       const savedBtcAddr = localStorage.getItem('_kleo_btc_address');
@@ -455,10 +367,34 @@ export function BuySection() {
         setBtcWallet(savedBtcAddr, savedBtcName);
       }
 
-      // ── Auto-detect + auto-connect injected wallets (in-app browsers) ──
+      // ── Auto-detect + auto-connect Solana injected wallets ─────────────
+      // Covers: Phantom in-app browser, Solflare browser, desktop extension
       const phantom = window.phantom?.solana || window.solana;
-      if (phantom?.isConnected && phantom.publicKey) {
-        setSolWallet(phantom.publicKey.toString(), 'Phantom');
+      if (phantom) {
+        if (phantom.isConnected && phantom.publicKey) {
+          // Already authorized — restore connection silently
+          const addr = phantom.publicKey.toString();
+          const walletName = (window.phantom?.solana) ? 'Phantom' : 'Solflare';
+          setSolWallet(addr, walletName);
+          // Re-create the activeWallet entry so sendSol works
+          const injected = detectSolanaWallets();
+          const w = injected.find(w => w.id === 'phantom' || w.id === 'solflare');
+          if (w) setActiveWallet(w);
+        } else if (!phantom.isConnected) {
+          // Inside wallet browser but not yet connected — auto-prompt connect
+          phantom.connect()
+            .then((resp: { publicKey: { toString: () => string } }) => {
+              const addr = resp.publicKey.toString();
+              setSolWallet(addr, 'Phantom');
+              const injected = detectSolanaWallets();
+              const w = injected.find(w => w.id === 'phantom' || w.id === 'solflare');
+              if (w) setActiveWallet(w);
+            })
+            .catch(() => {
+              // onlyIfTrusted: true — silently fails if not previously approved
+              // User will need to tap Connect Wallet to trigger the approval dialog
+            });
+        }
       }
 
       // Phantom Bitcoin
@@ -548,7 +484,7 @@ export function BuySection() {
   const connectSol = async () => {
     const injected = detectSolanaWallets();
     if (injected.length > 0) {
-      // Desktop or already inside wallet browser — use injected API directly
+      // Already inside Phantom/Solflare browser OR desktop extension — connect directly
       if (injected.length === 1) {
         const addr = await injected[0].connect();
         setSolWallet(addr, injected[0].name); setActiveWallet(injected[0]);
@@ -557,11 +493,20 @@ export function BuySection() {
       }
       return;
     }
-    // Use Phantom Deeplink API on all platforms.
-    // On mobile: opens Phantom app natively via universal link.
-    // On desktop: opens Phantom via phantom:// custom protocol if installed,
-    // or falls back to phantom.app download page.
-    await phantomDeeplinkConnect('sol');
+    // No injected wallet — open Phantom's in-app browser pointing at this page.
+    // This is how NFT sites (Magic Eden, Tensor) handle mobile: the page loads
+    // INSIDE Phantom where window.phantom.solana is injected, enabling direct
+    // connect() + signAndSendTransaction() without any deeplink workarounds.
+    const url = encodeURIComponent(window.location.href);
+    const ref = encodeURIComponent(window.location.origin);
+    if (isAndroid()) {
+      window.location.href = `intent://browse/${url}?ref=${ref}#Intent;scheme=phantom;package=app.phantom;S.browser_fallback_url=https%3A%2F%2Fphantom.app%2F;end`;
+    } else if (isIOS()) {
+      window.location.href = `https://phantom.app/ul/browse/${url}?ref=${ref}`;
+    } else {
+      // Desktop: try phantom:// custom protocol
+      window.location.href = `phantom://browse/${url}?ref=${ref}`;
+    }
   };
 
   // ── Connect BTC wallet ─────────────────────────────────────────────────
@@ -624,25 +569,32 @@ export function BuySection() {
     setTimeout(() => setShowXversePay(true), 1500);
   };
 
-  // ── Send SOL ──────────────────────────────────────────────────────────
+  // ── Send SOL via Solana Pay URI (industry standard for mobile) ──────────
+  // Solana Pay = same concept as bitcoin: URI — universally supported by Phantom, Solflare etc.
+  const sendSolViaSolanaPay = () => {
+    const n = parseFloat(amount);
+    if (!n || n <= 0) return;
+    const label   = encodeURIComponent('Kaleo Presale');
+    const message = encodeURIComponent(`Buy KLEO tokens — Stage ${currentStage.stage}`);
+    const memo    = encodeURIComponent(`kleo-s${currentStage.stage}-${solAddr.slice(0,8)}`);
+    // SPL-compliant Solana Pay URI — Phantom, Solflare, Backpack all handle this natively
+    const solanaPayUri = `solana:${PRESALE_SOL_WALLET}?amount=${n}&label=${label}&message=${message}&memo=${memo}`;
+
+    // Store purchase context so we can record it after user pastes tx hash
+    localStorage.setItem('_kleo_pending_sol_purchase', JSON.stringify({
+      usd: usdEst, tokens: tokensEst, addr: solAddr, method: 'SOL', amount: n
+    }));
+
+    window.location.href = solanaPayUri;
+    // After 1.5s if still here (no wallet handled it), show manual confirmation modal
+    setTimeout(() => { setTxStatus('idle'); setShowSolPay(true); }, 1500);
+  };
+
+  // Injected wallet send (desktop extension / in-app browser)
   const sendSol = async (): Promise<string> => {
-    const { LAMPORTS_PER_SOL } = await import('@solana/web3.js');
-    const lamports = Math.round(parseFloat(amount) * LAMPORTS_PER_SOL);
-
-    // If connected via Phantom Deeplink, use deeplink for signing too
-    const session    = localStorage.getItem('_kleo_phantom_session');
-    const phantomPk  = localStorage.getItem('_kleo_phantom_pubkey');
-    if (solViaDeeplink && session && phantomPk) {
-      await phantomDeeplinkSignAndSend(
-        solAddr, PRESALE_SOL_WALLET, lamports, session, phantomPk,
-        { usd: usdEst, tokens: tokensEst, addr: solAddr, method: 'SOL' }
-      );
-      return ''; // redirects — never reaches here
-    }
-
-    // Injected wallet (desktop or in-app browser)
     if (!activeWallet?.sendSol) throw new Error('Connect a Solana wallet first');
-    const { Connection } = await import('@solana/web3.js');
+    const { Connection, LAMPORTS_PER_SOL } = await import('@solana/web3.js');
+    const lamports = Math.round(parseFloat(amount) * LAMPORTS_PER_SOL);
     const conn = new Connection('https://api.devnet.solana.com', 'confirmed'); // ⚠️ TESTNET
     return activeWallet.sendSol(PRESALE_SOL_WALLET, lamports, conn);
   };
@@ -695,9 +647,17 @@ export function BuySection() {
         await recordPurchase(hash, usdEst, tokensEst, btcAddr, 'BTC');
       } else if (!isEvm) {
         if (!solConnected) throw new Error('Connect Solana wallet first');
-        hash = (await sendSol()) || '';
-        if (hash) await recordPurchase(hash, usdEst, tokensEst, solAddr, 'SOL');
-        // If no hash, we redirected to Phantom — status will be set on return
+        if (activeWallet?.sendSol) {
+          // Injected wallet available (Phantom/Solflare browser or desktop extension)
+          // — same flow as Magic Eden/Tensor: direct signAndSendTransaction
+          hash = await sendSol();
+          if (hash) await recordPurchase(hash, usdEst, tokensEst, solAddr, 'SOL');
+        } else {
+          // No injected wallet — use Solana Pay URI as fallback
+          // (shows manual confirmation modal to paste tx signature)
+          sendSolViaSolanaPay();
+          return;
+        }
       } else {
         if (!address) throw new Error('Connect wallet first');
         const senderAddress = address;
@@ -1067,6 +1027,75 @@ export function BuySection() {
       )}
 
       {/* ── XVERSE / BTC PAYMENT MODAL ── */}
+      {/* ── SOLANA PAY CONFIRMATION MODAL ── */}
+      {showSolPay && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          onClick={() => setShowSolPay(false)}>
+          <div className="bg-[#0B0E14] border border-white/10 rounded-2xl p-6 w-[min(92vw,380px)] shadow-2xl"
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">◎</span>
+                <h3 className="text-[#F4F6FA] font-bold text-lg">Confirm SOL Payment</h3>
+              </div>
+              <button onClick={() => setShowSolPay(false)} className="text-[#A7B0B7] hover:text-white text-xl">×</button>
+            </div>
+            <p className="text-[#A7B0B7] text-xs mb-5 leading-relaxed">
+              Open Phantom (or any Solana wallet), send the exact amount below to our address, then paste your transaction signature here.
+            </p>
+            <div className="mb-4">
+              <p className="text-[#A7B0B7] text-xs font-semibold uppercase tracking-wider mb-2">Step 1 — Copy our SOL address</p>
+              <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-4 py-3">
+                <span className="text-[#F4F6FA] text-xs font-mono flex-1 truncate">{PRESALE_SOL_WALLET}</span>
+                <button onClick={() => { navigator.clipboard.writeText(PRESALE_SOL_WALLET); setManualBtcCopied(true); setTimeout(() => setManualBtcCopied(false), 2000); }}
+                  className="text-xs text-[#2BFFF1] hover:text-white font-semibold shrink-0">
+                  {manualBtcCopied ? '✓ Copied!' : 'Copy'}
+                </button>
+              </div>
+            </div>
+            <div className="mb-4 p-3 bg-purple-500/5 border border-purple-500/20 rounded-xl">
+              <p className="text-[#A7B0B7] text-xs font-semibold uppercase tracking-wider mb-1">Step 2 — Send exact amount</p>
+              <div className="flex items-baseline gap-2">
+                <span className="text-purple-400 font-bold text-2xl">{amount || '0'}</span>
+                <span className="text-purple-400 font-semibold">SOL</span>
+                {usdEst > 0 && <span className="text-[#A7B0B7] text-xs ml-auto">≈ ${usdEst.toFixed(2)}</span>}
+              </div>
+              <p className="text-[#A7B0B7] text-xs mt-1">Network: Devnet (testnet)</p>
+            </div>
+            <div className="mb-5">
+              <p className="text-[#A7B0B7] text-xs font-semibold uppercase tracking-wider mb-2">Step 3 — Paste transaction signature</p>
+              <input type="text" value={manualBtcTxHash} onChange={e => setManualBtcTxHash(e.target.value)}
+                placeholder="e.g. 5UfDuX3..."
+                className="w-full bg-white/5 border border-white/10 focus:border-[#2BFFF1]/50 rounded-xl px-4 py-3 text-[#F4F6FA] text-xs font-mono outline-none transition-colors placeholder:text-[#A7B0B7]/40" />
+            </div>
+            <button
+              onClick={async () => {
+                const sig = manualBtcTxHash.trim();
+                if (sig.length < 60) return;
+                setManualBtcSubmitting(true);
+                try {
+                  const pending = localStorage.getItem('_kleo_pending_sol_purchase');
+                  const { usd, tokens, addr } = pending ? JSON.parse(pending) : { usd: usdEst, tokens: tokensEst, addr: solAddr };
+                  localStorage.removeItem('_kleo_pending_sol_purchase');
+                  await recordPurchase(sig, usd, tokens, addr, 'SOL');
+                  setShowSolPay(false); setManualBtcTxHash('');
+                  setTxHash(sig); setTxStatus('success');
+                } catch {
+                  setTxError('Failed to record — contact support with your tx signature.');
+                  setTxStatus('error');
+                } finally { setManualBtcSubmitting(false); }
+              }}
+              disabled={manualBtcTxHash.trim().length < 60 || manualBtcSubmitting}
+              className="w-full bg-purple-600 hover:bg-purple-500 disabled:bg-white/10 disabled:text-[#A7B0B7] text-white font-bold py-4 rounded-xl transition-all">
+              {manualBtcSubmitting ? 'Recording...' : 'Confirm Payment'}
+            </button>
+            <p className="text-[#A7B0B7] text-xs text-center mt-4">
+              Your KLEO tokens will be reserved once we verify the transaction on-chain.
+            </p>
+          </div>
+        </div>
+      )}
+
       {showXversePay && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
           onClick={() => setShowXversePay(false)}>
