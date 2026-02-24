@@ -1,6 +1,7 @@
 import { gsap } from 'gsap';
 import { useEffect, useState } from 'react';
 import { useAccount } from 'wagmi';
+import { useWalletStore } from '../store/presaleStore';
 import { ArrowUp, CheckCircle2, Circle, Zap } from 'lucide-react';
 import {
   usePresaleStore,
@@ -23,6 +24,10 @@ interface PresaleProgressProps {
 
 export function PresaleProgress({ direction }: PresaleProgressProps) {
   const { address, isConnected } = useAccount();
+  const { solAddress, btcAddress } = useWalletStore();
+  // The "active" wallet for token lookup — EVM address, or SOL/BTC if connected
+  const activeAddress = address ?? solAddress ?? btcAddress ?? '';
+  const anyConnected = isConnected || !!solAddress || !!btcAddress;
   const { totalRaised, purchases, setTotalRaised } = usePresaleStore();
 
   const currentStage = getCurrentStage(totalRaised);
@@ -74,13 +79,13 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
   }, []);
 
   useEffect(() => {
-    if (!isConnected || !address || !supabase) return;
+    if (!anyConnected || !activeAddress || !supabase) return;
 
     const fetchTokens = async () => {
       const { data, error } = await supabase
         .from('presale_purchases')
         .select('tokens')
-        .eq('wallet_address', address.toLowerCase());
+        .eq('wallet_address', activeAddress.toLowerCase());
 
       if (error) {
         console.error('Supabase balance fetch error:', error);
@@ -96,7 +101,7 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
     const channel = supabase
       .channel('presale-updates')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'presale_purchases' }, (payload) => {
-        if (payload.new.wallet_address.toLowerCase() === address.toLowerCase()) {
+        if (payload.new.wallet_address.toLowerCase() === activeAddress.toLowerCase()) {
           setSupabaseTokens(prev => prev + Number(payload.new.tokens || 0));
         }
       })
@@ -105,7 +110,7 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [address, isConnected]);
+  }, [address, isConnected, solAddress, btcAddress, activeAddress, anyConnected]);
 
   useEffect(() => {
     gsap.fromTo(
@@ -241,7 +246,7 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
         </div>
 
         {/* User Info Card */}
-        {isConnected && (
+        {anyConnected && (
           <div className="glass-card rounded-[32px] p-8 shadow-2xl shadow-cyan-900/25">
             <div className="grid sm:grid-cols-2 gap-8">
               <div className="text-center sm:text-left">
@@ -290,7 +295,7 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
           </div>
         )}
 
-        {!isConnected && (
+        {!anyConnected && (
           <div className="text-center text-[#A7B0B7] mt-10 text-base">
             Connect your wallet to view your personal allocation, recent purchases, and real-time progress.
           </div>
