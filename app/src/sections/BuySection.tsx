@@ -6,7 +6,7 @@ import {
   ExternalLink, AlertCircle, CheckCircle2,
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
-import { useAccount, useSendTransaction, useDisconnect } from 'wagmi';
+import { useAccount, useSendTransaction, useDisconnect, useSwitchChain } from 'wagmi';
 import { parseEther } from 'viem';
 import { sepolia, bscTestnet } from 'wagmi/chains';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
@@ -204,6 +204,7 @@ export function BuySection() {
   const { address, isConnected, connector } = useAccount();
   const { disconnect: evmDisconnect } = useDisconnect();
   const { sendTransactionAsync }        = useSendTransaction();
+  const { switchChainAsync }            = useSwitchChain();
 
   // UI state
   const [tab,           setTab]          = useState<'crypto' | 'card'>('crypto');
@@ -660,16 +661,19 @@ export function BuySection() {
       } else {
         if (!address) throw new Error('Connect wallet first');
         const senderAddress = address;
-        // Only switch chain if actually needed — chain.id may be stale closure,
-        // so also guard against switching to the chain we're already on.
-        // Pass chainId directly to sendTransactionAsync — wagmi/MetaMask will
-        // handle the chain switch + transaction approval in a single wallet flow
-        // rather than two separate popups (switch → approve).
-        hash = await sendTransactionAsync({
-          to: PRESALE_ETH_WALLET,
-          value: parseEther(amount),
-          chainId: selected.chainId,
-        });
+        // Read live chainId directly from window.ethereum — avoids stale React closure
+        const liveChainId = (window as any).ethereum?.chainId
+          ? parseInt((window as any).ethereum.chainId, 16)
+          : undefined;
+        const onWrongChain = liveChainId !== undefined
+          ? liveChainId !== selected.chainId
+          : true;
+        if (onWrongChain) {
+          await switchChainAsync({ chainId: selected.chainId! });
+          // Give MetaMask time to finish reconnecting on the new chain
+          await new Promise<void>(resolve => setTimeout(resolve, 1500));
+        }
+        hash = await sendTransactionAsync({ to: PRESALE_ETH_WALLET, value: parseEther(amount) });
         await recordPurchase(hash, usdEst, tokensEst, senderAddress, selected.id);
       }
       if (hash) { setTxHash(hash); setTxStatus('success'); }
