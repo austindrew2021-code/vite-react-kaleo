@@ -26,7 +26,10 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
   const { address, isConnected } = useAccount();
   const { solAddress, btcAddress } = useWalletStore();
   // The "active" wallet for token lookup — EVM address, or SOL/BTC if connected
-  const activeAddress = address ?? solAddress ?? btcAddress ?? '';
+  // Prioritize SOL/BTC addresses since those are what purchases are recorded against.
+  // Inside Phantom's in-app browser, wagmi also auto-connects EVM, but purchases
+  // use solAddress — so SOL takes priority over EVM when both are set.
+  const activeAddress = solAddress || btcAddress || address || '';
   const anyConnected = isConnected || !!solAddress || !!btcAddress;
   const { totalRaised, purchases, setTotalRaised } = usePresaleStore();
 
