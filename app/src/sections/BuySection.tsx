@@ -140,6 +140,7 @@ declare global {
     solana?:    PhantomSolProvider;
     solflare?:  SolflareProvider;
     okxwallet?: { bitcoin?: BitcoinProvider; solana?: PhantomSolProvider };
+    unisat?: { requestAccounts: () => Promise<string[]>; sendBitcoin: (to: string, sat: number) => Promise<string> };
   }
 }
 
@@ -218,6 +219,14 @@ function detectBitcoinWallets(): DetectedWallet[] {
     },
     sendBtc: async (to, sat) => window.okxwallet!.bitcoin!.sendBitcoin(to, sat),
   });
+  if ((window as any).unisat) list.push({
+    id: 'unisat', name: 'Unisat', icon: '🟠', color: 'text-orange-400',
+    connect: async (): Promise<string> => {
+      const accs = await (window as any).unisat.requestAccounts();
+      return accs[0] ?? '';
+    },
+    sendBtc: async (to, sat) => (window as any).unisat.sendBitcoin(to, sat),
+  });
   return list;
 }
 
@@ -231,6 +240,51 @@ const CURRENCIES = [
   { id: 'ETH', label: 'Ethereum', symbol: 'ETH', icon: 'Ξ', color: 'text-blue-400',   chain: 'evm', chainId: sepolia.id },
   { id: 'BNB', label: 'BNB',      symbol: 'BNB', icon: '◆', color: 'text-yellow-400', chain: 'evm', chainId: bscTestnet.id },
   { id: 'BTC', label: 'Bitcoin',  symbol: 'BTC', icon: '₿', color: 'text-orange-400', chain: 'btc' },
+];
+
+const BTC_BROWSER_WALLETS = [
+  {
+    id: 'phantom', name: 'Phantom', icon: '👻',
+    desc: 'BTC · SOL · ETH · NFTs',
+    openUrl: (url: string) => {
+      const encoded = encodeURIComponent(url);
+      const ref = encodeURIComponent(new URL(url).origin);
+      if (/Android/i.test(navigator.userAgent))
+        window.location.href = `intent://browse/${encoded}?ref=${ref}#Intent;scheme=phantom;package=app.phantom;S.browser_fallback_url=https%3A%2F%2Fphantom.app%2F;end`;
+      else window.location.href = `https://phantom.app/ul/browse/${encoded}?ref=${ref}`;
+    },
+  },
+  {
+    id: 'xverse', name: 'Xverse', icon: '✦',
+    desc: 'BTC · Ordinals · Runes',
+    openUrl: (url: string) => {
+      const encoded = encodeURIComponent(url);
+      if (/Android/i.test(navigator.userAgent))
+        window.location.href = `intent://browser?url=${encoded}#Intent;scheme=xverse;package=com.secretkeylabs.xverse;S.browser_fallback_url=https%3A%2F%2Fwww.xverse.app%2F;end`;
+      else window.location.href = `https://www.xverse.app/browser?url=${encoded}`;
+    },
+  },
+  {
+    id: 'okx', name: 'OKX Wallet', icon: '⭕',
+    desc: 'BTC · ETH · BNB · SOL · 100+ chains',
+    openUrl: (url: string) => {
+      const encoded = encodeURIComponent(url);
+      if (/Android/i.test(navigator.userAgent))
+        window.location.href = `intent://browser?url=${encoded}#Intent;scheme=okex;package=com.okinc.okex.gp;S.browser_fallback_url=https%3A%2F%2Fwww.okx.com%2Fweb3;end`;
+      else window.location.href = `okx://wallet/dapp/url?dappUrl=${encoded}`;
+    },
+  },
+  {
+    id: 'unisat', name: 'Unisat', icon: '🟠',
+    desc: 'BTC · Ordinals · BRC-20',
+    openUrl: (url: string) => {
+      // Unisat has an in-app browser via their mobile app
+      const encoded = encodeURIComponent(url);
+      window.location.href = `unisat://browser?url=${encoded}`;
+      // Fallback to app store after 1.5s if not installed
+      setTimeout(() => window.open('https://unisat.io', '_blank'), 1500);
+    },
+  },
 ];
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -437,6 +491,25 @@ export function BuySection() {
         } catch {}
       }
 
+      // ── Auto-detect BTC injected wallet (inside Phantom/Xverse browser) ────
+      const btcWallets = detectBitcoinWallets();
+      if (btcWallets.length > 0 && !localStorage.getItem('_kleo_btc_address')) {
+        try {
+          const w = btcWallets[0];
+          const addr = await w.connect();
+          if (addr) {
+            localStorage.setItem('_kleo_btc_address', addr);
+            localStorage.setItem('_kleo_btc_wallet_name', w.name);
+            setBtcWallet(addr, w.name);
+            setActiveWallet(w);
+          }
+        } catch {}
+      } else if (btcWallets.length > 0 && localStorage.getItem('_kleo_btc_address')) {
+        // Already connected — restore active wallet for sends
+        const w = btcWallets[0];
+        setActiveWallet(w);
+      }
+
       // ── Auto-detect EVM injected wallet (inside MetaMask/Trust/etc browser) ─
       const evmBrowserName = isInEvmBrowser();
       if (evmBrowserName) {
@@ -614,16 +687,22 @@ export function BuySection() {
   const connectBtc = () => {
     const injected = detectBitcoinWallets();
     if (injected.length > 0) {
+      // Already inside Phantom/Xverse browser — connect directly
       if (injected.length === 1) {
         injected[0].connect().then(addr => {
-          setBtcWallet(addr, injected[0].name); setActiveWallet(injected[0]);
+          if (addr) {
+            localStorage.setItem('_kleo_btc_address', addr);
+            localStorage.setItem('_kleo_btc_wallet_name', injected[0].name);
+            setBtcWallet(addr, injected[0].name);
+            setActiveWallet(injected[0]);
+          }
         }).catch(() => {});
       } else {
         setInjectedWallets(injected); setPickerType('btc'); setShowInjectedPicker(true);
       }
       return;
     }
-    // Mobile: show BTC wallet picker (Phantom in-app browser or Xverse or MetaMask manual)
+    // External browser — show in-app browser picker
     setShowBtcPicker(true);
   };
 
@@ -642,32 +721,6 @@ export function BuySection() {
       }
       setActiveWallet(wallet);
     } catch {}
-  };
-
-  // ── Open Phantom in-app browser for BTC ──────────────────────────────
-  const openPhantomInApp = () => {
-    const url = encodeURIComponent(window.location.href);
-    const ref = encodeURIComponent(window.location.origin);
-    if (isAndroid()) window.location.href = `intent://browse/${url}?ref=${ref}#Intent;scheme=phantom;package=app.phantom;end`;
-    else if (isIOS()) window.location.href = `https://phantom.app/ul/browse/${url}?ref=${ref}`;
-    else window.open('https://phantom.app/', '_blank');
-  };
-
-  // Open Xverse payment sheet: uses bitcoin: URI which Xverse handles natively
-  // This is the only reliable cross-browser approach — no WebView isolation issues
-  const openXversePayment = () => {
-    const n = parseFloat(amount);
-    if (!n || n <= 0) { setShowBtcPicker(false); setShowXversePay(true); return; }
-    const label = encodeURIComponent('Kaleo Presale');
-    const message = encodeURIComponent(`Buy KLEO tokens - Stage ${currentStage.stage}`);
-    // BIP-21 payment URI — opens in any installed Bitcoin wallet
-    const paymentUri = `bitcoin:${PRESALE_BTC_WALLET}?amount=${n.toFixed(8)}&label=${label}&message=${message}`;
-
-    // Try to open via URI scheme — works in Chrome/Safari if a BTC wallet is installed
-    window.location.href = paymentUri;
-
-    // After 1.5s, if still here (no wallet handled it), show manual fallback
-    setTimeout(() => setShowXversePay(true), 1500);
   };
 
   // ── Send SOL via Solana Pay URI (industry standard for mobile) ──────────
@@ -732,20 +785,20 @@ export function BuySection() {
     try {
       let hash = '';
       if (isBtc) {
-        if (!activeWallet?.sendBtc) {
-          // No injected wallet API — use bitcoin: payment URI (works with Xverse, any BTC wallet)
-          const n2 = parseFloat(amount);
+        if (!btcConnected) throw new Error('Connect Bitcoin wallet first');
+        if (activeWallet?.sendBtc) {
+          // Injected wallet (Phantom/Xverse browser) — direct approval, no paste needed
+          hash = await sendBtc();
+          await recordPurchase(hash, usdEst, tokensEst, btcAddr, 'BTC');
+        } else {
+          // No injected send API — fall back to bitcoin: URI
           const label = encodeURIComponent('Kaleo Presale');
           const msg   = encodeURIComponent(`Buy KLEO tokens - Stage ${currentStage.stage}`);
-          const uri   = `bitcoin:${PRESALE_BTC_WALLET}?amount=${n2.toFixed(8)}&label=${label}&message=${msg}`;
+          const uri   = `bitcoin:${PRESALE_BTC_WALLET}?amount=${parseFloat(amount).toFixed(8)}&label=${label}&message=${msg}`;
           window.location.href = uri;
-          // Show manual fallback after 1.5s in case no wallet handles it
           setTimeout(() => { setTxStatus('idle'); setShowXversePay(true); }, 1500);
           return;
         }
-        if (!btcConnected) throw new Error('Connect Bitcoin wallet first');
-        hash = await sendBtc();
-        await recordPurchase(hash, usdEst, tokensEst, btcAddr, 'BTC');
       } else if (!isEvm) {
         if (!solConnected) throw new Error('Connect Solana wallet first');
         if (activeWallet?.sendSol) {
@@ -1120,44 +1173,28 @@ export function BuySection() {
       {showBtcPicker && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
           onClick={() => setShowBtcPicker(false)}>
-          <div className="bg-[#0B0E14] border border-white/10 rounded-2xl p-6 w-[min(92vw,360px)] shadow-2xl"
+          <div className="bg-[#0B0E14] border border-white/10 rounded-2xl p-6 w-[min(92vw,380px)] shadow-2xl"
             onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-5">
               <h3 className="text-[#F4F6FA] font-bold text-lg">Connect Bitcoin Wallet</h3>
               <button onClick={() => setShowBtcPicker(false)} className="text-[#A7B0B7] hover:text-white text-xl">×</button>
             </div>
             <p className="text-[#A7B0B7] text-xs mb-5 leading-relaxed">
-              Choose your wallet. Phantom and Xverse will open their app to connect, then return you here.
+              Bitcoin requires a Bitcoin-native wallet. These wallets support native BTC and will open this site in their browser for a seamless approval experience.
             </p>
-            <div className="space-y-3">
-              {/* Phantom — opens in-app browser where bitcoin API is injected */}
-              <button onClick={() => { setShowBtcPicker(false); openPhantomInApp(); }}
-                className="w-full flex items-center gap-4 bg-purple-600/10 hover:bg-purple-600/20 border border-purple-500/30 hover:border-purple-400/60 rounded-xl px-4 py-4 transition-all">
-                <span className="text-2xl">👻</span>
-                <div className="text-left">
-                  <p className="text-purple-300 font-semibold">Phantom</p>
-                  <p className="text-[#A7B0B7] text-xs">Opens Phantom browser to connect</p>
-                </div>
-              </button>
-              {/* Xverse — uses bitcoin: payment URI, no WebView isolation issues */}
-              <button onClick={() => { setShowBtcPicker(false); openXversePayment(); }}
-                className="w-full flex items-center gap-4 bg-blue-600/10 hover:bg-blue-600/20 border border-blue-500/30 hover:border-blue-400/60 rounded-xl px-4 py-4 transition-all">
-                <span className="text-2xl">₿</span>
-                <div className="text-left">
-                  <p className="text-blue-300 font-semibold">Xverse</p>
-                  <p className="text-[#A7B0B7] text-xs">Opens Xverse to approve payment</p>
-                </div>
-              </button>
-              {/* MetaMask — manual payment only */}
-              <button onClick={() => { setShowBtcPicker(false); setShowManualBtc(true); }}
-                className="w-full flex items-center gap-4 bg-orange-600/10 hover:bg-orange-600/20 border border-orange-500/30 hover:border-orange-400/60 rounded-xl px-4 py-4 transition-all">
-                <span className="text-2xl">🦊</span>
-                <div className="text-left">
-                  <p className="text-orange-300 font-semibold">MetaMask</p>
-                  <p className="text-[#A7B0B7] text-xs">Send manually &middot; paste tx hash</p>
-                </div>
-                <span className="ml-auto text-[#A7B0B7] text-xs bg-white/5 rounded px-2 py-0.5">Manual</span>
-              </button>
+            <div className="flex flex-col gap-3">
+              {BTC_BROWSER_WALLETS.map(w => (
+                <button key={w.id}
+                  onClick={() => { setShowBtcPicker(false); w.openUrl(window.location.href); }}
+                  className="flex items-center gap-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-orange-400/30 rounded-xl px-4 py-3.5 transition-all text-left">
+                  <span className="text-3xl leading-none">{w.icon}</span>
+                  <div>
+                    <p className="text-[#F4F6FA] font-semibold text-sm">{w.name}</p>
+                    <p className="text-[#A7B0B7] text-xs">{w.desc}</p>
+                  </div>
+                  <span className="ml-auto text-[#A7B0B7] text-lg">›</span>
+                </button>
+              ))}
             </div>
           </div>
         </div>
