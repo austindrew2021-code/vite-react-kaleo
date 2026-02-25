@@ -6,7 +6,7 @@ import {
   ExternalLink, AlertCircle, CheckCircle2,
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
-import { useAccount, useSendTransaction, useDisconnect } from 'wagmi';
+import { useAccount, useSendTransaction, useDisconnect, useSwitchChain } from 'wagmi';
 import { parseEther } from 'viem';
 import { sepolia, bscTestnet } from 'wagmi/chains';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
@@ -204,6 +204,7 @@ export function BuySection() {
   const { address, isConnected, connector } = useAccount();
   const { disconnect: evmDisconnect } = useDisconnect();
   const { sendTransactionAsync }        = useSendTransaction();
+  const { switchChainAsync }            = useSwitchChain();
 
   // UI state
   const [tab,           setTab]          = useState<'crypto' | 'card'>('crypto');
@@ -746,7 +747,14 @@ export function BuySection() {
             {/* Currency selector */}
             <div className="grid grid-cols-4 gap-2 mb-5">
               {CURRENCIES.map(c => (
-                <button key={c.id} onClick={() => { setCurrency(c.id); reset(); }}
+                <button key={c.id} onClick={() => {
+                    setCurrency(c.id); reset();
+                    // Switch to the correct EVM chain as soon as user picks the tab
+                    // so by the time they hit Buy, wagmi is already on the right chain
+                    if (c.chainId && isConnected) {
+                      switchChainAsync({ chainId: c.chainId }).catch(() => {});
+                    }
+                  }}
                   className={`py-3 px-2 rounded-xl border text-center transition-all duration-200 ${
                     currency === c.id
                       ? 'border-[#2BFFF1]/60 bg-[#2BFFF1]/10 scale-[1.03]'
