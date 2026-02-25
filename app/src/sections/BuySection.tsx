@@ -528,29 +528,32 @@ export function BuySection() {
         }
 
       } else if (isMetaMaskBrowser || isEvmBrowser) {
-        // ── MetaMask / EVM browser: restore saved currency or default to BNB ─
-        // Connect EVM. BTC tab will use window.bitcoin on demand — no conflict.
+        // ── MetaMask / EVM browser: restore saved state only — NO auto-connect ─
+        // We never call eth_requestAccounts on mount. The user picks their tab
+        // (BTC, BNB, ETH etc) and taps Connect — connectWallet() then calls the
+        // correct API for that tab only:
+        //   BTC tab  → window.bitcoin.requestAccounts() = Bitcoin-only prompt
+        //   BNB/ETH  → eth_requestAccounts = EVM network prompt
+        // This prevents the "tick Bitcoin checkbox" problem entirely.
         const savedCurrency = localStorage.getItem('_kleo_active_currency');
-        const targetCurrency = (savedCurrency && ['ETH','BNB','USDC','USDT'].includes(savedCurrency))
-          ? savedCurrency : 'BNB';
-        const targetChainId = CURRENCIES.find(c => c.id === targetCurrency)?.chainId ?? 97;
-        try {
-          const chainHex = await eth.request({ method: 'eth_chainId' });
-          if (parseInt(chainHex, 16) !== targetChainId) {
-            await eth.request({
-              method: 'wallet_switchEthereumChain',
-              params: [{ chainId: `0x${targetChainId.toString(16)}` }],
-            }).catch(() => {});
-            await new Promise<void>(r => setTimeout(r, 400));
-          }
-          const accounts: string[] = await eth.request({ method: 'eth_requestAccounts' });
-          if (accounts[0]) {
-            setEvmInjectedAddr(accounts[0]);
-            setEvmInjectedName(isInEvmBrowser() || 'Wallet');
-            localStorage.setItem('_kleo_evm_address', accounts[0]);
-            setCurrency(targetCurrency);
-          }
-        } catch {}
+        if (savedCurrency && CURRENCIES.find(c => c.id === savedCurrency)) {
+          setCurrency(savedCurrency);
+        } else {
+          setCurrency('BNB'); // sensible default for MetaMask users
+        }
+        // If we already have a saved EVM address from a previous session, restore it silently
+        const storedEvm = localStorage.getItem('_kleo_evm_address');
+        const storedEvmName = localStorage.getItem('_kleo_evm_wallet_name');
+        if (storedEvm && storedEvmName) {
+          // Verify the account is still accessible without prompting
+          try {
+            const existing: string[] = await eth.request({ method: 'eth_accounts' }); // read-only, no prompt
+            if (existing.includes(storedEvm.toLowerCase()) || existing[0]) {
+              setEvmInjectedAddr(existing[0] || storedEvm);
+              setEvmInjectedName(storedEvmName);
+            }
+          } catch {}
+        }
 
       } else if (isOkxBrowser) {
         // ── OKX browser: use last saved currency or default to BNB ──────────
