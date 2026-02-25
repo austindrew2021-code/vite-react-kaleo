@@ -229,32 +229,38 @@ function detectBitcoinWallets(): DetectedWallet[] {
     },
     sendBtc: async (to, sat) => (window as any).unisat.sendBitcoin(to, sat),
   });
-  // MetaMask native Bitcoin — injected as window.bitcoin when inside MetaMask browser
-  // on the Bitcoin network. Uses Native SegWit (bc1q...) addresses.
-  if (window.bitcoin && (window as any).ethereum?.isMetaMask) list.push({
-    id: 'metamask-btc', name: 'MetaMask', icon: '🦊', color: 'text-orange-400',
-    connect: async (): Promise<string> => {
-      const accs = await window.bitcoin!.requestAccounts();
-      // Prefer Native SegWit (bc1q) payment address
-      return accs.find(a => a.purpose === 'payment' && a.address.startsWith('bc1'))?.address
-          ?? accs.find(a => a.purpose === 'payment')?.address
-          ?? accs[0]?.address ?? '';
-    },
-    sendBtc: async (to, sat) => window.bitcoin!.sendBitcoin(to, sat),
-  });
+
   return list;
 }
 
 // ── Price data ────────────────────────────────────────────────────────────
 const COINGECKO_IDS: Record<string, string> = {
   ETH: 'ethereum', BNB: 'binancecoin', SOL: 'solana', BTC: 'bitcoin',
+  USDC: 'usd-coin', USDT: 'tether',
 };
 
+// ERC-20 token contracts (⚠️ TESTNET — swap for mainnet at launch)
+// Mainnet: USDC=0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48  USDT=0xdAC17F958D2ee523a2206206994597C13D831ec7
+const TOKEN_CONTRACTS: Record<string, { address: string; decimals: number; chainId: number }> = {
+  USDC: { address: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238', decimals: 6, chainId: sepolia.id },   // Sepolia USDC
+  USDT: { address: '0x337610d27c682E347C9cD60BD4b3b107C9d34dDd', decimals: 18, chainId: bscTestnet.id }, // BSC Testnet USDT
+};
+
+// Encode ERC-20 transfer(address,uint256) calldata — no ethers needed
+function encodeERC20Transfer(to: string, amount: bigint): string {
+  const selector = 'a9059cbb'; // transfer(address,uint256)
+  const paddedTo = to.replace('0x', '').toLowerCase().padStart(64, '0');
+  const paddedAmt = amount.toString(16).padStart(64, '0');
+  return `0x${selector}${paddedTo}${paddedAmt}`;
+}
+
 const CURRENCIES = [
-  { id: 'SOL', label: 'Solana',   symbol: 'SOL', icon: '◎', color: 'text-purple-400', chain: 'sol' },
-  { id: 'ETH', label: 'Ethereum', symbol: 'ETH', icon: 'Ξ', color: 'text-blue-400',   chain: 'evm', chainId: sepolia.id },
-  { id: 'BNB', label: 'BNB',      symbol: 'BNB', icon: '◆', color: 'text-yellow-400', chain: 'evm', chainId: bscTestnet.id },
-  { id: 'BTC', label: 'Bitcoin',  symbol: 'BTC', icon: '₿', color: 'text-orange-400', chain: 'btc' },
+  { id: 'SOL',  label: 'Solana',   symbol: 'SOL',  icon: '◎', color: 'text-purple-400', chain: 'sol' },
+  { id: 'ETH',  label: 'Ethereum', symbol: 'ETH',  icon: 'Ξ', color: 'text-blue-400',   chain: 'evm', chainId: sepolia.id },
+  { id: 'BNB',  label: 'BNB',      symbol: 'BNB',  icon: '◆', color: 'text-yellow-400', chain: 'evm', chainId: bscTestnet.id },
+  { id: 'USDC', label: 'USDC',     symbol: 'USDC', icon: '$', color: 'text-green-400',  chain: 'evm', chainId: sepolia.id,    token: 'USDC' },
+  { id: 'USDT', label: 'USDT',     symbol: 'USDT', icon: '₮', color: 'text-teal-400',   chain: 'evm', chainId: bscTestnet.id, token: 'USDT' },
+  { id: 'BTC',  label: 'Bitcoin',  symbol: 'BTC',  icon: '₿', color: 'text-orange-400', chain: 'btc' },
 ];
 
 const BTC_BROWSER_WALLETS = [
@@ -298,15 +304,6 @@ const BTC_BROWSER_WALLETS = [
       setTimeout(() => window.open('https://unisat.io', '_blank'), 1500);
     },
   },
-  {
-    id: 'metamask', name: 'MetaMask', icon: '🦊',
-    desc: 'BTC (Native SegWit) · ETH · BNB · 100+ chains',
-    openUrl: (url: string) => {
-      // Open MetaMask in-app browser — window.bitcoin is injected when on Bitcoin network
-      const clean = url.replace(/^https?:\/\//, '');
-      window.location.href = `https://metamask.app.link/dapp/${clean}`;
-    },
-  },
 ];
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -337,7 +334,7 @@ export function BuySection() {
   const [txError,       setTxError]      = useState('');
   const [cardUsd,       setCardUsd]      = useState('100');
   const [stripeLoading, setStripeLoading] = useState(false);
-  const [liveRates,     setLiveRates]    = useState<Record<string,number>>({ ETH: 3200, BNB: 580, SOL: 170, BTC: 65000 });
+  const [liveRates,     setLiveRates]    = useState<Record<string,number>>({ ETH: 3200, BNB: 580, SOL: 170, BTC: 65000, USDC: 1, USDT: 1 });
   const [priceLoading,  setPriceLoading] = useState(false);
   const [priceError,    setPriceError]   = useState(false);
 
@@ -641,7 +638,9 @@ export function BuySection() {
   // ── USD estimate ───────────────────────────────────────────────────────
   useEffect(() => {
     const n = parseFloat(amount);
-    setUsdEst(!n || n <= 0 ? 0 : n * (liveRates[currency] || 1));
+    // Stablecoins: amount = USD value directly. Others: multiply by live rate.
+    const isStable = currency === 'USDC' || currency === 'USDT';
+    setUsdEst(!n || n <= 0 ? 0 : isStable ? n : n * (liveRates[currency] || 1));
   }, [amount, currency, liveRates]);
 
   const tokensFor = (usd: number) => Math.floor(usd / currentStage.priceUsd);
@@ -838,26 +837,49 @@ export function BuySection() {
         if (!address) throw new Error('Connect wallet first');
         const senderAddress = address;
         const targetChainId = selected.chainId!;
+        const tokenKey = (selected as any).token as string | undefined;
+        const tokenInfo = tokenKey ? TOKEN_CONTRACTS[tokenKey] : undefined;
         const ethProvider = (window as any).ethereum;
 
-        if (ethProvider?.isMetaMask) {
-          // Inside MetaMask browser: use injected provider directly — reliable, no WalletConnect
+        // Helper: switch chain via injected provider
+        const switchToChain = async (chainId: number) => {
           const chainHex = await ethProvider.request({ method: 'eth_chainId' });
-          const currentId = parseInt(chainHex, 16);
-          if (currentId !== targetChainId) {
-            await ethProvider.request({
-              method: 'wallet_switchEthereumChain',
-              params: [{ chainId: `0x${targetChainId.toString(16)}` }],
-            });
-            await new Promise<void>(resolve => setTimeout(resolve, 500));
+          if (parseInt(chainHex, 16) !== chainId) {
+            try {
+              await ethProvider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: `0x${chainId.toString(16)}` }] });
+            } catch (e: any) {
+              if (e.code === 4902) {
+                const chainData = chainId === 97
+                  ? { chainId: '0x61', chainName: 'BSC Testnet', nativeCurrency: { name: 'tBNB', symbol: 'tBNB', decimals: 18 }, rpcUrls: ['https://bsc-testnet-rpc.publicnode.com'], blockExplorerUrls: ['https://testnet.bscscan.com'] }
+                  : { chainId: '0xaa36a7', chainName: 'Sepolia', nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }, rpcUrls: ['https://ethereum-sepolia-rpc.publicnode.com'], blockExplorerUrls: ['https://sepolia.etherscan.io'] };
+                await ethProvider.request({ method: 'wallet_addEthereumChain', params: [chainData] });
+              } else throw e;
+            }
+            await new Promise<void>(resolve => setTimeout(resolve, 600));
           }
-          const txHash = await ethProvider.request({
-            method: 'eth_sendTransaction',
-            params: [{ from: senderAddress, to: PRESALE_ETH_WALLET, value: `0x${BigInt(parseEther(amount)).toString(16)}` }],
-          });
-          hash = txHash as string;
+        };
+
+        if (ethProvider) {
+          await switchToChain(targetChainId);
+
+          if (tokenInfo) {
+            // ── ERC-20 token transfer (USDC / USDT) ──────────────────────
+            // Amount in token units (USDC=6 decimals, USDT=18 decimals)
+            const tokenAmount = BigInt(Math.round(usdEst * 10 ** tokenInfo.decimals));
+            const data = encodeERC20Transfer(PRESALE_ETH_WALLET, tokenAmount);
+            hash = await ethProvider.request({
+              method: 'eth_sendTransaction',
+              params: [{ from: senderAddress, to: tokenInfo.address, data, value: '0x0' }],
+            });
+          } else {
+            // ── Native coin transfer (ETH / BNB) ──────────────────────────
+            hash = await ethProvider.request({
+              method: 'eth_sendTransaction',
+              params: [{ from: senderAddress, to: PRESALE_ETH_WALLET, value: `0x${BigInt(parseEther(amount)).toString(16)}` }],
+            });
+          }
         } else {
-          // Desktop or WalletConnect fallback
+          // Desktop / WalletConnect fallback (native only)
           await switchChainAsync({ chainId: targetChainId });
           await new Promise<void>(resolve => setTimeout(resolve, 800));
           hash = await sendTransactionAsync({ to: PRESALE_ETH_WALLET, value: parseEther(amount) });
