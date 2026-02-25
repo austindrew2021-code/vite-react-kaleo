@@ -6,7 +6,7 @@ import {
   ExternalLink, AlertCircle, CheckCircle2,
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
-import { useAccount, useSendTransaction, useDisconnect, useSwitchChain, useChainId } from 'wagmi';
+import { useAccount, useSendTransaction, useDisconnect } from 'wagmi';
 import { parseEther } from 'viem';
 import { sepolia, bscTestnet } from 'wagmi/chains';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
@@ -204,8 +204,6 @@ export function BuySection() {
   const { address, isConnected, connector } = useAccount();
   const { disconnect: evmDisconnect } = useDisconnect();
   const { sendTransactionAsync }        = useSendTransaction();
-  const { switchChainAsync }            = useSwitchChain();
-  const currentChainId                  = useChainId();
 
   // UI state
   const [tab,           setTab]          = useState<'crypto' | 'card'>('crypto');
@@ -662,13 +660,8 @@ export function BuySection() {
       } else {
         if (!address) throw new Error('Connect wallet first');
         const senderAddress = address;
-        const targetChainId = selected.chainId!;
-        // Use wagmi's useChainId — works for both injected AND WalletConnect
-        if (currentChainId !== targetChainId) {
-          await switchChainAsync({ chainId: targetChainId });
-          // Brief pause for WalletConnect to settle after chain switch
-          await new Promise<void>(resolve => setTimeout(resolve, 800));
-        }
+        // Send directly — MetaMask handles wrong-chain prompting natively.
+        // Manual switchChainAsync breaks WalletConnect (session reconnect race).
         hash = await sendTransactionAsync({ to: PRESALE_ETH_WALLET, value: parseEther(amount) });
         await recordPurchase(hash, usdEst, tokensEst, senderAddress, selected.id);
       }
