@@ -141,6 +141,8 @@ declare global {
     solflare?:  SolflareProvider;
     okxwallet?: { bitcoin?: BitcoinProvider; solana?: PhantomSolProvider };
     unisat?: { requestAccounts: () => Promise<string[]>; sendBitcoin: (to: string, sat: number) => Promise<string> };
+    // MetaMask native Bitcoin (injected as window.bitcoin when on Bitcoin network)
+    bitcoin?: { requestAccounts: () => Promise<{ address: string; addressType: string; publicKey: string; purpose: string }[]>; sendBitcoin: (to: string, satoshis: number, opts?: { feeRate?: number }) => Promise<string> };
   }
 }
 
@@ -227,6 +229,19 @@ function detectBitcoinWallets(): DetectedWallet[] {
     },
     sendBtc: async (to, sat) => (window as any).unisat.sendBitcoin(to, sat),
   });
+  // MetaMask native Bitcoin — injected as window.bitcoin when inside MetaMask browser
+  // on the Bitcoin network. Uses Native SegWit (bc1q...) addresses.
+  if (window.bitcoin && (window as any).ethereum?.isMetaMask) list.push({
+    id: 'metamask-btc', name: 'MetaMask', icon: '🦊', color: 'text-orange-400',
+    connect: async (): Promise<string> => {
+      const accs = await window.bitcoin!.requestAccounts();
+      // Prefer Native SegWit (bc1q) payment address
+      return accs.find(a => a.purpose === 'payment' && a.address.startsWith('bc1'))?.address
+          ?? accs.find(a => a.purpose === 'payment')?.address
+          ?? accs[0]?.address ?? '';
+    },
+    sendBtc: async (to, sat) => window.bitcoin!.sendBitcoin(to, sat),
+  });
   return list;
 }
 
@@ -278,11 +293,18 @@ const BTC_BROWSER_WALLETS = [
     id: 'unisat', name: 'Unisat', icon: '🟠',
     desc: 'BTC · Ordinals · BRC-20',
     openUrl: (url: string) => {
-      // Unisat has an in-app browser via their mobile app
       const encoded = encodeURIComponent(url);
       window.location.href = `unisat://browser?url=${encoded}`;
-      // Fallback to app store after 1.5s if not installed
       setTimeout(() => window.open('https://unisat.io', '_blank'), 1500);
+    },
+  },
+  {
+    id: 'metamask', name: 'MetaMask', icon: '🦊',
+    desc: 'BTC (Native SegWit) · ETH · BNB · 100+ chains',
+    openUrl: (url: string) => {
+      // Open MetaMask in-app browser — window.bitcoin is injected when on Bitcoin network
+      const clean = url.replace(/^https?:\/\//, '');
+      window.location.href = `https://metamask.app.link/dapp/${clean}`;
     },
   },
 ];
@@ -491,7 +513,7 @@ export function BuySection() {
         } catch {}
       }
 
-      // ── Auto-detect BTC injected wallet (inside Phantom/Xverse browser) ────
+      // ── Auto-detect BTC injected wallet (Phantom/Xverse/MetaMask/OKX/Unisat) ─
       const btcWallets = detectBitcoinWallets();
       if (btcWallets.length > 0 && !localStorage.getItem('_kleo_btc_address')) {
         try {
@@ -1180,7 +1202,7 @@ export function BuySection() {
               <button onClick={() => setShowBtcPicker(false)} className="text-[#A7B0B7] hover:text-white text-xl">×</button>
             </div>
             <p className="text-[#A7B0B7] text-xs mb-5 leading-relaxed">
-              Bitcoin requires a Bitcoin-native wallet. These wallets support native BTC and will open this site in their browser for a seamless approval experience.
+              Select your wallet — it will open this site in its browser where it can sign and approve Bitcoin transactions directly.
             </p>
             <div className="flex flex-col gap-3">
               {BTC_BROWSER_WALLETS.map(w => (
