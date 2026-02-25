@@ -663,23 +663,15 @@ export function BuySection() {
         const senderAddress = address;
         const targetChainId = selected.chainId!;
 
-        // Step 1: switch chain if needed — blocking with user-visible status
-        setTxError(`Approve network switch to ${selected.label} in your wallet...`);
-        try {
-          await switchChainAsync({ chainId: targetChainId });
-        } catch (switchErr: any) {
-          // Already on correct chain — ignore "already on this chain" errors
-          const msg = switchErr?.message || '';
-          if (!msg.includes('already') && !msg.includes('same chain')) {
-            throw new Error(`Network switch failed: ${msg}`);
-          }
-        }
+        // Switch chain only if needed (BNB=97 is now default so usually a no-op for BNB).
+        // For ETH/Sepolia the switch is required.
+        setTxError(`Switching to ${selected.label} network...`);
+        await switchChainAsync({ chainId: targetChainId });
         setTxError('');
 
-        // Step 2: small pause for WalletConnect session to settle
-        await new Promise<void>(resolve => setTimeout(resolve, 600));
+        // Brief pause for WalletConnect session to settle after chain switch
+        await new Promise<void>(resolve => setTimeout(resolve, 800));
 
-        // Step 3: send transaction on the now-correct chain
         hash = await sendTransactionAsync({ to: PRESALE_ETH_WALLET, value: parseEther(amount) });
         await recordPurchase(hash, usdEst, tokensEst, senderAddress, selected.id);
       }
