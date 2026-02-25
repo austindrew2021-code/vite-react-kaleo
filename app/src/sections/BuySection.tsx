@@ -304,6 +304,14 @@ const BTC_BROWSER_WALLETS = [
       setTimeout(() => window.open('https://unisat.io', '_blank'), 1500);
     },
   },
+  {
+    id: 'metamask', name: 'MetaMask', icon: '🦊',
+    desc: 'BTC · ETH · BNB · 100+ chains',
+    openUrl: (url: string) => {
+      const clean = url.replace(/^https?:\/\//, '');
+      window.location.href = `https://metamask.app.link/dapp/${clean}`;
+    },
+  },
 ];
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -483,57 +491,29 @@ export function BuySection() {
         setSolWallet(storedAddr, 'Phantom');
           }
 
-      // ── Restore saved BTC address from localStorage (set when in Xverse/Phantom browser) ──
+      // ── Detect which wallet browser we're inside ────────────────────────
+      // Network isolation: only auto-connect the wallet type for this browser.
+      // MetaMask browser → EVM only (BTC connect happens on-demand via window.bitcoin)
+      // Phantom browser  → SOL + BTC both available
+      // Xverse browser   → BTC only
+      const ethProvider = (window as any).ethereum;
+      const evmBrowserName = isInEvmBrowser();
+
+      // ── BTC: restore saved address (no auto-connect — wait for user to tap BTC tab) ─
       const savedBtcAddr = localStorage.getItem('_kleo_btc_address');
       const savedBtcName = localStorage.getItem('_kleo_btc_wallet_name');
       if (savedBtcAddr && savedBtcName) {
         setBtcWallet(savedBtcAddr, savedBtcName);
+        // Restore active wallet object for sends
+        const btcWallets = detectBitcoinWallets();
+        const w = btcWallets.find(w => w.name === savedBtcName) ?? btcWallets[0];
+        if (w) setActiveWallet(w);
       }
 
-      // ── Auto-connect MetaMask when inside MetaMask in-app browser ────────
-      const ethProvider = (window as any).ethereum;
-      if (ethProvider?.isMetaMask) {
+      // ── EVM: auto-connect if inside an EVM wallet browser ────────────────
+      if (evmBrowserName && ethProvider) {
         try {
-          const accounts = await ethProvider.request({ method: 'eth_requestAccounts' });
-          if (accounts?.length) {
-            // wagmi/RainbowKit will pick this up — just ensure we're on right chain
-            const chainHex = await ethProvider.request({ method: 'eth_chainId' });
-            const chainId = parseInt(chainHex, 16);
-            const targetId = CURRENCIES.find(c => c.id === 'BNB')?.chainId ?? 97;
-            if (chainId !== targetId) {
-              await ethProvider.request({
-                method: 'wallet_switchEthereumChain',
-                params: [{ chainId: `0x${targetId.toString(16)}` }],
-              }).catch(() => {});
-            }
-          }
-        } catch {}
-      }
-
-      // ── Auto-detect BTC injected wallet (Phantom/Xverse/MetaMask/OKX/Unisat) ─
-      const btcWallets = detectBitcoinWallets();
-      if (btcWallets.length > 0 && !localStorage.getItem('_kleo_btc_address')) {
-        try {
-          const w = btcWallets[0];
-          const addr = await w.connect();
-          if (addr) {
-            localStorage.setItem('_kleo_btc_address', addr);
-            localStorage.setItem('_kleo_btc_wallet_name', w.name);
-            setBtcWallet(addr, w.name);
-            setActiveWallet(w);
-          }
-        } catch {}
-      } else if (btcWallets.length > 0 && localStorage.getItem('_kleo_btc_address')) {
-        // Already connected — restore active wallet for sends
-        const w = btcWallets[0];
-        setActiveWallet(w);
-      }
-
-      // ── Auto-detect EVM injected wallet (inside MetaMask/Trust/etc browser) ─
-      const evmBrowserName = isInEvmBrowser();
-      if (evmBrowserName) {
-        try {
-          const accounts: string[] = await (window as any).ethereum.request({ method: 'eth_requestAccounts' });
+          const accounts: string[] = await ethProvider.request({ method: 'eth_requestAccounts' });
           if (accounts[0]) {
             setEvmInjectedAddr(accounts[0]);
             setEvmInjectedName(evmBrowserName);
@@ -660,9 +640,22 @@ export function BuySection() {
   const connectEvm = async () => {
     const evmBrowserName = isInEvmBrowser();
     if (evmBrowserName) {
-      // Already inside a wallet browser — connect directly
+      // Already inside an EVM wallet browser — connect EVM directly
       try {
-        const accounts: string[] = await (window as any).ethereum.request({ method: 'eth_requestAccounts' });
+        const eth = (window as any).ethereum;
+        // Switch to the correct EVM chain for selected currency before connecting
+        const targetId = (selected as any).chainId as number | undefined;
+        if (targetId) {
+          const chainHex = await eth.request({ method: 'eth_chainId' });
+          if (parseInt(chainHex, 16) !== targetId) {
+            await eth.request({
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: `0x${targetId.toString(16)}` }],
+            }).catch(() => {});
+            await new Promise<void>(r => setTimeout(r, 500));
+          }
+        }
+        const accounts: string[] = await eth.request({ method: 'eth_requestAccounts' });
         if (accounts[0]) { setEvmInjectedAddr(accounts[0]); setEvmInjectedName(evmBrowserName); }
       } catch (e: any) { setTxError(e.message || 'Connection rejected'); setTxStatus('error'); }
       return;
@@ -705,10 +698,29 @@ export function BuySection() {
   };
 
   // ── Connect BTC wallet ─────────────────────────────────────────────────
-  const connectBtc = () => {
+  const connectBtc = async () => {
     const injected = detectBitcoinWallets();
+
+    // MetaMask: prefer window.bitcoin over window.ethereum for BTC tab
+    // window.bitcoin is the Bitcoin Snap API — works independently of EVM network
+    const mmBtc = injected.find(w => w.id === 'metamask-btc');
+    if (mmBtc) {
+      try {
+        const addr = await mmBtc.connect();
+        if (addr) {
+          localStorage.setItem('_kleo_btc_address', addr);
+          localStorage.setItem('_kleo_btc_wallet_name', 'MetaMask');
+          setBtcWallet(addr, 'MetaMask');
+          setActiveWallet(mmBtc);
+        }
+      } catch (e: any) {
+        setTxError(e?.message || 'MetaMask BTC connection failed'); setTxStatus('error');
+      }
+      return;
+    }
+
     if (injected.length > 0) {
-      // Already inside Phantom/Xverse browser — connect directly
+      // Inside Phantom/Xverse/OKX/Unisat browser — connect directly
       if (injected.length === 1) {
         injected[0].connect().then(addr => {
           if (addr) {
@@ -723,7 +735,7 @@ export function BuySection() {
       }
       return;
     }
-    // External browser — show in-app browser picker
+    // External browser — show wallet picker to open in-app browser
     setShowBtcPicker(true);
   };
 
@@ -968,7 +980,19 @@ export function BuySection() {
             {/* Currency selector */}
             <div className="grid grid-cols-4 gap-2 mb-5">
               {CURRENCIES.map(c => (
-                <button key={c.id} onClick={() => { setCurrency(c.id); reset(); }}
+                <button key={c.id} onClick={() => {
+                    setCurrency(c.id);
+                    reset();
+                    // Network isolation: clear cross-chain state when switching tabs
+                    if (c.chain === 'btc') {
+                      // Switching to BTC — suppress EVM injected so it doesn't intercept
+                      setEvmInjectedAddr(''); setEvmInjectedName('');
+                    } else if (c.chain === 'sol') {
+                      // Switching to SOL — clear BTC active wallet
+                      setActiveWallet(null);
+                    }
+                    // Note: we don't clear addresses from store — just suppress for this session
+                  }}
                   className={`py-3 px-2 rounded-xl border text-center transition-all duration-200 ${
                     currency === c.id
                       ? 'border-[#2BFFF1]/60 bg-[#2BFFF1]/10 scale-[1.03]'
@@ -1453,4 +1477,4 @@ export function BuySection() {
       )}
     </section>
   );
-  }
+}
