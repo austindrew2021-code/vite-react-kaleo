@@ -40,10 +40,12 @@ const connectors = connectorsForWallets(
 
 export const config = createConfig({
   connectors,
-  chains: [sepolia, bscTestnet],
+  // bscTestnet first — WalletConnect sessions default to the first chain.
+  // This ensures MetaMask connects on BSC Testnet, not Sepolia.
+  chains: [bscTestnet, sepolia],
   transports: {
-    [sepolia.id]:     http('https://ethereum-sepolia-rpc.publicnode.com'),
     [bscTestnet.id]: http('https://bsc-testnet-rpc.publicnode.com'),
+    [sepolia.id]:     http('https://ethereum-sepolia-rpc.publicnode.com'),
   },
   ssr: false,
 });
