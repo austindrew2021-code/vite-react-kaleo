@@ -661,8 +661,25 @@ export function BuySection() {
       } else {
         if (!address) throw new Error('Connect wallet first');
         const senderAddress = address;
-        // Send directly — MetaMask handles wrong-chain prompting natively.
-        // Manual switchChainAsync breaks WalletConnect (session reconnect race).
+        const targetChainId = selected.chainId!;
+
+        // Step 1: switch chain if needed — blocking with user-visible status
+        setTxError(`Approve network switch to ${selected.label} in your wallet...`);
+        try {
+          await switchChainAsync({ chainId: targetChainId });
+        } catch (switchErr: any) {
+          // Already on correct chain — ignore "already on this chain" errors
+          const msg = switchErr?.message || '';
+          if (!msg.includes('already') && !msg.includes('same chain')) {
+            throw new Error(`Network switch failed: ${msg}`);
+          }
+        }
+        setTxError('');
+
+        // Step 2: small pause for WalletConnect session to settle
+        await new Promise<void>(resolve => setTimeout(resolve, 600));
+
+        // Step 3: send transaction on the now-correct chain
         hash = await sendTransactionAsync({ to: PRESALE_ETH_WALLET, value: parseEther(amount) });
         await recordPurchase(hash, usdEst, tokensEst, senderAddress, selected.id);
       }
@@ -747,14 +764,7 @@ export function BuySection() {
             {/* Currency selector */}
             <div className="grid grid-cols-4 gap-2 mb-5">
               {CURRENCIES.map(c => (
-                <button key={c.id} onClick={() => {
-                    setCurrency(c.id); reset();
-                    // Switch to the correct EVM chain as soon as user picks the tab
-                    // so by the time they hit Buy, wagmi is already on the right chain
-                    if (c.chainId && isConnected) {
-                      switchChainAsync({ chainId: c.chainId }).catch(() => {});
-                    }
-                  }}
+                <button key={c.id} onClick={() => { setCurrency(c.id); reset(); }}
                   className={`py-3 px-2 rounded-xl border text-center transition-all duration-200 ${
                     currency === c.id
                       ? 'border-[#2BFFF1]/60 bg-[#2BFFF1]/10 scale-[1.03]'
@@ -843,6 +853,12 @@ export function BuySection() {
                   </a>
                 )}
                 <div><button onClick={reset} className="text-[#2BFFF1] text-sm hover:underline">Buy More</button></div>
+              </div>
+            )}
+            {txStatus === 'pending' && txError && (
+              <div className="mb-5 p-4 rounded-xl border border-[#2BFFF1]/30 bg-[#2BFFF1]/5 flex gap-3">
+                <div className="w-5 h-5 shrink-0 mt-0.5 border-2 border-[#2BFFF1] border-t-transparent rounded-full animate-spin" />
+                <p className="text-[#2BFFF1] text-sm font-medium">{txError}</p>
               </div>
             )}
             {txStatus === 'error' && (
