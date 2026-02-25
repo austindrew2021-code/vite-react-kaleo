@@ -140,8 +140,8 @@ declare global {
     solflare?:  SolflareProvider;
     okxwallet?: { bitcoin?: BitcoinProvider; solana?: PhantomSolProvider };
     unisat?: { requestAccounts: () => Promise<string[]>; sendBitcoin: (to: string, sat: number) => Promise<string> };
-    // MetaMask native Bitcoin (injected as window.bitcoin when on Bitcoin network)
-    bitcoin?: { requestAccounts: () => Promise<{ address: string; addressType: string; publicKey: string; purpose: string }[]>; sendBitcoin: (to: string, satoshis: number, opts?: { feeRate?: number }) => Promise<string> };
+    // MetaMask Bitcoin Snap — shape varies by version, cast to any when calling
+    bitcoin?: { requestAccounts: () => Promise<any>; sendBitcoin: (to: string, satoshis: number, opts?: { feeRate?: number }) => Promise<any> };
   }
 }
 
@@ -676,27 +676,52 @@ export function BuySection() {
       }
 
     } else if (chain === 'btc') {
-      // ── Bitcoin ───────────────────────────────────────────────────────────
-      // Detect all available BTC providers — check MetaMask Bitcoin FIRST
-      // (window.bitcoin = MetaMask Bitcoin Snap, independent of EVM network)
-      const mmBitcoin = window.bitcoin && (window as any).ethereum?.isMetaMask ? window.bitcoin : null;
-      if (mmBitcoin) {
+      // Helper: extract bc1... address from any wallet response format
+      const extractBtcAddr = (accs: any[]): string => {
+        if (!Array.isArray(accs) || accs.length === 0) return '';
+        if (typeof accs[0] === 'string') return accs[0];
+        return accs.find((a: any) => a.purpose === 'payment')?.address
+            ?? accs.find((a: any) => a.addressType === 'p2wpkh')?.address
+            ?? accs.find((a: any) => a.address?.startsWith('bc1'))?.address
+            ?? accs[0]?.address ?? '';
+      };
+
+      // 1. window.bitcoin — MetaMask Bitcoin Snap (works regardless of EVM chain)
+      if (window.bitcoin) {
+        setTxStatus('pending'); setTxError('Connecting Bitcoin wallet...');
         try {
-          const accs = await mmBitcoin.requestAccounts();
-          const addr = accs.find(a => a.purpose === 'payment')?.address ?? accs[0]?.address ?? '';
+          const raw = await (window.bitcoin as any).requestAccounts();
+          const accs = Array.isArray(raw) ? raw : (raw?.result ?? raw?.accounts ?? []);
+          const addr = extractBtcAddr(accs);
           if (addr) {
+            const mmWallet: DetectedWallet = {
+              id: 'metamask-btc', name: 'MetaMask', icon: '🦊', color: 'text-orange-400',
+              connect: async () => addr,
+              sendBtc: async (to: string, sat: number) => {
+                const result = await (window.bitcoin as any).sendBitcoin(to, sat);
+                return typeof result === 'string' ? result : result?.txid ?? String(result);
+              },
+            };
             localStorage.setItem('_kleo_btc_address', addr);
             localStorage.setItem('_kleo_btc_wallet_name', 'MetaMask');
             setBtcWallet(addr, 'MetaMask');
-            const btcWallets = detectBitcoinWallets();
-            const w = btcWallets.find(w => w.id === 'metamask-btc');
-            if (w) setActiveWallet(w);
+            setActiveWallet(mmWallet);
+            setTxStatus('idle'); setTxError('');
+          } else {
+            setTxError('No Bitcoin address returned — ensure MetaMask has a Bitcoin account enabled');
+            setTxStatus('error');
           }
-        } catch (e: any) { setTxError(e?.message || 'MetaMask BTC connection failed'); setTxStatus('error'); }
+        } catch (e: any) {
+          setTxError(e?.message || 'MetaMask BTC connection failed');
+          setTxStatus('error');
+        }
         return;
       }
+
+      // 2. Other injected wallets (Phantom, Xverse, OKX, Unisat)
       const injected = detectBitcoinWallets();
       if (injected.length === 1) {
+        setTxStatus('pending'); setTxError('Connecting...');
         try {
           const addr = await injected[0].connect();
           if (addr) {
@@ -704,8 +729,9 @@ export function BuySection() {
             localStorage.setItem('_kleo_btc_wallet_name', injected[0].name);
             setBtcWallet(addr, injected[0].name);
             setActiveWallet(injected[0]);
+            setTxStatus('idle'); setTxError('');
           }
-        } catch {}
+        } catch (e: any) { setTxError(e?.message || 'Connection failed'); setTxStatus('error'); }
       } else if (injected.length > 1) {
         setInjectedWallets(injected); setPickerType('btc'); setShowInjectedPicker(true);
       } else {
