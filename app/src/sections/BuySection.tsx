@@ -69,7 +69,6 @@ async function decryptPhantomPayload(phantomPubKey58: string, data58: string, no
 // ── Mobile detection ──────────────────────────────────────────────────────
 // isMobile removed — deeplink used on all platforms
 function isAndroid() { return /Android/i.test(navigator.userAgent); }
-function isIOS()    { return /iPhone|iPad|iPod/i.test(navigator.userAgent); }
 function isInEvmBrowser() {
   // Returns wallet name if we're inside an EVM wallet's in-app browser
   const eth = (window as any).ethereum;
@@ -408,7 +407,9 @@ export function BuySection() {
     }
   }, [addRaised, addPurchase, currentStage]);
 
-  // ── On mount: handle Phantom deeplink callback + detect injected wallets ──
+  // ── On mount: ONLY handle callbacks + restore saved addresses ─────────
+  // No auto-connect. Each currency tab connects its own wallet on demand.
+  // This prevents EVM/BTC/SOL fighting for connection inside wallet browsers.
   useEffect(() => {
     const init = async () => {
       const params = new URLSearchParams(window.location.search);
@@ -417,45 +418,35 @@ export function BuySection() {
       const nonce         = params.get('nonce');
       const errorCode     = params.get('errorCode');
 
-      // Always clean the URL after a Phantom redirect (strip query params + hash)
       if (phantomPubKey || errorCode || params.get('errorMessage')) {
         window.history.replaceState({}, '', window.location.pathname);
       }
 
-      // ── Phantom returned an error ────────────────────────────────────────
       if (errorCode) {
         const msg = params.get('errorMessage') || '';
-        const isPending = !!localStorage.getItem('_kleo_pending_purchase');
-        if (isPending) {
+        if (localStorage.getItem('_kleo_pending_purchase')) {
           localStorage.removeItem('_kleo_pending_purchase');
-          // Map Phantom error codes to human-readable messages
           const errMap: Record<string, string> = {
             '4001': 'Transaction rejected — nothing was sent.',
-            '4100': 'Session expired or cluster mismatch — disconnect and reconnect Phantom (ensure it is set to Devnet).',
-            '4900': 'Phantom disconnected from network — check your Phantom network settings.',
+            '4100': 'Session expired — reconnect Phantom.',
+            '4900': 'Phantom disconnected — check network settings.',
           };
-          const friendly = errMap[errorCode] || `Phantom error ${errorCode}${msg ? ': ' + msg : ''} — please try again.`;
-          setTxError(friendly);
+          setTxError(errMap[errorCode] || `Phantom error ${errorCode}${msg ? ': ' + msg : ''}`);
           setTxStatus('error');
         }
-        // If it was a connect error (no pending purchase), just silently ignore
         return;
       }
 
       if (phantomPubKey && data && nonce) {
         try {
           const payload = await decryptPhantomPayload(phantomPubKey, data, nonce);
-
           if (payload.public_key) {
-            // ── CONNECT CALLBACK ──────────────────────────────────────────
             localStorage.setItem('_kleo_phantom_session', payload.session);
             localStorage.setItem('_kleo_phantom_pubkey', phantomPubKey);
             localStorage.setItem('_kleo_sol_address', payload.public_key);
             setSolWallet(payload.public_key, 'Phantom');
-                    setCurrency('SOL');
-
+            setCurrency('SOL');
           } else if (payload.signature) {
-            // ── TRANSACTION CALLBACK ──────────────────────────────────────
             const pendingStr = localStorage.getItem('_kleo_pending_purchase');
             if (pendingStr) {
               localStorage.removeItem('_kleo_pending_purchase');
@@ -464,135 +455,43 @@ export function BuySection() {
               setTxHash(payload.signature);
               setTxStatus('success');
             }
-          } else {
-            // Unexpected payload — show raw info for debugging
-            const isPending = !!localStorage.getItem('_kleo_pending_purchase');
-            if (isPending) {
-              setTxError(`Phantom returned an unexpected response. Keys: ${Object.keys(payload).join(', ')}. Please try again.`);
-              setTxStatus('error');
-            }
           }
         } catch (e) {
-          console.error('Phantom callback error:', e);
-          const isPending = !!localStorage.getItem('_kleo_pending_purchase');
-          if (isPending) {
-            setTxError(`Failed to process Phantom response: ${e instanceof Error ? e.message : String(e)}`);
+          if (localStorage.getItem('_kleo_pending_purchase')) {
+            setTxError(`Phantom error: ${e instanceof Error ? e.message : String(e)}`);
             setTxStatus('error');
           }
         }
       }
 
-      // ── Restore previous deeplink session from localStorage ─────────────
-      // Handles case where user connected in a prior visit / tab
-      const storedAddr  = localStorage.getItem('_kleo_sol_address');
-      const storedSess  = localStorage.getItem('_kleo_phantom_session');
-      const storedPubk  = localStorage.getItem('_kleo_phantom_pubkey');
-      if (storedAddr && storedSess && storedPubk && !params.get('phantom_encryption_public_key')) {
-        setSolWallet(storedAddr, 'Phantom');
-          }
+      // ── Restore saved addresses from previous sessions (no new prompts) ──
+      const storedSol = localStorage.getItem('_kleo_sol_address');
+      if (storedSol && localStorage.getItem('_kleo_phantom_session')) {
+        setSolWallet(storedSol, 'Phantom');
+      }
 
-      // ── Detect which wallet browser we're inside ────────────────────────
-      // Network isolation: only auto-connect the wallet type for this browser.
-      // MetaMask browser → EVM only (BTC connect happens on-demand via window.bitcoin)
-      // Phantom browser  → SOL + BTC both available
-      // Xverse browser   → BTC only
-      const ethProvider = (window as any).ethereum;
-      const evmBrowserName = isInEvmBrowser();
-
-      // ── BTC: restore saved address (no auto-connect — wait for user to tap BTC tab) ─
-      const savedBtcAddr = localStorage.getItem('_kleo_btc_address');
-      const savedBtcName = localStorage.getItem('_kleo_btc_wallet_name');
-      if (savedBtcAddr && savedBtcName) {
-        setBtcWallet(savedBtcAddr, savedBtcName);
-        // Restore active wallet object for sends
+      const storedBtc = localStorage.getItem('_kleo_btc_address');
+      const storedBtcName = localStorage.getItem('_kleo_btc_wallet_name') || 'Bitcoin Wallet';
+      if (storedBtc) {
+        setBtcWallet(storedBtc, storedBtcName);
+        // Restore active wallet object for sends — match by name
         const btcWallets = detectBitcoinWallets();
-        const w = btcWallets.find(w => w.name === savedBtcName) ?? btcWallets[0];
+        const w = btcWallets.find(w => w.name === storedBtcName) ?? btcWallets[0];
         if (w) setActiveWallet(w);
       }
 
-      // ── EVM: auto-connect if inside an EVM wallet browser ────────────────
-      if (evmBrowserName && ethProvider) {
-        try {
-          const accounts: string[] = await ethProvider.request({ method: 'eth_requestAccounts' });
-          if (accounts[0]) {
-            setEvmInjectedAddr(accounts[0]);
-            setEvmInjectedName(evmBrowserName);
-          }
-        } catch {}
+      // ── Restore saved EVM address if inside a wallet browser ─────────────
+      const storedEvm = localStorage.getItem('_kleo_evm_address');
+      const storedEvmName = localStorage.getItem('_kleo_evm_wallet_name');
+      if (storedEvm && storedEvmName && isInEvmBrowser()) {
+        setEvmInjectedAddr(storedEvm);
+        setEvmInjectedName(storedEvmName);
       }
 
-      // ── Auto-detect + auto-connect Solana injected wallets ─────────────
-      // Covers: Phantom in-app browser, Solflare browser, desktop extension
-      const phantom = window.phantom?.solana || window.solana;
-      if (phantom) {
-        if (phantom.isConnected && phantom.publicKey) {
-          // Already authorized — restore connection silently
-          const addr = phantom.publicKey.toString();
-          const walletName = (window.phantom?.solana) ? 'Phantom' : 'Solflare';
-          setSolWallet(addr, walletName);
-          // Re-create the activeWallet entry so sendSol works
-          const injected = detectSolanaWallets();
-          const w = injected.find(w => w.id === 'phantom' || w.id === 'solflare');
-          if (w) setActiveWallet(w);
-        } else if (!phantom.isConnected) {
-          // Inside wallet browser but not yet connected — auto-prompt connect
-          phantom.connect()
-            .then((resp: { publicKey: { toString: () => string } }) => {
-              const addr = resp.publicKey.toString();
-              setSolWallet(addr, 'Phantom');
-              const injected = detectSolanaWallets();
-              const w = injected.find(w => w.id === 'phantom' || w.id === 'solflare');
-              if (w) setActiveWallet(w);
-            })
-            .catch(() => {
-              // onlyIfTrusted: true — silently fails if not previously approved
-              // User will need to tap Connect Wallet to trigger the approval dialog
-            });
-        }
-      }
-
-      // Phantom Bitcoin
-      const phantomBtc = window.phantom?.bitcoin;
-      if (phantomBtc) {
-        phantomBtc.requestAccounts().then(accs => {
-          const addr = accs?.find((a: any) => a.purpose === 'payment')?.address ?? accs?.[0]?.address;
-          if (addr) {
-            localStorage.setItem('_kleo_btc_address', addr);
-            localStorage.setItem('_kleo_btc_wallet_name', 'Phantom');
-            setBtcWallet(addr, 'Phantom');
-          }
-        }).catch(() => {});
-      }
-
-      // Xverse — provider is injected asynchronously, poll for up to 3 seconds
-      if (!savedBtcAddr) {
-        const tryXverseConnect = (attemptsLeft: number) => {
-          // Xverse injects under several possible names depending on version
-          const xProv = (window as any).XverseProviders?.BitcoinProvider
-                     ?? (window as any).BitcoinProvider
-                     ?? (window as any).xverse?.bitcoin;
-          if (xProv) {
-            xProv.request('getAccounts', { purposes: ['payment', 'ordinals'] })
-              .then((r: any) => {
-                // Xverse response: { result: { addresses: [{address, purpose}] } }
-                // or: { addresses: [...] } depending on version
-                const addresses = r?.result?.addresses ?? r?.addresses ?? [];
-                const paymentAddr = addresses.find((a: any) =>
-                  a.purpose === 'payment' || a.addressType === 'p2wpkh' || a.addressType === 'p2sh'
-                )?.address ?? addresses[0]?.address;
-                if (paymentAddr) {
-                  localStorage.setItem('_kleo_btc_address', paymentAddr);
-                  localStorage.setItem('_kleo_btc_wallet_name', 'Xverse');
-                  setBtcWallet(paymentAddr, 'Xverse');
-                  setCurrency('BTC');
-                }
-              }).catch(() => {});
-          } else if (attemptsLeft > 0) {
-            // Provider not ready yet — retry after 500ms
-            setTimeout(() => tryXverseConnect(attemptsLeft - 1), 500);
-          }
-        };
-        tryXverseConnect(6); // poll up to 3 seconds (6 × 500ms)
+      // ── Restore last active currency ──────────────────────────────────────
+      const savedCurrency = localStorage.getItem('_kleo_active_currency');
+      if (savedCurrency && CURRENCIES.find(c => c.id === savedCurrency)) {
+        setCurrency(savedCurrency);
       }
     };
     init();
@@ -637,106 +536,112 @@ export function BuySection() {
   }, []);
 
   // ── Connect EVM wallet ─────────────────────────────────────────────────
-  const connectEvm = async () => {
-    const evmBrowserName = isInEvmBrowser();
-    if (evmBrowserName) {
-      // Already inside an EVM wallet browser — connect EVM directly
-      try {
-        const eth = (window as any).ethereum;
-        // Switch to the correct EVM chain for selected currency before connecting
-        const targetId = (selected as any).chainId as number | undefined;
-        if (targetId) {
-          const chainHex = await eth.request({ method: 'eth_chainId' });
+  // ── Single connect function driven by selected currency tab ─────────────
+  // This is the ONLY place connections are initiated. No cross-chain interference.
+  const connectWallet = async () => {
+    const chain = selected.chain;
+
+    if (chain === 'evm') {
+      // ── EVM (ETH / BNB / USDC / USDT) ───────────────────────────────────
+      const ethProvider = (window as any).ethereum;
+      if (ethProvider) {
+        // Inside an EVM wallet browser — connect directly to correct chain
+        try {
+          const targetId = (selected as any).chainId as number;
+          const chainHex = await ethProvider.request({ method: 'eth_chainId' });
           if (parseInt(chainHex, 16) !== targetId) {
-            await eth.request({
-              method: 'wallet_switchEthereumChain',
-              params: [{ chainId: `0x${targetId.toString(16)}` }],
-            }).catch(() => {});
+            try {
+              await ethProvider.request({
+                method: 'wallet_switchEthereumChain',
+                params: [{ chainId: `0x${targetId.toString(16)}` }],
+              });
+            } catch (e: any) {
+              if (e.code === 4902) {
+                const chains: Record<number, object> = {
+                  97: { chainId: '0x61', chainName: 'BSC Testnet', nativeCurrency: { name: 'tBNB', symbol: 'tBNB', decimals: 18 }, rpcUrls: ['https://bsc-testnet-rpc.publicnode.com'], blockExplorerUrls: ['https://testnet.bscscan.com'] },
+                  11155111: { chainId: '0xaa36a7', chainName: 'Sepolia', nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }, rpcUrls: ['https://ethereum-sepolia-rpc.publicnode.com'], blockExplorerUrls: ['https://sepolia.etherscan.io'] },
+                };
+                await ethProvider.request({ method: 'wallet_addEthereumChain', params: [chains[targetId]] });
+              } else throw e;
+            }
             await new Promise<void>(r => setTimeout(r, 500));
           }
-        }
-        const accounts: string[] = await eth.request({ method: 'eth_requestAccounts' });
-        if (accounts[0]) { setEvmInjectedAddr(accounts[0]); setEvmInjectedName(evmBrowserName); }
-      } catch (e: any) { setTxError(e.message || 'Connection rejected'); setTxStatus('error'); }
-      return;
-    }
-    // External browser — show wallet picker to open in-app browser
-    setShowEvmPicker(true);
-  };
-
-  const disconnectEvmInjected = () => {
-    setEvmInjectedAddr(''); setEvmInjectedName('');
-  };
-
-  // ── Connect SOL wallet ─────────────────────────────────────────────────
-  const connectSol = async () => {
-    const injected = detectSolanaWallets();
-    if (injected.length > 0) {
-      // Already inside Phantom/Solflare browser OR desktop extension — connect directly
-      if (injected.length === 1) {
-        const addr = await injected[0].connect();
-        setSolWallet(addr, injected[0].name); setActiveWallet(injected[0]);
+          const accounts: string[] = await ethProvider.request({ method: 'eth_requestAccounts' });
+          if (accounts[0]) {
+            setEvmInjectedAddr(accounts[0]);
+            setEvmInjectedName((isInEvmBrowser() as string) || 'Wallet');
+            localStorage.setItem('_kleo_evm_address', accounts[0]);
+            localStorage.setItem('_kleo_evm_wallet_name', isInEvmBrowser() || 'Wallet');
+          }
+        } catch (e: any) { setTxError(e?.message || 'Connection rejected'); setTxStatus('error'); }
       } else {
-        setInjectedWallets(injected); setPickerType('sol'); setShowInjectedPicker(true);
+        // No injected provider — show wallet picker to open in-app browser
+        setShowEvmPicker(true);
       }
-      return;
-    }
-    // No injected wallet — open Phantom's in-app browser pointing at this page.
-    // This is how NFT sites (Magic Eden, Tensor) handle mobile: the page loads
-    // INSIDE Phantom where window.phantom.solana is injected, enabling direct
-    // connect() + signAndSendTransaction() without any deeplink workarounds.
-    const url = encodeURIComponent(window.location.href);
-    const ref = encodeURIComponent(window.location.origin);
-    if (isAndroid()) {
-      window.location.href = `intent://browse/${url}?ref=${ref}#Intent;scheme=phantom;package=app.phantom;S.browser_fallback_url=https%3A%2F%2Fphantom.app%2F;end`;
-    } else if (isIOS()) {
-      window.location.href = `https://phantom.app/ul/browse/${url}?ref=${ref}`;
-    } else {
-      // Desktop: try phantom:// custom protocol
-      window.location.href = `phantom://browse/${url}?ref=${ref}`;
-    }
-  };
 
-  // ── Connect BTC wallet ─────────────────────────────────────────────────
-  const connectBtc = async () => {
-    const injected = detectBitcoinWallets();
-
-    // MetaMask: prefer window.bitcoin over window.ethereum for BTC tab
-    // window.bitcoin is the Bitcoin Snap API — works independently of EVM network
-    const mmBtc = injected.find(w => w.id === 'metamask-btc');
-    if (mmBtc) {
-      try {
-        const addr = await mmBtc.connect();
-        if (addr) {
-          localStorage.setItem('_kleo_btc_address', addr);
-          localStorage.setItem('_kleo_btc_wallet_name', 'MetaMask');
-          setBtcWallet(addr, 'MetaMask');
-          setActiveWallet(mmBtc);
-        }
-      } catch (e: any) {
-        setTxError(e?.message || 'MetaMask BTC connection failed'); setTxStatus('error');
-      }
-      return;
-    }
-
-    if (injected.length > 0) {
-      // Inside Phantom/Xverse/OKX/Unisat browser — connect directly
+    } else if (chain === 'sol') {
+      // ── Solana ────────────────────────────────────────────────────────────
+      const injected = detectSolanaWallets();
       if (injected.length === 1) {
-        injected[0].connect().then(addr => {
+        try {
+          const addr = await injected[0].connect();
+          setSolWallet(addr, injected[0].name);
+          setActiveWallet(injected[0]);
+        } catch {}
+      } else if (injected.length > 1) {
+        setInjectedWallets(injected); setPickerType('sol'); setShowInjectedPicker(true);
+      } else {
+        // No injected SOL wallet — open Phantom browser
+        const url = encodeURIComponent(window.location.href);
+        const ref = encodeURIComponent(window.location.origin);
+        if (isAndroid()) window.location.href = `intent://browse/${url}?ref=${ref}#Intent;scheme=phantom;package=app.phantom;S.browser_fallback_url=https%3A%2F%2Fphantom.app%2F;end`;
+        else window.location.href = `https://phantom.app/ul/browse/${url}?ref=${ref}`;
+      }
+
+    } else if (chain === 'btc') {
+      // ── Bitcoin ───────────────────────────────────────────────────────────
+      // Detect all available BTC providers — check MetaMask Bitcoin FIRST
+      // (window.bitcoin = MetaMask Bitcoin Snap, independent of EVM network)
+      const mmBitcoin = window.bitcoin && (window as any).ethereum?.isMetaMask ? window.bitcoin : null;
+      if (mmBitcoin) {
+        try {
+          const accs = await mmBitcoin.requestAccounts();
+          const addr = accs.find(a => a.purpose === 'payment')?.address ?? accs[0]?.address ?? '';
+          if (addr) {
+            localStorage.setItem('_kleo_btc_address', addr);
+            localStorage.setItem('_kleo_btc_wallet_name', 'MetaMask');
+            setBtcWallet(addr, 'MetaMask');
+            const btcWallets = detectBitcoinWallets();
+            const w = btcWallets.find(w => w.id === 'metamask-btc');
+            if (w) setActiveWallet(w);
+          }
+        } catch (e: any) { setTxError(e?.message || 'MetaMask BTC connection failed'); setTxStatus('error'); }
+        return;
+      }
+      const injected = detectBitcoinWallets();
+      if (injected.length === 1) {
+        try {
+          const addr = await injected[0].connect();
           if (addr) {
             localStorage.setItem('_kleo_btc_address', addr);
             localStorage.setItem('_kleo_btc_wallet_name', injected[0].name);
             setBtcWallet(addr, injected[0].name);
             setActiveWallet(injected[0]);
           }
-        }).catch(() => {});
-      } else {
+        } catch {}
+      } else if (injected.length > 1) {
         setInjectedWallets(injected); setPickerType('btc'); setShowInjectedPicker(true);
+      } else {
+        setShowBtcPicker(true);
       }
-      return;
     }
-    // External browser — show wallet picker to open in-app browser
-    setShowBtcPicker(true);
+    localStorage.setItem('_kleo_active_currency', selected.id);
+  };
+
+  const disconnectEvmInjected = () => {
+    setEvmInjectedAddr(''); setEvmInjectedName('');
+    localStorage.removeItem('_kleo_evm_address');
+    localStorage.removeItem('_kleo_evm_wallet_name');
   };
 
   const connectInjected = async (wallet: DetectedWallet, type: 'sol' | 'btc') => {
@@ -983,15 +888,7 @@ export function BuySection() {
                 <button key={c.id} onClick={() => {
                     setCurrency(c.id);
                     reset();
-                    // Network isolation: clear cross-chain state when switching tabs
-                    if (c.chain === 'btc') {
-                      // Switching to BTC — suppress EVM injected so it doesn't intercept
-                      setEvmInjectedAddr(''); setEvmInjectedName('');
-                    } else if (c.chain === 'sol') {
-                      // Switching to SOL — clear BTC active wallet
-                      setActiveWallet(null);
-                    }
-                    // Note: we don't clear addresses from store — just suppress for this session
+                    localStorage.setItem('_kleo_active_currency', c.id);
                   }}
                   className={`py-3 px-2 rounded-xl border text-center transition-all duration-200 ${
                     currency === c.id
@@ -1036,7 +933,7 @@ export function BuySection() {
                   </div>
                 ) : (
                   /* Not connected — show wallet picker */
-                  <button onClick={connectEvm}
+                  <button onClick={connectWallet}
                     className="w-full flex items-center justify-center gap-3 bg-[#2BFFF1]/10 border border-[#2BFFF1]/30 hover:border-[#2BFFF1]/60 hover:bg-[#2BFFF1]/15 rounded-xl px-4 py-3.5 transition-all">
                     <span className="text-xl">👛</span>
                     <div className="text-left">
@@ -1059,7 +956,7 @@ export function BuySection() {
                     </button>
                   </div>
                 ) : (
-                  <button onClick={connectBtc}
+                  <button onClick={connectWallet}
                     className="w-full flex items-center justify-center gap-3 bg-orange-600/20 border border-orange-500/40 hover:border-orange-400/70 hover:bg-orange-600/30 rounded-xl px-4 py-3.5 transition-all">
                     <span className="text-2xl leading-none text-orange-400">₿</span>
                     <span className="text-orange-300 font-semibold">Connect Bitcoin Wallet</span>
@@ -1079,7 +976,7 @@ export function BuySection() {
                     </button>
                   </div>
                 ) : (
-                  <button onClick={connectSol}
+                  <button onClick={connectWallet}
                     className="w-full flex items-center justify-center gap-3 bg-purple-600/20 border border-purple-500/40 hover:border-purple-400/70 hover:bg-purple-600/30 rounded-xl px-4 py-3.5 transition-all">
                     <span className="text-2xl leading-none">◎</span>
                     <span className="text-purple-300 font-semibold">Connect Solana Wallet</span>
@@ -1477,4 +1374,4 @@ export function BuySection() {
       )}
     </section>
   );
-}
+  }
