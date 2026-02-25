@@ -9,7 +9,6 @@ import { createClient } from '@supabase/supabase-js';
 import { useAccount, useSendTransaction, useDisconnect, useSwitchChain } from 'wagmi';
 import { parseEther } from 'viem';
 import { sepolia, bscTestnet } from 'wagmi/chains';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { usePresaleStore, getCurrentStage, LISTING_PRICE_USD, useWalletStore } from '../store/presaleStore';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -71,6 +70,52 @@ async function decryptPhantomPayload(phantomPubKey58: string, data58: string, no
 // isMobile removed — deeplink used on all platforms
 function isAndroid() { return /Android/i.test(navigator.userAgent); }
 function isIOS()    { return /iPhone|iPad|iPod/i.test(navigator.userAgent); }
+function isInEvmBrowser() {
+  // Returns wallet name if we're inside an EVM wallet's in-app browser
+  const eth = (window as any).ethereum;
+  if (!eth) return null;
+  if (eth.isMetaMask)  return 'MetaMask';
+  if (eth.isTrust)     return 'Trust Wallet';
+  if (eth.isCoinbaseWallet) return 'Coinbase Wallet';
+  if (eth.isRainbow)   return 'Rainbow';
+  if (eth.isBraveWallet) return 'Brave Wallet';
+  return 'Wallet'; // generic injected
+}
+
+// EVM wallet in-app browser URL builders
+const EVM_WALLETS = [
+  {
+    id: 'metamask',
+    name: 'MetaMask',
+    icon: '🦊',
+    color: 'text-orange-400',
+    openUrl: (url: string) => {
+      const clean = url.replace(/^https?:\/\//, '');
+      window.location.href = `https://metamask.app.link/dapp/${clean}`;
+    },
+  },
+  {
+    id: 'trust',
+    name: 'Trust Wallet',
+    icon: '🛡️',
+    color: 'text-blue-400',
+    openUrl: (url: string) => {
+      const enc = encodeURIComponent(url);
+      if (isAndroid()) window.location.href = `trust://open_url?coin_id=60&url=${enc}`;
+      else window.location.href = `https://link.trustwallet.com/open_url?coin_id=60&url=${enc}`;
+    },
+  },
+  {
+    id: 'coinbase',
+    name: 'Coinbase Wallet',
+    icon: '🔵',
+    color: 'text-blue-500',
+    openUrl: (url: string) => {
+      const enc = encodeURIComponent(url);
+      window.location.href = `https://go.cb-wallet.com/dapp?url=${enc}`;
+    },
+  },
+];
 
 // ── Injected wallet types (desktop / in-app browser) ────────────────────
 type PhantomSolProvider = {
@@ -240,6 +285,11 @@ export function BuySection() {
     reset();
   };
 
+  // EVM injected state (used when inside a wallet browser, supplements wagmi)
+  const [evmInjectedAddr,   setEvmInjectedAddr]  = useState<string>('');
+  const [evmInjectedName,   setEvmInjectedName]  = useState<string>('');
+  const [showEvmPicker,     setShowEvmPicker]    = useState(false);
+
   // Picker modals
   const [showInjectedPicker, setShowInjectedPicker] = useState(false);
   const [injectedWallets,    setInjectedWallets]    = useState<DetectedWallet[]>([]);
@@ -367,6 +417,38 @@ export function BuySection() {
         setBtcWallet(savedBtcAddr, savedBtcName);
       }
 
+      // ── Auto-connect MetaMask when inside MetaMask in-app browser ────────
+      const ethProvider = (window as any).ethereum;
+      if (ethProvider?.isMetaMask) {
+        try {
+          const accounts = await ethProvider.request({ method: 'eth_requestAccounts' });
+          if (accounts?.length) {
+            // wagmi/RainbowKit will pick this up — just ensure we're on right chain
+            const chainHex = await ethProvider.request({ method: 'eth_chainId' });
+            const chainId = parseInt(chainHex, 16);
+            const targetId = CURRENCIES.find(c => c.id === 'BNB')?.chainId ?? 97;
+            if (chainId !== targetId) {
+              await ethProvider.request({
+                method: 'wallet_switchEthereumChain',
+                params: [{ chainId: `0x${targetId.toString(16)}` }],
+              }).catch(() => {});
+            }
+          }
+        } catch {}
+      }
+
+      // ── Auto-detect EVM injected wallet (inside MetaMask/Trust/etc browser) ─
+      const evmBrowserName = isInEvmBrowser();
+      if (evmBrowserName) {
+        try {
+          const accounts: string[] = await (window as any).ethereum.request({ method: 'eth_requestAccounts' });
+          if (accounts[0]) {
+            setEvmInjectedAddr(accounts[0]);
+            setEvmInjectedName(evmBrowserName);
+          }
+        } catch {}
+      }
+
       // ── Auto-detect + auto-connect Solana injected wallets ─────────────
       // Covers: Phantom in-app browser, Solflare browser, desktop extension
       const phantom = window.phantom?.solana || window.solana;
@@ -479,6 +561,25 @@ export function BuySection() {
           scrollTrigger: { trigger: sectionRef.current, start: 'top 75%', once: true } });
     }
   }, []);
+
+  // ── Connect EVM wallet ─────────────────────────────────────────────────
+  const connectEvm = async () => {
+    const evmBrowserName = isInEvmBrowser();
+    if (evmBrowserName) {
+      // Already inside a wallet browser — connect directly
+      try {
+        const accounts: string[] = await (window as any).ethereum.request({ method: 'eth_requestAccounts' });
+        if (accounts[0]) { setEvmInjectedAddr(accounts[0]); setEvmInjectedName(evmBrowserName); }
+      } catch (e: any) { setTxError(e.message || 'Connection rejected'); setTxStatus('error'); }
+      return;
+    }
+    // External browser — show wallet picker to open in-app browser
+    setShowEvmPicker(true);
+  };
+
+  const disconnectEvmInjected = () => {
+    setEvmInjectedAddr(''); setEvmInjectedName('');
+  };
 
   // ── Connect SOL wallet ─────────────────────────────────────────────────
   const connectSol = async () => {
@@ -662,17 +763,30 @@ export function BuySection() {
         if (!address) throw new Error('Connect wallet first');
         const senderAddress = address;
         const targetChainId = selected.chainId!;
+        const ethProvider = (window as any).ethereum;
 
-        // Switch chain only if needed (BNB=97 is now default so usually a no-op for BNB).
-        // For ETH/Sepolia the switch is required.
-        setTxError(`Switching to ${selected.label} network...`);
-        await switchChainAsync({ chainId: targetChainId });
-        setTxError('');
-
-        // Brief pause for WalletConnect session to settle after chain switch
-        await new Promise<void>(resolve => setTimeout(resolve, 800));
-
-        hash = await sendTransactionAsync({ to: PRESALE_ETH_WALLET, value: parseEther(amount) });
+        if (ethProvider?.isMetaMask) {
+          // Inside MetaMask browser: use injected provider directly — reliable, no WalletConnect
+          const chainHex = await ethProvider.request({ method: 'eth_chainId' });
+          const currentId = parseInt(chainHex, 16);
+          if (currentId !== targetChainId) {
+            await ethProvider.request({
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: `0x${targetChainId.toString(16)}` }],
+            });
+            await new Promise<void>(resolve => setTimeout(resolve, 500));
+          }
+          const txHash = await ethProvider.request({
+            method: 'eth_sendTransaction',
+            params: [{ from: senderAddress, to: PRESALE_ETH_WALLET, value: `0x${BigInt(parseEther(amount)).toString(16)}` }],
+          });
+          hash = txHash as string;
+        } else {
+          // Desktop or WalletConnect fallback
+          await switchChainAsync({ chainId: targetChainId });
+          await new Promise<void>(resolve => setTimeout(resolve, 800));
+          hash = await sendTransactionAsync({ to: PRESALE_ETH_WALLET, value: parseEther(amount) });
+        }
         await recordPurchase(hash, usdEst, tokensEst, senderAddress, selected.id);
       }
       if (hash) { setTxHash(hash); setTxStatus('success'); }
@@ -712,7 +826,8 @@ export function BuySection() {
     SOL: [0.5, 1, 2, 5], ETH: [0.01, 0.05, 0.1, 0.5],
     BNB: [0.05, 0.2, 0.5, 1], BTC: [0.0005, 0.001, 0.005, 0.01],
   };
-  const walletReady = isBtc ? btcConnected : isEvm ? isConnected : solConnected;
+  const evmConnected = isConnected || !!evmInjectedAddr;
+  const walletReady = isBtc ? btcConnected : isEvm ? evmConnected : solConnected;
 
   // ── RENDER ─────────────────────────────────────────────────────────────
   return (
@@ -770,7 +885,21 @@ export function BuySection() {
             {/* Wallet connect section */}
             <div className="mb-5">
               {isEvm ? (
-                isConnected && address ? (
+                evmInjectedAddr ? (
+                  /* Connected via in-app browser injection */
+                  <div className="flex items-center justify-between bg-[#2BFFF1]/5 border border-[#2BFFF1]/20 rounded-xl px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-green-400" />
+                      <span className="text-[#F4F6FA] text-sm font-medium">{evmInjectedAddr.slice(0,6)}...{evmInjectedAddr.slice(-4)}</span>
+                      <span className="text-[#2BFFF1] text-xs font-semibold">{evmInjectedName} ✓</span>
+                    </div>
+                    <button onClick={disconnectEvmInjected}
+                      className="text-[#A7B0B7] hover:text-red-400 text-xs transition-colors px-2 py-1 rounded-lg hover:bg-red-500/10">
+                      Disconnect
+                    </button>
+                  </div>
+                ) : isConnected && address ? (
+                  /* Connected via WalletConnect (desktop fallback) */
                   <div className="flex items-center justify-between bg-[#2BFFF1]/5 border border-[#2BFFF1]/20 rounded-xl px-4 py-3">
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-green-400" />
@@ -785,9 +914,15 @@ export function BuySection() {
                     </button>
                   </div>
                 ) : (
-                  <div className="[&>div]:w-full [&_button]:!w-full [&_button]:!py-3.5 [&_button]:!rounded-xl [&_button]:!font-semibold [&_button]:!text-sm">
-                    <ConnectButton label={`Connect wallet for ${selected.label}`} />
-                  </div>
+                  /* Not connected — show wallet picker */
+                  <button onClick={connectEvm}
+                    className="w-full flex items-center justify-center gap-3 bg-[#2BFFF1]/10 border border-[#2BFFF1]/30 hover:border-[#2BFFF1]/60 hover:bg-[#2BFFF1]/15 rounded-xl px-4 py-3.5 transition-all">
+                    <span className="text-xl">👛</span>
+                    <div className="text-left">
+                      <p className="text-[#F4F6FA] font-semibold text-sm">Connect {selected.label} Wallet</p>
+                      <p className="text-[#A7B0B7] text-xs">MetaMask · Trust · Coinbase</p>
+                    </div>
+                  </button>
                 )
               ) : isBtc ? (
                 btcConnected ? (
@@ -1029,6 +1164,40 @@ export function BuySection() {
       )}
 
       {/* ── XVERSE / BTC PAYMENT MODAL ── */}
+      {/* ── EVM WALLET PICKER MODAL ── */}
+      {showEvmPicker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          onClick={() => setShowEvmPicker(false)}>
+          <div className="bg-[#0B0E14] border border-white/10 rounded-2xl p-6 w-[min(92vw,380px)] shadow-2xl"
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-[#F4F6FA] font-bold text-lg">Choose Wallet</h3>
+              <button onClick={() => setShowEvmPicker(false)} className="text-[#A7B0B7] hover:text-white text-xl">×</button>
+            </div>
+            <p className="text-[#A7B0B7] text-xs mb-5 leading-relaxed">
+              Your chosen wallet will open this site in its browser, where it can connect and approve transactions directly.
+            </p>
+            <div className="flex flex-col gap-3">
+              {EVM_WALLETS.map(w => (
+                <button key={w.id}
+                  onClick={() => { setShowEvmPicker(false); w.openUrl(window.location.href); }}
+                  className="flex items-center gap-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#2BFFF1]/30 rounded-xl px-4 py-3.5 transition-all text-left">
+                  <span className="text-3xl leading-none">{w.icon}</span>
+                  <div>
+                    <p className="text-[#F4F6FA] font-semibold text-sm">{w.name}</p>
+                    <p className="text-[#A7B0B7] text-xs">Opens in {w.name} browser</p>
+                  </div>
+                  <span className="ml-auto text-[#A7B0B7] text-lg">›</span>
+                </button>
+              ))}
+            </div>
+            <p className="text-[#A7B0B7] text-xs text-center mt-5">
+              Don't have a wallet? <a href="https://metamask.io" target="_blank" rel="noopener noreferrer" className="text-[#2BFFF1] hover:underline">Download MetaMask</a>
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* ── SOLANA PAY CONFIRMATION MODAL ── */}
       {showSolPay && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
