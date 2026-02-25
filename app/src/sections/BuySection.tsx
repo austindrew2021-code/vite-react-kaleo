@@ -488,10 +488,84 @@ export function BuySection() {
         setEvmInjectedName(storedEvmName);
       }
 
-      // ── Restore last active currency ──────────────────────────────────────
-      const savedCurrency = localStorage.getItem('_kleo_active_currency');
-      if (savedCurrency && CURRENCIES.find(c => c.id === savedCurrency)) {
+      // ── Smart auto-connect based on detected wallet browser ───────────────
+      // Each wallet browser gets exactly one connection type — no cross-chain fights.
+
+      const eth = (window as any).ethereum;
+      const isPhantomBrowser = !!(window.phantom?.solana) && !eth?.isMetaMask;
+      const isXverseBrowser  = !!(window as any).XverseProviders?.BitcoinProvider && !eth;
+      const isUnisatBrowser  = !!(window as any).unisat && !eth;
+      const isOkxBrowser     = !!(window as any).okxwallet && !eth?.isMetaMask;
+      const isMetaMaskBrowser = !!eth?.isMetaMask;
+      const isEvmBrowser     = !!eth && !isPhantomBrowser;
+
+      if (isPhantomBrowser) {
+        // ── Phantom browser: auto-connect SOL, set SOL tab ─────────────────
+        const phantom = window.phantom!.solana!;
+        try {
+          const resp = await phantom.connect();
+          const addr = resp.publicKey.toString();
+          setSolWallet(addr, 'Phantom');
+          setCurrency('SOL');
+          const w = detectSolanaWallets()[0];
+          if (w) setActiveWallet(w);
+        } catch {}
+
+      } else if (isXverseBrowser || isUnisatBrowser) {
+        // ── Xverse / Unisat browser: auto-connect BTC, set BTC tab ─────────
+        const btcWallets = detectBitcoinWallets();
+        if (btcWallets.length > 0) {
+          try {
+            const addr = await btcWallets[0].connect();
+            if (addr) {
+              localStorage.setItem('_kleo_btc_address', addr);
+              localStorage.setItem('_kleo_btc_wallet_name', btcWallets[0].name);
+              setBtcWallet(addr, btcWallets[0].name);
+              setActiveWallet(btcWallets[0]);
+              setCurrency('BTC');
+            }
+          } catch {}
+        }
+
+      } else if (isMetaMaskBrowser || isEvmBrowser) {
+        // ── MetaMask / EVM browser: restore saved currency or default to BNB ─
+        // Connect EVM. BTC tab will use window.bitcoin on demand — no conflict.
+        const savedCurrency = localStorage.getItem('_kleo_active_currency');
+        const targetCurrency = (savedCurrency && ['ETH','BNB','USDC','USDT'].includes(savedCurrency))
+          ? savedCurrency : 'BNB';
+        const targetChainId = CURRENCIES.find(c => c.id === targetCurrency)?.chainId ?? 97;
+        try {
+          const chainHex = await eth.request({ method: 'eth_chainId' });
+          if (parseInt(chainHex, 16) !== targetChainId) {
+            await eth.request({
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: `0x${targetChainId.toString(16)}` }],
+            }).catch(() => {});
+            await new Promise<void>(r => setTimeout(r, 400));
+          }
+          const accounts: string[] = await eth.request({ method: 'eth_requestAccounts' });
+          if (accounts[0]) {
+            setEvmInjectedAddr(accounts[0]);
+            setEvmInjectedName(isInEvmBrowser() || 'Wallet');
+            localStorage.setItem('_kleo_evm_address', accounts[0]);
+            setCurrency(targetCurrency);
+          }
+        } catch {}
+
+      } else if (isOkxBrowser) {
+        // ── OKX browser: use last saved currency or default to BNB ──────────
+        const savedCurrency = localStorage.getItem('_kleo_active_currency') || 'BNB';
         setCurrency(savedCurrency);
+        // OKX injects both window.okxwallet.bitcoin and window.okxwallet.solana
+        // connectWallet() will handle the actual connection when user taps connect
+      }
+
+      // ── Final: restore last active currency if no browser-specific override ──
+      if (!isPhantomBrowser && !isXverseBrowser && !isUnisatBrowser && !isMetaMaskBrowser && !isEvmBrowser && !isOkxBrowser) {
+        const savedCurrency = localStorage.getItem('_kleo_active_currency');
+        if (savedCurrency && CURRENCIES.find(c => c.id === savedCurrency)) {
+          setCurrency(savedCurrency);
+        }
       }
     };
     init();
