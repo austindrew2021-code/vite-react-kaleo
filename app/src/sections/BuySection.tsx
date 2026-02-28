@@ -10,6 +10,7 @@ import { useAccount, useSendTransaction, useDisconnect, useSwitchChain } from 'w
 import { parseEther } from 'viem';
 import { sepolia, bscTestnet } from 'wagmi/chains';
 import { usePresaleStore, getCurrentStage, LISTING_PRICE_USD, useWalletStore } from '../store/presaleStore';
+import { BtcDiagnostic } from '../components/BtcDiagnostic';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -369,7 +370,6 @@ export function BuySection() {
   const [evmInjectedAddr,   setEvmInjectedAddr]  = useState<string>('');
   const [evmInjectedName,   setEvmInjectedName]  = useState<string>('');
   const [showEvmPicker,     setShowEvmPicker]    = useState(false);
-  const [btcDebug,          setBtcDebug]         = useState('');  // temp debug — remove before launch
 
   // Picker modals
   const [showInjectedPicker, setShowInjectedPicker] = useState(false);
@@ -1102,20 +1102,16 @@ export function BuySection() {
                     </button>
                   </div>
                 ) : (
-                  <>
-                    <button onClick={connectWallet}
-                      className="w-full flex items-center justify-center gap-3 bg-orange-600/20 border border-orange-500/40 hover:border-orange-400/70 hover:bg-orange-600/30 rounded-xl px-4 py-3.5 transition-all">
-                      <span className="text-2xl leading-none text-orange-400">₿</span>
-                      <span className="text-orange-300 font-semibold">Connect Bitcoin Wallet</span>
-                    </button>
-                    {btcDebug && (
-                      <div className="mt-2 p-3 rounded-lg bg-black/60 border border-yellow-500/40 text-left">
-                        <p className="text-yellow-400 text-xs font-bold mb-1">🔍 DEBUG — Raw BTC Response:</p>
-                        <pre className="text-yellow-200 text-xs overflow-auto max-h-40 whitespace-pre-wrap break-all">{btcDebug}</pre>
-                        <button onClick={() => setBtcDebug('')} className="text-yellow-500 text-xs mt-1 hover:underline">Clear</button>
-                      </div>
-                    )}
-                  </>
+                  <BtcDiagnostic
+                    onConnect={(addr, wallet) => {
+                      localStorage.setItem('_kleo_btc_address', addr);
+                      localStorage.setItem('_kleo_btc_wallet_name', wallet.name);
+                      setBtcWallet(addr, wallet.name);
+                      setActiveWallet(wallet);
+                    }}
+                    onError={(msg) => { setTxError(msg); setTxStatus('error'); }}
+                    onPicker={() => setShowBtcPicker(true)}
+                  />
                 )
               ) : (
                 solConnected ? (
