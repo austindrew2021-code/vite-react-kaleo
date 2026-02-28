@@ -1,19 +1,23 @@
 /**
- * BtcConnect — Bitcoin wallet connection component
+ * BtcConnect — Bitcoin wallet connection
  *
- * All wallets (Phantom, Xverse, OKX, Unisat) auto-record to Supabase.
- * Phantom uses signPSBT → broadcast via mempool.space (no redirect needed).
- * Xverse, OKX, Unisat use their native sendBitcoin/sendTransfer APIs.
+ * Wallet APIs confirmed from official docs:
+ *   Phantom → window.phantom.bitcoin.requestAccounts() → [{ address, purpose }]
+ *   Xverse  → XverseProviders.BitcoinProvider.request('getAccounts', null)
+ *             → { status: 'success', result: [{ address, purpose, addressType }] }
+ *   OKX     → window.okxwallet.bitcoin.requestAccounts() → [{ address }]
+ *   Unisat  → window.unisat.requestAccounts() → ['bc1q...']
+ *
+ * Send APIs:
+ *   Phantom → signPSBT (PSBT built via @scure/btc-signer + mempool.space UTXOs)
+ *   Xverse  → request('sendTransfer', { recipients }) → { status, result: { txid } }
+ *   OKX     → sendBitcoin(to, sat) → txid string
+ *   Unisat  → sendBitcoin(to, sat) → txid string
  */
 
 import { useState } from 'react';
 
-// ── PSBT-based send for Phantom Bitcoin ───────────────────────────────────
-// Phantom exposes signPSBT but not sendBitcoin, so we:
-// 1. Fetch UTXOs from mempool.space
-// 2. Build a PSBT with @scure/btc-signer
-// 3. Phantom signs in-app (approval popup, no redirect)
-// 4. We finalize + broadcast → get txid back → auto-records to Supabase
+// ── Phantom PSBT send ──────────────────────────────────────────────────────
 export async function phantomSendBitcoin(
   fromAddress: string,
   toAddress: string,
@@ -23,28 +27,25 @@ export async function phantomSendBitcoin(
     await import('@scure/btc-signer');
 
   // 1. Fetch confirmed UTXOs
-  const utxoRes = await fetch(
-    `https://mempool.space/api/address/${fromAddress}/utxo`
-  );
-  if (!utxoRes.ok) throw new Error('Failed to fetch UTXOs from mempool.space');
+  const utxoRes = await fetch(`https://mempool.space/api/address/${fromAddress}/utxo`);
+  if (!utxoRes.ok) throw new Error('Failed to fetch UTXOs — check your internet connection');
   const rawUtxos: { txid: string; vout: number; value: number; status: { confirmed: boolean } }[] =
     await utxoRes.json();
 
+  const addrDecoded = Address(NETWORK).decode(fromAddress);
+  const script = OutScript.encode(addrDecoded);
+
   const utxos = rawUtxos
     .filter(u => u.status.confirmed)
-    .map(u => {
-      const addrDecoded = Address(NETWORK).decode(fromAddress);
-      const script = OutScript.encode(addrDecoded);
-      return {
-        txid: u.txid,
-        index: u.vout,
-        value: BigInt(u.value),
-        witnessUtxo: { script, amount: BigInt(u.value) },
-      };
-    });
+    .map(u => ({
+      txid: u.txid,
+      index: u.vout,
+      value: BigInt(u.value),
+      witnessUtxo: { script, amount: BigInt(u.value) },
+    }));
 
   if (utxos.length === 0)
-    throw new Error('No confirmed BTC found — funds may still be pending confirmation');
+    throw new Error('No confirmed BTC — funds may be pending confirmation (check mempool.space)');
 
   // 2. Get fee rate
   let feePerByte = 10n;
@@ -54,147 +55,124 @@ export async function phantomSendBitcoin(
     feePerByte = BigInt(fees.halfHourFee ?? 10);
   } catch {}
 
-  // 3. Select UTXOs + build unsigned transaction
+  // 3. Select UTXOs + build PSBT
   const selected = selectUTXO(
     utxos,
     [{ address: toAddress, amount: BigInt(satoshis) }],
     'default',
-    {
-      changeAddress: fromAddress,
-      feePerByte,
-      network: NETWORK,
-      bip69: false,
-      createTx: true,
-      dust: 546,
-    }
+    { changeAddress: fromAddress, feePerByte, network: NETWORK, bip69: false, createTx: true, dust: 546 }
   );
-  if (!selected?.tx)
-    throw new Error('Insufficient BTC balance (including network fee)');
+  if (!selected?.tx) throw new Error('Insufficient BTC balance (including network fee)');
 
-  // 4. Export as base64 PSBT
   const psbtBytes = selected.tx.toPSBT();
   const psbtBase64 = btoa(String.fromCharCode(...psbtBytes));
 
-  // 5. Ask Phantom to sign — shows native approval popup
+  // 4. Phantom signPSBT — shows native approval popup, no redirect
   const phantom = (window as any).phantom.bitcoin;
-  const inputCount = selected.tx.inputsLength;
-  const inputsToSign = Array.from({ length: inputCount }, (_, i) => ({
+  const inputsToSign = Array.from({ length: selected.tx.inputsLength }, (_, i) => ({
     index: i,
     address: fromAddress,
   }));
+  const signedResult = await phantom.signPSBT(psbtBase64, { inputsToSign, broadcast: false });
+  const signedB64: string = typeof signedResult === 'string' ? signedResult : signedResult?.psbtBase64;
 
-  const signedResult = await phantom.signPSBT(psbtBase64, {
-    inputsToSign,
-    broadcast: false, // we broadcast ourselves to get the txid
-  });
-
-  // signedResult is base64 string or { psbtBase64 } depending on Phantom version
-  const signedB64: string =
-    typeof signedResult === 'string'
-      ? signedResult
-      : signedResult?.psbtBase64 ?? signedResult;
-
-  // 6. Finalize and extract raw tx
+  // 5. Finalize + broadcast
   const signedBytes = Uint8Array.from(atob(signedB64), c => c.charCodeAt(0));
   const finalTx = Transaction.fromPSBT(signedBytes);
   finalTx.finalize();
   const rawBytes = finalTx.extract();
   const rawHex = Array.from(rawBytes).map(b => b.toString(16).padStart(2, '0')).join('');
 
-  // 7. Broadcast
   const broadcastRes = await fetch('https://mempool.space/api/tx', {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain' },
-    body: rawHex,
+    method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: rawHex,
   });
-  if (!broadcastRes.ok) {
-    const err = await broadcastRes.text();
-    throw new Error('Broadcast failed: ' + err.slice(0, 200));
-  }
-  return await broadcastRes.text(); // txid
+  if (!broadcastRes.ok) throw new Error('Broadcast failed: ' + (await broadcastRes.text()).slice(0, 150));
+  return broadcastRes.text(); // txid
 }
 
-// ── DetectedWallet interface ───────────────────────────────────────────────
+// ── Wallet types ───────────────────────────────────────────────────────────
 interface DetectedWallet {
   id: string; name: string; icon: string; color: string;
   connect: () => Promise<string>;
   sendBtc?: (to: string, satoshis: number) => Promise<string>;
 }
-
 interface Props {
   onConnect: (addr: string, wallet: DetectedWallet) => void;
   onError:   (msg: string) => void;
   onPicker:  () => void;
 }
 
-// ── Detect all injected Bitcoin providers ──────────────────────────────────
+// ── Detect injected BTC providers ─────────────────────────────────────────
 function detectInjectedBtc(): DetectedWallet[] {
   const w = window as any;
   const list: DetectedWallet[] = [];
 
-  if (w.phantom?.bitcoin) {
-    list.push({
-      id: 'phantom-btc', name: 'Phantom', icon: '👻', color: 'text-purple-400',
-      connect: async () => {
-        const accs = await w.phantom.bitcoin.requestAccounts();
-        return accs.find((a: any) => a.purpose === 'payment')?.address
-            ?? accs[0]?.address ?? '';
-      },
-      // Uses signPSBT flow — auto-records txid, no redirect
-      sendBtc: (to, sat) => {
-        // fromAddress captured at call time via btcAddr in BuySection
-        // We need the sender address — it's passed as the first arg by sendBtc wrapper
-        return phantomSendBitcoin('__FROM__', to, sat);
-      },
-    });
-  }
+  // ── Phantom ──────────────────────────────────────────────────────────────
+  if (w.phantom?.bitcoin) list.push({
+    id: 'phantom-btc', name: 'Phantom', icon: '👻', color: 'text-purple-400',
+    connect: async () => {
+      const accs = await w.phantom.bitcoin.requestAccounts();
+      // Response: [{ address, publicKey, purpose, addressType }]
+      return accs.find((a: any) => a.purpose === 'payment')?.address
+          ?? accs.find((a: any) => a.address?.startsWith('bc1'))?.address
+          ?? accs[0]?.address ?? '';
+    },
+    // sendBtc patched at connect time with fromAddress captured in closure
+    sendBtc: undefined,
+  });
 
+  // ── Xverse ───────────────────────────────────────────────────────────────
+  // XverseProviders.BitcoinProvider is the in-browser injected provider
+  // API: request('getAccounts', null) → { status: 'success', result: [{ address, purpose }] }
   const xp = w.XverseProviders?.BitcoinProvider ?? w.BitcoinProvider;
-  if (xp) {
-    list.push({
-      id: 'xverse', name: 'Xverse', icon: '✦', color: 'text-blue-400',
-      connect: async () => {
-        const r = await xp.request('getAccounts', {
-          purposes: ['payment'],
-          message: 'Connect to Kaleo presale',
-        });
-        return r?.result?.addresses?.[0]?.address ?? r?.addresses?.[0]?.address ?? '';
-      },
-      sendBtc: async (to, sat) => {
-        const r = await xp.request('sendTransfer', {
-          recipients: [{ address: to, amount: sat }],
-        });
-        return r?.result?.txid ?? r?.txid ?? '';
-      },
-    });
-  }
+  if (xp) list.push({
+    id: 'xverse', name: 'Xverse', icon: '✦', color: 'text-blue-400',
+    connect: async () => {
+      const r = await xp.request('getAccounts', null);
+      if (r?.status === 'error') throw new Error(r.error?.message || 'Xverse connection refused');
+      // result is flat array: [{ address, purpose, addressType, publicKey }]
+      const addrs: any[] = r?.result ?? [];
+      return addrs.find(a => a.purpose === 'payment')?.address
+          ?? addrs.find(a => a.addressType === 'p2wpkh' || a.addressType === 'p2sh')?.address
+          ?? addrs[0]?.address ?? '';
+    },
+    sendBtc: async (to, sat) => {
+      const r = await xp.request('sendTransfer', { recipients: [{ address: to, amount: sat }] });
+      if (r?.status === 'error') throw new Error(r.error?.message || 'Xverse send failed');
+      return r?.result?.txid ?? r?.txid ?? '';
+    },
+  });
 
-  if (w.okxwallet?.bitcoin) {
-    list.push({
-      id: 'okx-btc', name: 'OKX Wallet', icon: '⭕', color: 'text-gray-300',
-      connect: async () => {
-        const accs = await w.okxwallet.bitcoin.requestAccounts();
-        return accs[0]?.address ?? accs[0] ?? '';
-      },
-      sendBtc: (to, sat) => w.okxwallet.bitcoin.sendBitcoin(to, sat),
-    });
-  }
+  // ── OKX ──────────────────────────────────────────────────────────────────
+  if (w.okxwallet?.bitcoin) list.push({
+    id: 'okx-btc', name: 'OKX Wallet', icon: '⭕', color: 'text-gray-300',
+    connect: async () => {
+      const accs = await w.okxwallet.bitcoin.requestAccounts();
+      return accs[0]?.address ?? accs[0] ?? '';
+    },
+    sendBtc: async (to, sat) => {
+      const txid = await w.okxwallet.bitcoin.sendBitcoin(to, sat);
+      return typeof txid === 'string' ? txid : txid?.txid ?? '';
+    },
+  });
 
-  if (w.unisat) {
-    list.push({
-      id: 'unisat', name: 'Unisat', icon: '🟠', color: 'text-orange-400',
-      connect: async () => {
-        const accs = await w.unisat.requestAccounts();
-        return accs[0] ?? '';
-      },
-      sendBtc: (to, sat) => w.unisat.sendBitcoin(to, sat),
-    });
-  }
+  // ── Unisat ────────────────────────────────────────────────────────────────
+  if (w.unisat) list.push({
+    id: 'unisat', name: 'Unisat', icon: '🟠', color: 'text-orange-400',
+    connect: async () => {
+      const accs = await w.unisat.requestAccounts();
+      return accs[0] ?? '';
+    },
+    sendBtc: async (to, sat) => {
+      const txid = await w.unisat.sendBitcoin(to, sat);
+      return typeof txid === 'string' ? txid : '';
+    },
+  });
 
   return list;
 }
 
-// ── Browser deep-link openers ──────────────────────────────────────────────
+// ── Browser wallet openers (when no injected provider) ────────────────────
 const BTC_BROWSER_WALLETS = [
   {
     id: 'phantom', name: 'Phantom', icon: '👻', desc: 'BTC · SOL · ETH',
@@ -242,65 +220,51 @@ export function BtcDiagnostic({ onConnect, onError }: Props) {
   const [showPicker, setShowPicker] = useState(false);
   const injected = detectInjectedBtc();
 
-  const connectDirect = async (wallet: DetectedWallet) => {
+  const connectDirect = async (walletRaw: DetectedWallet) => {
     setConnecting(true);
     try {
-      const addr = await wallet.connect();
-      if (addr) {
-        // Patch Phantom's sendBtc to capture the from-address at connect time
-        if (wallet.id === 'phantom-btc') {
-          wallet = {
-            ...wallet,
-            sendBtc: (to, sat) => phantomSendBitcoin(addr, to, sat),
-          };
-        }
-        onConnect(addr, wallet);
-      } else {
-        onError('No Bitcoin address returned from ' + wallet.name);
-      }
+      const addr = await walletRaw.connect();
+      if (!addr) { onError('No Bitcoin address returned from ' + walletRaw.name); return; }
+
+      // Patch Phantom's sendBtc closure with the captured fromAddress
+      const wallet: DetectedWallet = walletRaw.id === 'phantom-btc'
+        ? { ...walletRaw, sendBtc: (to, sat) => phantomSendBitcoin(addr, to, sat) }
+        : walletRaw;
+
+      onConnect(addr, wallet);
     } catch (e: any) {
-      onError(e?.message || wallet.name + ' connection failed');
+      onError(e?.message || walletRaw.name + ' connection failed');
     } finally {
       setConnecting(false);
     }
   };
 
   const handleConnect = () => {
-    if (injected.length === 1) {
-      connectDirect(injected[0]);
-    } else {
-      setShowPicker(true);
-    }
+    if (injected.length === 0) { setShowPicker(true); return; }
+    if (injected.length === 1) { connectDirect(injected[0]); return; }
+    setShowPicker(true);
   };
 
   return (
     <>
-      <button
-        onClick={handleConnect}
-        disabled={connecting}
-        className="w-full flex items-center justify-center gap-3 bg-orange-600/20 border border-orange-500/40 hover:border-orange-400/70 hover:bg-orange-600/30 rounded-xl px-4 py-3.5 transition-all disabled:opacity-50"
-      >
+      <button onClick={handleConnect} disabled={connecting}
+        className="w-full flex items-center justify-center gap-3 bg-orange-600/20 border border-orange-500/40 hover:border-orange-400/70 hover:bg-orange-600/30 rounded-xl px-4 py-3.5 transition-all disabled:opacity-50">
         {connecting
           ? <div className="w-4 h-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
-          : <span className="text-2xl leading-none text-orange-400">₿</span>
-        }
+          : <span className="text-2xl leading-none text-orange-400">₿</span>}
         <span className="text-orange-300 font-semibold">
           {connecting ? 'Connecting...' : 'Connect Bitcoin Wallet'}
         </span>
       </button>
 
       {showPicker && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
-          onClick={() => setShowPicker(false)}
-        >
-          <div
-            className="bg-[#0B0E14] border border-white/10 rounded-2xl p-6 w-[min(92vw,380px)] shadow-2xl"
-            onClick={e => e.stopPropagation()}
-          >
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          onClick={() => setShowPicker(false)}>
+          <div className="bg-[#0B0E14] border border-white/10 rounded-2xl p-6 w-[min(92vw,380px)] shadow-2xl"
+            onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-[#F4F6FA] font-bold text-lg">Connect Bitcoin Wallet</h3>
-              <button onClick={() => setShowPicker(false)} className="text-[#A7B0B7] hover:text-white text-xl leading-none">×</button>
+              <button onClick={() => setShowPicker(false)} className="text-[#A7B0B7] hover:text-white text-xl">×</button>
             </div>
 
             {injected.length > 1 ? (
@@ -308,10 +272,8 @@ export function BtcDiagnostic({ onConnect, onError }: Props) {
                 <p className="text-[#A7B0B7] text-xs mb-4">Multiple wallets detected — choose one:</p>
                 <div className="flex flex-col gap-3">
                   {injected.map(w => (
-                    <button key={w.id}
-                      onClick={() => { setShowPicker(false); connectDirect(w); }}
-                      className="flex items-center gap-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-orange-400/30 rounded-xl px-4 py-3 transition-all text-left"
-                    >
+                    <button key={w.id} onClick={() => { setShowPicker(false); connectDirect(w); }}
+                      className="flex items-center gap-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-orange-400/30 rounded-xl px-4 py-3 transition-all text-left">
                       <span className="text-2xl">{w.icon}</span>
                       <span className="text-[#F4F6FA] font-semibold text-sm">{w.name}</span>
                       <span className="ml-auto text-[#A7B0B7] text-lg">›</span>
@@ -322,14 +284,12 @@ export function BtcDiagnostic({ onConnect, onError }: Props) {
             ) : (
               <>
                 <p className="text-[#A7B0B7] text-xs mb-4 leading-relaxed">
-                  Open this site in a BTC wallet browser — it will connect and approve transactions directly.
+                  Open this site inside a BTC wallet browser — it will inject its provider and connect directly.
                 </p>
                 <div className="flex flex-col gap-3">
                   {BTC_BROWSER_WALLETS.map(w => (
-                    <button key={w.id}
-                      onClick={() => { setShowPicker(false); w.openUrl(window.location.href); }}
-                      className="flex items-center gap-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-orange-400/30 rounded-xl px-4 py-3.5 transition-all text-left"
-                    >
+                    <button key={w.id} onClick={() => { setShowPicker(false); w.openUrl(window.location.href); }}
+                      className="flex items-center gap-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-orange-400/30 rounded-xl px-4 py-3.5 transition-all text-left">
                       <span className="text-2xl leading-none">{w.icon}</span>
                       <div>
                         <p className="text-[#F4F6FA] font-semibold text-sm">{w.name}</p>
@@ -339,9 +299,7 @@ export function BtcDiagnostic({ onConnect, onError }: Props) {
                     </button>
                   ))}
                 </div>
-                <p className="text-[#A7B0B7] text-xs text-center mt-4">
-                  Already inside a wallet browser? Tap Connect above.
-                </p>
+                <p className="text-[#A7B0B7] text-xs text-center mt-4">Already inside a wallet browser? Tap Connect above.</p>
               </>
             )}
           </div>
