@@ -198,7 +198,12 @@ function detectBitcoinWallets(): DetectedWallet[] {
       const accs = await window.phantom!.bitcoin!.requestAccounts();
       return accs.find(a => a.purpose === 'payment')?.address ?? accs[0]?.address ?? '';
     },
-    sendBtc: async (to, sat) => window.phantom!.bitcoin!.sendBitcoin(to, sat),
+    sendBtc: async (to, sat) => {
+      // Phantom: PSBT → signPSBT → broadcast — fromAddr stored via localStorage
+      const fromAddr = localStorage.getItem('_kleo_btc_address') ?? '';
+      const { phantomSendBitcoin } = await import('../components/BtcDiagnostic');
+      return phantomSendBitcoin(fromAddr, to, sat);
+    },
   });
   const xverseProvider = (window as any).XverseProviders?.BitcoinProvider ?? (window as any).BitcoinProvider;
   if (xverseProvider) list.push({
@@ -863,17 +868,15 @@ export function BuySection() {
       if (isBtc) {
         if (!btcConnected) throw new Error('Connect Bitcoin wallet first');
         if (activeWallet?.sendBtc) {
-          // Injected wallet (Phantom/Xverse browser) — direct approval, no paste needed
+          // All wallets return txid directly:
+          // Phantom → signPSBT + broadcast via mempool.space
+          // Xverse  → sendTransfer API
+          // OKX     → sendBitcoin API
+          // Unisat  → sendBitcoin API
           hash = await sendBtc();
-          await recordPurchase(hash, usdEst, tokensEst, btcAddr, 'BTC');
+          if (hash) await recordPurchase(hash, usdEst, tokensEst, btcAddr, 'BTC');
         } else {
-          // No injected send API — fall back to bitcoin: URI
-          const label = encodeURIComponent('Kaleo Presale');
-          const msg   = encodeURIComponent(`Buy KLEO tokens - Stage ${currentStage.stage}`);
-          const uri   = `bitcoin:${PRESALE_BTC_WALLET}?amount=${parseFloat(amount).toFixed(8)}&label=${label}&message=${msg}`;
-          window.location.href = uri;
-          setTimeout(() => { setTxStatus('idle'); setShowXversePay(true); }, 1500);
-          return;
+          throw new Error('Bitcoin wallet not properly connected — please reconnect');
         }
       } else if (!isEvm) {
         if (!solConnected) throw new Error('Connect Solana wallet first');
