@@ -369,6 +369,7 @@ export function BuySection() {
   const [evmInjectedAddr,   setEvmInjectedAddr]  = useState<string>('');
   const [evmInjectedName,   setEvmInjectedName]  = useState<string>('');
   const [showEvmPicker,     setShowEvmPicker]    = useState(false);
+  const [btcDebug,          setBtcDebug]         = useState('');  // temp debug — remove before launch
 
   // Picker modals
   const [showInjectedPicker, setShowInjectedPicker] = useState(false);
@@ -470,14 +471,43 @@ export function BuySection() {
         setSolWallet(storedSol, 'Phantom');
       }
 
-      const storedBtc = localStorage.getItem('_kleo_btc_address');
+      const storedBtc     = localStorage.getItem('_kleo_btc_address');
       const storedBtcName = localStorage.getItem('_kleo_btc_wallet_name') || 'Bitcoin Wallet';
+      const btcConnecting = localStorage.getItem('_kleo_btc_connecting');
+
       if (storedBtc) {
         setBtcWallet(storedBtc, storedBtcName);
-        // Restore active wallet object for sends — match by name
         const btcWallets = detectBitcoinWallets();
         const w = btcWallets.find(w => w.name === storedBtcName) ?? btcWallets[0];
         if (w) setActiveWallet(w);
+      } else if (btcConnecting && window.bitcoin) {
+        // ── Page reloaded mid-connection (MetaMask behaviour) ──────────────
+        // User already approved — requestAccounts() returns silently with address
+        localStorage.removeItem('_kleo_btc_connecting');
+        try {
+          const raw = await (window.bitcoin as any).requestAccounts();
+          const accs = Array.isArray(raw) ? raw : (raw?.result ?? raw?.accounts ?? []);
+          const addr = typeof accs[0] === 'string'
+            ? accs[0]
+            : accs.find((a: any) => a.purpose === 'payment')?.address
+           ?? accs.find((a: any) => a.address?.startsWith('bc1'))?.address
+           ?? accs[0]?.address ?? '';
+          if (addr) {
+            const mmWallet: DetectedWallet = {
+              id: 'metamask-btc', name: btcConnecting, icon: '🦊', color: 'text-orange-400',
+              connect: async () => addr,
+              sendBtc: async (to: string, sat: number) => {
+                const r = await (window.bitcoin as any).sendBitcoin(to, sat);
+                return typeof r === 'string' ? r : r?.txid ?? String(r);
+              },
+            };
+            localStorage.setItem('_kleo_btc_address', addr);
+            localStorage.setItem('_kleo_btc_wallet_name', btcConnecting);
+            setBtcWallet(addr, btcConnecting);
+            setActiveWallet(mmWallet);
+            setCurrency('BTC');
+          }
+        } catch { /* already approved so silently ignore any error */ }
       }
 
       // ── Restore saved EVM address if inside a wallet browser ─────────────
@@ -688,6 +718,9 @@ export function BuySection() {
 
       // 1. window.bitcoin — MetaMask Bitcoin Snap (works regardless of EVM chain)
       if (window.bitcoin) {
+        // Save flag BEFORE calling — MetaMask may reload the page on approval.
+        // On next mount we'll see the flag and silently re-fetch the now-approved address.
+        localStorage.setItem('_kleo_btc_connecting', 'MetaMask');
         setTxStatus('pending'); setTxError('Connecting Bitcoin wallet...');
         try {
           const raw = await (window.bitcoin as any).requestAccounts();
@@ -702,16 +735,21 @@ export function BuySection() {
                 return typeof result === 'string' ? result : result?.txid ?? String(result);
               },
             };
+            localStorage.removeItem('_kleo_btc_connecting');
             localStorage.setItem('_kleo_btc_address', addr);
             localStorage.setItem('_kleo_btc_wallet_name', 'MetaMask');
             setBtcWallet(addr, 'MetaMask');
             setActiveWallet(mmWallet);
             setTxStatus('idle'); setTxError('');
           } else {
-            setTxError('No Bitcoin address returned — ensure MetaMask has a Bitcoin account enabled');
+            localStorage.removeItem('_kleo_btc_connecting');
+            // Show raw response in error so we can debug the exact format
+            const rawStr = JSON.stringify(raw ?? null).slice(0, 200);
+            setTxError(`No BTC address found. Raw response: ${rawStr}`);
             setTxStatus('error');
           }
         } catch (e: any) {
+          localStorage.removeItem('_kleo_btc_connecting');
           setTxError(e?.message || 'MetaMask BTC connection failed');
           setTxStatus('error');
         }
@@ -721,17 +759,22 @@ export function BuySection() {
       // 2. Other injected wallets (Phantom, Xverse, OKX, Unisat)
       const injected = detectBitcoinWallets();
       if (injected.length === 1) {
+        localStorage.setItem('_kleo_btc_connecting', injected[0].name);
         setTxStatus('pending'); setTxError('Connecting...');
         try {
           const addr = await injected[0].connect();
           if (addr) {
+            localStorage.removeItem('_kleo_btc_connecting');
             localStorage.setItem('_kleo_btc_address', addr);
             localStorage.setItem('_kleo_btc_wallet_name', injected[0].name);
             setBtcWallet(addr, injected[0].name);
             setActiveWallet(injected[0]);
             setTxStatus('idle'); setTxError('');
           }
-        } catch (e: any) { setTxError(e?.message || 'Connection failed'); setTxStatus('error'); }
+        } catch (e: any) {
+          localStorage.removeItem('_kleo_btc_connecting');
+          setTxError(e?.message || 'Connection failed'); setTxStatus('error');
+        }
       } else if (injected.length > 1) {
         setInjectedWallets(injected); setPickerType('btc'); setShowInjectedPicker(true);
       } else {
@@ -1059,11 +1102,20 @@ export function BuySection() {
                     </button>
                   </div>
                 ) : (
-                  <button onClick={connectWallet}
-                    className="w-full flex items-center justify-center gap-3 bg-orange-600/20 border border-orange-500/40 hover:border-orange-400/70 hover:bg-orange-600/30 rounded-xl px-4 py-3.5 transition-all">
-                    <span className="text-2xl leading-none text-orange-400">₿</span>
-                    <span className="text-orange-300 font-semibold">Connect Bitcoin Wallet</span>
-                  </button>
+                  <>
+                    <button onClick={connectWallet}
+                      className="w-full flex items-center justify-center gap-3 bg-orange-600/20 border border-orange-500/40 hover:border-orange-400/70 hover:bg-orange-600/30 rounded-xl px-4 py-3.5 transition-all">
+                      <span className="text-2xl leading-none text-orange-400">₿</span>
+                      <span className="text-orange-300 font-semibold">Connect Bitcoin Wallet</span>
+                    </button>
+                    {btcDebug && (
+                      <div className="mt-2 p-3 rounded-lg bg-black/60 border border-yellow-500/40 text-left">
+                        <p className="text-yellow-400 text-xs font-bold mb-1">🔍 DEBUG — Raw BTC Response:</p>
+                        <pre className="text-yellow-200 text-xs overflow-auto max-h-40 whitespace-pre-wrap break-all">{btcDebug}</pre>
+                        <button onClick={() => setBtcDebug('')} className="text-yellow-500 text-xs mt-1 hover:underline">Clear</button>
+                      </div>
+                    )}
+                  </>
                 )
               ) : (
                 solConnected ? (
