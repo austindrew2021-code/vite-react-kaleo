@@ -209,12 +209,18 @@ function detectBitcoinWallets(): DetectedWallet[] {
   if (xverseProvider) list.push({
     id: 'xverse', name: 'Xverse', icon: '✦', color: 'text-blue-400',
     connect: async (): Promise<string> => {
-      const r = await xverseProvider.request('getAccounts', { purposes: ['payment'], message: 'Connect to Kaleo presale' });
-      return r?.result?.addresses?.[0]?.address ?? '';
+      // Xverse API: request('getAccounts', null) → { status, result: [{ address, purpose }] }
+      const r = await xverseProvider.request('getAccounts', null);
+      if (r?.status === 'error') throw new Error(r.error?.message || 'Xverse refused connection');
+      const addrs: any[] = r?.result ?? [];
+      return addrs.find((a: any) => a.purpose === 'payment')?.address
+          ?? addrs.find((a: any) => a.addressType === 'p2wpkh' || a.addressType === 'p2sh')?.address
+          ?? addrs[0]?.address ?? '';
     },
     sendBtc: async (to, sat) => {
       const r = await xverseProvider.request('sendTransfer', { recipients: [{ address: to, amount: sat }] });
-      return r?.result?.txid ?? '';
+      if (r?.status === 'error') throw new Error(r.error?.message || 'Xverse send failed');
+      return r?.result?.txid ?? r?.txid ?? '';
     },
   });
   if (window.okxwallet?.bitcoin) list.push({
