@@ -1,3 +1,16 @@
+/**
+ * BtcConnect — Bitcoin wallet connection component
+ *
+ * Supported wallets with real dApp Bitcoin provider APIs:
+ *   Phantom   → window.phantom.bitcoin
+ *   Xverse    → window.XverseProviders.BitcoinProvider
+ *   OKX       → window.okxwallet.bitcoin
+ *   Unisat    → window.unisat
+ *
+ * MetaMask mobile does NOT inject a Bitcoin provider.
+ * Its Bitcoin feature is native-only, not accessible via dApp APIs.
+ */
+
 import { useState } from 'react';
 
 interface DetectedWallet {
@@ -8,319 +21,171 @@ interface DetectedWallet {
 
 interface Props {
   onConnect: (addr: string, wallet: DetectedWallet) => void;
-  onError: (msg: string) => void;
-  onPicker: () => void;
+  onError:   (msg: string) => void;
+  onPicker:  () => void;
 }
 
-// ── Scan every known Bitcoin-related key on window ─────────────────────────
-function scanWindow(): Record<string, string> {
+function detectInjectedBtc(): DetectedWallet[] {
   const w = window as any;
-  const result: Record<string, string> = {};
+  const list: DetectedWallet[] = [];
 
-  // Top-level keys that might be BTC-related
-  const keysToCheck = [
-    'bitcoin', 'Bitcoin', 'btc', 'BTC',
-    'ethereum', 'web3',
-    'phantom', 'solana',
-    'okxwallet', 'unisat',
-    'XverseProviders', 'BitcoinProvider',
-    'xverse', 'leather', 'hiro',
-  ];
+  if (w.phantom?.bitcoin) list.push({
+    id: 'phantom-btc', name: 'Phantom', icon: '👻', color: 'text-purple-400',
+    connect: async () => {
+      const accs = await w.phantom.bitcoin.requestAccounts();
+      return accs.find((a: any) => a.purpose === 'payment')?.address ?? accs[0]?.address ?? '';
+    },
+    sendBtc: (to, sat) => w.phantom.bitcoin.sendBitcoin(to, sat),
+  });
 
-  for (const key of keysToCheck) {
-    if (w[key] !== undefined) {
-      try {
-        const val = w[key];
-        const type = typeof val;
-        if (type === 'object' && val !== null) {
-          const keys = Object.keys(val).slice(0, 15).join(', ');
-          result[key] = `{object} keys: [${keys}]`;
-          // Go one level deeper for nested bitcoin
-          if (val.bitcoin) result[`${key}.bitcoin`] = `{object} keys: [${Object.keys(val.bitcoin).slice(0,10).join(', ')}]`;
-          if (val.solana) result[`${key}.solana`] = `{object}`;
-        } else {
-          result[key] = `${type}: ${String(val).slice(0, 60)}`;
-        }
-      } catch (e) {
-        result[key] = `[error reading: ${e}]`;
-      }
-    }
-  }
+  const xp = w.XverseProviders?.BitcoinProvider ?? w.BitcoinProvider;
+  if (xp) list.push({
+    id: 'xverse', name: 'Xverse', icon: '✦', color: 'text-blue-400',
+    connect: async () => {
+      const r = await xp.request('getAccounts', { purposes: ['payment'], message: 'Connect to Kaleo presale' });
+      return r?.result?.addresses?.[0]?.address ?? r?.addresses?.[0]?.address ?? '';
+    },
+    sendBtc: async (to, sat) => {
+      const r = await xp.request('sendTransfer', { recipients: [{ address: to, amount: sat }] });
+      return r?.result?.txid ?? '';
+    },
+  });
 
-  // Check window.ethereum details
-  if (w.ethereum) {
-    result['ethereum.isMetaMask'] = String(w.ethereum.isMetaMask);
-    result['ethereum.chainId'] = String(w.ethereum.chainId);
-    result['ethereum.isTrust'] = String(w.ethereum.isTrust);
-  }
+  if (w.okxwallet?.bitcoin) list.push({
+    id: 'okx-btc', name: 'OKX Wallet', icon: '⭕', color: 'text-gray-300',
+    connect: async () => { const accs = await w.okxwallet.bitcoin.requestAccounts(); return accs[0]?.address ?? ''; },
+    sendBtc: (to, sat) => w.okxwallet.bitcoin.sendBitcoin(to, sat),
+  });
 
-  return result;
+  if (w.unisat) list.push({
+    id: 'unisat', name: 'Unisat', icon: '🟠', color: 'text-orange-400',
+    connect: async () => { const accs = await w.unisat.requestAccounts(); return accs[0] ?? ''; },
+    sendBtc: (to, sat) => w.unisat.sendBitcoin(to, sat),
+  });
+
+  return list;
 }
 
-// ── Try every known BTC requestAccounts variant ────────────────────────────
-async function tryAllBtcApis(): Promise<{ method: string; result: any; error?: string }[]> {
-  const w = window as any;
-  const results: { method: string; result: any; error?: string }[] = [];
+const BTC_BROWSER_WALLETS = [
+  {
+    id: 'phantom', name: 'Phantom', icon: '👻', desc: 'BTC · SOL · ETH',
+    openUrl: (url: string) => {
+      const enc = encodeURIComponent(url);
+      const ref = encodeURIComponent(new URL(url).origin);
+      if (/Android/i.test(navigator.userAgent))
+        window.location.href = `intent://browse/${enc}?ref=${ref}#Intent;scheme=phantom;package=app.phantom;S.browser_fallback_url=https%3A%2F%2Fphantom.app;end`;
+      else window.location.href = `https://phantom.app/ul/browse/${enc}?ref=${ref}`;
+    },
+  },
+  {
+    id: 'xverse', name: 'Xverse', icon: '✦', desc: 'BTC · Ordinals · Runes',
+    openUrl: (url: string) => {
+      const enc = encodeURIComponent(url);
+      if (/Android/i.test(navigator.userAgent))
+        window.location.href = `intent://browser?url=${enc}#Intent;scheme=xverse;package=com.secretkeylabs.xverse;S.browser_fallback_url=https%3A%2F%2Fwww.xverse.app;end`;
+      else window.location.href = `https://www.xverse.app/browser?url=${enc}`;
+    },
+  },
+  {
+    id: 'okx', name: 'OKX Wallet', icon: '⭕', desc: 'BTC · ETH · BNB · SOL',
+    openUrl: (url: string) => {
+      const enc = encodeURIComponent(url);
+      if (/Android/i.test(navigator.userAgent))
+        window.location.href = `intent://browser?url=${enc}#Intent;scheme=okex;package=com.okinc.okex.gp;S.browser_fallback_url=https%3A%2F%2Fwww.okx.com%2Fweb3;end`;
+      else window.location.href = `okx://wallet/dapp/url?dappUrl=${enc}`;
+    },
+  },
+  {
+    id: 'unisat', name: 'Unisat', icon: '🟠', desc: 'BTC · Ordinals · BRC-20',
+    openUrl: (url: string) => {
+      const enc = encodeURIComponent(url);
+      window.location.href = `unisat://browser?url=${enc}`;
+      setTimeout(() => window.open('https://unisat.io', '_blank'), 1500);
+    },
+  },
+];
 
-  const tryMethod = async (label: string, fn: () => Promise<any>) => {
-    try {
-      const r = await fn();
-      results.push({ method: label, result: r });
-    } catch (e: any) {
-      results.push({ method: label, result: null, error: e?.message || String(e) });
-    }
-  };
-
-  // Direct window.bitcoin
-  if (w.bitcoin) {
-    await tryMethod('window.bitcoin.requestAccounts()', () => w.bitcoin.requestAccounts());
-    await tryMethod('window.bitcoin.request({method:"requestAccounts"})', () =>
-      w.bitcoin.request({ method: 'requestAccounts' }));
-    await tryMethod('window.bitcoin.request({method:"btc_requestAccounts"})', () =>
-      w.bitcoin.request({ method: 'btc_requestAccounts' }));
-    await tryMethod('window.bitcoin.request({method:"getAccounts"})', () =>
-      w.bitcoin.request({ method: 'getAccounts' }));
-  }
-
-  // window.ethereum Bitcoin methods
-  if (w.ethereum) {
-    await tryMethod('ethereum.request({method:"btc_requestAccounts"})', () =>
-      w.ethereum.request({ method: 'btc_requestAccounts' }));
-    await tryMethod('ethereum.request({method:"wallet_getPermissions"})', () =>
-      w.ethereum.request({ method: 'wallet_getPermissions' }));
-    await tryMethod('ethereum.request({method:"wallet_requestPermissions",bitcoin_requestAccounts})', () =>
-      w.ethereum.request({ method: 'wallet_requestPermissions', params: [{ bitcoin_requestAccounts: {} }] }));
-  }
-
-  // Phantom bitcoin
-  if (w.phantom?.bitcoin) {
-    await tryMethod('phantom.bitcoin.requestAccounts()', () => w.phantom.bitcoin.requestAccounts());
-  }
-
-  return results;
-}
-
-export function BtcDiagnostic({ onConnect, onError, onPicker }: Props) {
-  const [scanning, setScanning]     = useState(false);
-  const [scan, setScan]             = useState<Record<string, string> | null>(null);
-  const [apiResults, setApiResults] = useState<{ method: string; result: any; error?: string }[] | null>(null);
+export function BtcDiagnostic({ onConnect, onError }: Props) {
   const [connecting, setConnecting] = useState(false);
+  const [showPicker, setShowPicker] = useState(false);
+  const injected = detectInjectedBtc();
 
-  const runScan = () => {
-    const result = scanWindow();
-    setScan(result);
-  };
-
-  const runApiTest = async () => {
-    setScanning(true);
-    try {
-      const results = await tryAllBtcApis();
-      setApiResults(results);
-    } finally {
-      setScanning(false);
-    }
-  };
-
-  // Try to extract an address from any successful API result
-  const tryConnect = async () => {
+  const connectDirect = async (wallet: DetectedWallet) => {
     setConnecting(true);
-    const w = window as any;
     try {
-      // Try every provider in priority order
-      const providers: Array<{ label: string; fn: () => Promise<string | null> }> = [
-        {
-          label: 'window.bitcoin.requestAccounts()',
-          fn: async () => {
-            if (!w.bitcoin) return null;
-            const raw = await w.bitcoin.requestAccounts();
-            return extractAddr(raw);
-          }
-        },
-        {
-          label: 'window.bitcoin.request(requestAccounts)',
-          fn: async () => {
-            if (!w.bitcoin?.request) return null;
-            const raw = await w.bitcoin.request({ method: 'requestAccounts' });
-            return extractAddr(raw);
-          }
-        },
-        {
-          label: 'ethereum btc_requestAccounts',
-          fn: async () => {
-            if (!w.ethereum) return null;
-            const raw = await w.ethereum.request({ method: 'btc_requestAccounts' });
-            return extractAddr(raw);
-          }
-        },
-        {
-          label: 'phantom.bitcoin.requestAccounts()',
-          fn: async () => {
-            if (!w.phantom?.bitcoin) return null;
-            const raw = await w.phantom.bitcoin.requestAccounts();
-            return extractAddr(raw);
-          }
-        },
-        {
-          label: 'XverseProviders.BitcoinProvider getAccounts',
-          fn: async () => {
-            const xp = w.XverseProviders?.BitcoinProvider ?? w.BitcoinProvider;
-            if (!xp) return null;
-            const r = await xp.request('getAccounts', { purposes: ['payment'] });
-            return r?.result?.addresses?.[0]?.address ?? null;
-          }
-        },
-        {
-          label: 'unisat.requestAccounts()',
-          fn: async () => {
-            if (!w.unisat) return null;
-            const raw = await w.unisat.requestAccounts();
-            return Array.isArray(raw) ? raw[0] : null;
-          }
-        },
-      ];
-
-      for (const p of providers) {
-        try {
-          const addr = await p.fn();
-          if (addr && addr.startsWith('bc1')) {
-            // Found it — build wallet object
-            const wallet: DetectedWallet = {
-              id: 'btc-detected', name: p.label.split('.')[0].replace('window.', ''),
-              icon: '₿', color: 'text-orange-400',
-              connect: async () => addr,
-              sendBtc: buildSendFn(p.label),
-            };
-            onConnect(addr, wallet);
-            return;
-          }
-        } catch {}
-      }
-
-      onError('No Bitcoin provider found. Screenshot the scan results below and share.');
+      const addr = await wallet.connect();
+      if (addr) { onConnect(addr, wallet); }
+      else { onError('No Bitcoin address returned from ' + wallet.name); }
+    } catch (e: any) {
+      onError(e?.message || wallet.name + ' connection failed');
     } finally {
       setConnecting(false);
     }
   };
 
-  function extractAddr(raw: any): string | null {
-    if (!raw) return null;
-    if (typeof raw === 'string' && raw.startsWith('bc1')) return raw;
-    if (Array.isArray(raw)) {
-      if (typeof raw[0] === 'string') return raw[0];
-      return raw.find((a: any) => a.purpose === 'payment')?.address
-          ?? raw.find((a: any) => a.address?.startsWith('bc1'))?.address
-          ?? raw[0]?.address ?? null;
-    }
-    const list = raw?.result ?? raw?.accounts ?? raw?.addresses ?? [];
-    return extractAddr(list);
-  }
-
-  function buildSendFn(providerLabel: string): (to: string, sat: number) => Promise<string> {
-    const w = window as any;
-    if (providerLabel.includes('phantom')) {
-      return (to, sat) => w.phantom.bitcoin.sendBitcoin(to, sat);
-    }
-    if (providerLabel.includes('unisat')) {
-      return (to, sat) => w.unisat.sendBitcoin(to, sat);
-    }
-    if (providerLabel.includes('Xverse')) {
-      const xp = w.XverseProviders?.BitcoinProvider ?? w.BitcoinProvider;
-      return async (to, sat) => {
-        const r = await xp.request('sendTransfer', { recipients: [{ address: to, amount: sat }] });
-        return r?.result?.txid ?? '';
-      };
-    }
-    // Default: window.bitcoin
-    return async (to, sat) => {
-      const r = await w.bitcoin.sendBitcoin(to, sat);
-      return typeof r === 'string' ? r : r?.txid ?? String(r);
-    };
-  }
-
-  const hasAnyBtc = !!(
-    (window as any).bitcoin ||
-    (window as any).phantom?.bitcoin ||
-    (window as any).XverseProviders?.BitcoinProvider ||
-    (window as any).unisat
-  );
+  const handleConnect = () => {
+    if (injected.length === 1) { connectDirect(injected[0]); }
+    else { setShowPicker(true); }
+  };
 
   return (
-    <div className="w-full flex flex-col gap-2">
-      {/* Primary connect attempt */}
-      <button
-        onClick={tryConnect}
-        disabled={connecting}
-        className="w-full flex items-center justify-center gap-3 bg-orange-600/20 border border-orange-500/40 hover:border-orange-400/70 hover:bg-orange-600/30 rounded-xl px-4 py-3.5 transition-all disabled:opacity-50"
-      >
-        {connecting ? (
-          <div className="w-4 h-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
-        ) : (
-          <span className="text-2xl leading-none text-orange-400">₿</span>
-        )}
-        <span className="text-orange-300 font-semibold">
-          {connecting ? 'Connecting...' : 'Connect Bitcoin Wallet'}
-        </span>
+    <>
+      <button onClick={handleConnect} disabled={connecting}
+        className="w-full flex items-center justify-center gap-3 bg-orange-600/20 border border-orange-500/40 hover:border-orange-400/70 hover:bg-orange-600/30 rounded-xl px-4 py-3.5 transition-all disabled:opacity-50">
+        {connecting
+          ? <div className="w-4 h-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
+          : <span className="text-2xl leading-none text-orange-400">₿</span>}
+        <span className="text-orange-300 font-semibold">{connecting ? 'Connecting...' : 'Connect Bitcoin Wallet'}</span>
       </button>
 
-      {/* Debug tools */}
-      <div className="flex gap-2">
-        <button
-          onClick={runScan}
-          className="flex-1 text-xs text-yellow-400 border border-yellow-500/30 rounded-lg py-1.5 hover:bg-yellow-500/10"
-        >
-          🔍 Scan Providers
-        </button>
-        <button
-          onClick={runApiTest}
-          disabled={scanning}
-          className="flex-1 text-xs text-yellow-400 border border-yellow-500/30 rounded-lg py-1.5 hover:bg-yellow-500/10 disabled:opacity-50"
-        >
-          {scanning ? '...' : '🧪 Test All APIs'}
-        </button>
-        {!hasAnyBtc && (
-          <button
-            onClick={onPicker}
-            className="flex-1 text-xs text-orange-400 border border-orange-500/30 rounded-lg py-1.5 hover:bg-orange-500/10"
-          >
-            📱 Open Wallet
-          </button>
-        )}
-      </div>
-
-      {/* Scan results */}
-      {scan && (
-        <div className="p-3 rounded-lg bg-black/70 border border-yellow-500/30 text-left max-h-60 overflow-auto">
-          <p className="text-yellow-400 text-xs font-bold mb-2">Window Providers Detected:</p>
-          {Object.entries(scan).length === 0 ? (
-            <p className="text-red-400 text-xs">None detected — window.bitcoin is undefined</p>
-          ) : (
-            Object.entries(scan).map(([k, v]) => (
-              <div key={k} className="text-xs mb-1">
-                <span className="text-yellow-300 font-mono">{k}</span>
-                <span className="text-gray-400"> → </span>
-                <span className="text-white break-all">{v}</span>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {/* API test results */}
-      {apiResults && (
-        <div className="p-3 rounded-lg bg-black/70 border border-blue-500/30 text-left max-h-60 overflow-auto">
-          <p className="text-blue-400 text-xs font-bold mb-2">API Test Results:</p>
-          {apiResults.map((r, i) => (
-            <div key={i} className="text-xs mb-2 border-b border-white/10 pb-1">
-              <p className="text-blue-300 font-mono break-all">{r.method}</p>
-              {r.error ? (
-                <p className="text-red-400">❌ {r.error}</p>
-              ) : (
-                <p className="text-green-400 break-all">✅ {JSON.stringify(r.result).slice(0, 200)}</p>
-              )}
+      {showPicker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          onClick={() => setShowPicker(false)}>
+          <div className="bg-[#0B0E14] border border-white/10 rounded-2xl p-6 w-[min(92vw,380px)] shadow-2xl"
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-[#F4F6FA] font-bold text-lg">Connect Bitcoin Wallet</h3>
+              <button onClick={() => setShowPicker(false)} className="text-[#A7B0B7] hover:text-white text-xl leading-none">×</button>
             </div>
-          ))}
+
+            {injected.length > 1 ? (
+              <>
+                <p className="text-[#A7B0B7] text-xs mb-4">Choose which wallet to connect:</p>
+                <div className="flex flex-col gap-3">
+                  {injected.map(w => (
+                    <button key={w.id} onClick={() => { setShowPicker(false); connectDirect(w); }}
+                      className="flex items-center gap-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-orange-400/30 rounded-xl px-4 py-3 transition-all text-left">
+                      <span className="text-2xl">{w.icon}</span>
+                      <span className="text-[#F4F6FA] font-semibold text-sm">{w.name}</span>
+                      <span className="ml-auto text-[#A7B0B7] text-lg">›</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-[#A7B0B7] text-xs mb-4 leading-relaxed">
+                  Bitcoin requires a BTC-native wallet. Select one — it will open this site in its browser where it can connect and approve transactions directly.
+                </p>
+                <div className="flex flex-col gap-3">
+                  {BTC_BROWSER_WALLETS.map(w => (
+                    <button key={w.id} onClick={() => { setShowPicker(false); w.openUrl(window.location.href); }}
+                      className="flex items-center gap-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-orange-400/30 rounded-xl px-4 py-3.5 transition-all text-left">
+                      <span className="text-2xl leading-none">{w.icon}</span>
+                      <div>
+                        <p className="text-[#F4F6FA] font-semibold text-sm">{w.name}</p>
+                        <p className="text-[#A7B0B7] text-xs">{w.desc}</p>
+                      </div>
+                      <span className="ml-auto text-[#A7B0B7] text-lg">›</span>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[#A7B0B7] text-xs text-center mt-4">Already inside a wallet browser? Tap Connect above.</p>
+              </>
+            )}
+          </div>
         </div>
       )}
-    </div>
+    </>
   );
-  }
+}
