@@ -141,8 +141,7 @@ declare global {
     solflare?:  SolflareProvider;
     okxwallet?: { bitcoin?: BitcoinProvider; solana?: PhantomSolProvider };
     unisat?: { requestAccounts: () => Promise<string[]>; sendBitcoin: (to: string, sat: number) => Promise<string> };
-    // MetaMask Bitcoin Snap — shape varies by version, cast to any when calling
-    bitcoin?: { requestAccounts: () => Promise<any>; sendBitcoin: (to: string, satoshis: number, opts?: { feeRate?: number }) => Promise<any> };
+
   }
 }
 
@@ -304,14 +303,7 @@ const BTC_BROWSER_WALLETS = [
       setTimeout(() => window.open('https://unisat.io', '_blank'), 1500);
     },
   },
-  {
-    id: 'metamask', name: 'MetaMask', icon: '🦊',
-    desc: 'BTC · ETH · BNB · 100+ chains',
-    openUrl: (url: string) => {
-      const clean = url.replace(/^https?:\/\//, '');
-      window.location.href = `https://metamask.app.link/dapp/${clean}`;
-    },
-  },
+
 ];
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -480,12 +472,12 @@ export function BuySection() {
         const btcWallets = detectBitcoinWallets();
         const w = btcWallets.find(w => w.name === storedBtcName) ?? btcWallets[0];
         if (w) setActiveWallet(w);
-      } else if (btcConnecting && window.bitcoin) {
+      } else if (btcConnecting && (window as any).bitcoin) {
         // ── Page reloaded mid-connection (MetaMask behaviour) ──────────────
         // User already approved — requestAccounts() returns silently with address
         localStorage.removeItem('_kleo_btc_connecting');
         try {
-          const raw = await (window.bitcoin as any).requestAccounts();
+          const raw = await ((window as any).bitcoin as any).requestAccounts();
           const accs = Array.isArray(raw) ? raw : (raw?.result ?? raw?.accounts ?? []);
           const addr = typeof accs[0] === 'string'
             ? accs[0]
@@ -497,7 +489,7 @@ export function BuySection() {
               id: 'metamask-btc', name: btcConnecting, icon: '🦊', color: 'text-orange-400',
               connect: async () => addr,
               sendBtc: async (to: string, sat: number) => {
-                const r = await (window.bitcoin as any).sendBitcoin(to, sat);
+                const r = await ((window as any).bitcoin as any).sendBitcoin(to, sat);
                 return typeof r === 'string' ? r : r?.txid ?? String(r);
               },
             };
@@ -562,7 +554,7 @@ export function BuySection() {
         // We never call eth_requestAccounts on mount. The user picks their tab
         // (BTC, BNB, ETH etc) and taps Connect — connectWallet() then calls the
         // correct API for that tab only:
-        //   BTC tab  → window.bitcoin.requestAccounts() = Bitcoin-only prompt
+        //   BTC tab  → (window as any).bitcoin.requestAccounts() = Bitcoin-only prompt
         //   BNB/ETH  → eth_requestAccounts = EVM network prompt
         // This prevents the "tick Bitcoin checkbox" problem entirely.
         const savedCurrency = localStorage.getItem('_kleo_active_currency');
@@ -716,14 +708,14 @@ export function BuySection() {
             ?? accs[0]?.address ?? '';
       };
 
-      // 1. window.bitcoin — MetaMask Bitcoin Snap (works regardless of EVM chain)
-      if (window.bitcoin) {
+      // 1. (window as any).bitcoin — MetaMask Bitcoin Snap (works regardless of EVM chain)
+      if ((window as any).bitcoin) {
         // Save flag BEFORE calling — MetaMask may reload the page on approval.
         // On next mount we'll see the flag and silently re-fetch the now-approved address.
         localStorage.setItem('_kleo_btc_connecting', 'MetaMask');
         setTxStatus('pending'); setTxError('Connecting Bitcoin wallet...');
         try {
-          const raw = await (window.bitcoin as any).requestAccounts();
+          const raw = await ((window as any).bitcoin as any).requestAccounts();
           const accs = Array.isArray(raw) ? raw : (raw?.result ?? raw?.accounts ?? []);
           const addr = extractBtcAddr(accs);
           if (addr) {
@@ -731,7 +723,7 @@ export function BuySection() {
               id: 'metamask-btc', name: 'MetaMask', icon: '🦊', color: 'text-orange-400',
               connect: async () => addr,
               sendBtc: async (to: string, sat: number) => {
-                const result = await (window.bitcoin as any).sendBitcoin(to, sat);
+                const result = await ((window as any).bitcoin as any).sendBitcoin(to, sat);
                 return typeof result === 'string' ? result : result?.txid ?? String(result);
               },
             };
