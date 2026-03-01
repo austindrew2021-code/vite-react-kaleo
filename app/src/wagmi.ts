@@ -12,7 +12,7 @@ import {
   safepalWallet,
 } from '@rainbow-me/rainbowkit/wallets';
 import { createConfig, http } from 'wagmi';
-import { sepolia, bscTestnet, polygon, arbitrum, base, mainnet } from 'wagmi/chains';
+import { sepolia, bscTestnet, polygon, arbitrum, base, arbitrumSepolia, baseSepolia, polygonAmoy } from 'wagmi/chains';
 
 const projectId = import.meta.env.VITE_WALLET_CONNECT_PROJECT_ID || '69b686259ac98fa35d4188e56796ca47';
 
@@ -40,17 +40,21 @@ const connectors = connectorsForWallets(
 export const config = createConfig({
   connectors,
   // BSC first — default chain for WalletConnect sessions
-  chains: [bscTestnet, sepolia, polygon, arbitrum, base, mainnet],
+  chains: [bscTestnet, sepolia, arbitrumSepolia, baseSepolia, polygonAmoy, polygon, arbitrum, base],
+  // ⚠️ For mainnet launch: change to [bsc, mainnet, polygon, arbitrum, base]
   transports: {
     [bscTestnet.id]: http('https://bsc-testnet-rpc.publicnode.com'),
     [sepolia.id]:    http('https://ethereum-sepolia-rpc.publicnode.com'),
+    [arbitrumSepolia.id]: http('https://sepolia-rollup.arbitrum.io/rpc'),
+    [baseSepolia.id]:     http('https://sepolia.base.org'),
+    [polygonAmoy.id]:     http('https://rpc-amoy.polygon.technology'),
+    // Mainnet (kept in config for switching — only used if user selects mainnet chain)
     [polygon.id]:    http('https://polygon-rpc.com'),
     [arbitrum.id]:   http('https://arb1.arbitrum.io/rpc'),
     [base.id]:       http('https://mainnet.base.org'),
-    [mainnet.id]:    http('https://eth.llamarpc.com'),
   },
   ssr: false,
 });
 
 // Export chain references used in BuySection
-export { sepolia, bscTestnet, polygon, arbitrum, base, mainnet };
+export { sepolia, bscTestnet, arbitrumSepolia, baseSepolia, polygonAmoy };
