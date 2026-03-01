@@ -12,11 +12,10 @@ import {
   safepalWallet,
 } from '@rainbow-me/rainbowkit/wallets';
 import { createConfig, http } from 'wagmi';
-import { sepolia, bscTestnet } from 'wagmi/chains';
+import { sepolia, bscTestnet, polygon, arbitrum, base, mainnet } from 'wagmi/chains';
 
 const projectId = import.meta.env.VITE_WALLET_CONNECT_PROJECT_ID || '69b686259ac98fa35d4188e56796ca47';
 
-// ── Wallets shown in RainbowKit modal ────────────────────────────────────
 const { wallets } = getDefaultWallets({ appName: 'Kaleo', projectId });
 
 const connectors = connectorsForWallets(
@@ -25,11 +24,11 @@ const connectors = connectorsForWallets(
     {
       groupName: 'Recommended',
       wallets: [
-        phantomWallet,       // Phantom (EVM + triggers window.phantom.solana)
-        okxWallet,           // OKX (multi-chain)
-        backpackWallet,      // Backpack (Solana-first)
-        bitgetWallet,        // Bitget
-        safepalWallet,       // SafePal
+        phantomWallet,
+        okxWallet,
+        backpackWallet,
+        bitgetWallet,
+        safepalWallet,
         trustWallet,
         coinbaseWallet,
       ],
@@ -40,12 +39,18 @@ const connectors = connectorsForWallets(
 
 export const config = createConfig({
   connectors,
-  // bscTestnet first — WalletConnect sessions default to the first chain.
-  // This ensures MetaMask connects on BSC Testnet, not Sepolia.
-  chains: [bscTestnet, sepolia],
+  // BSC first — default chain for WalletConnect sessions
+  chains: [bscTestnet, sepolia, polygon, arbitrum, base, mainnet],
   transports: {
     [bscTestnet.id]: http('https://bsc-testnet-rpc.publicnode.com'),
-    [sepolia.id]:     http('https://ethereum-sepolia-rpc.publicnode.com'),
+    [sepolia.id]:    http('https://ethereum-sepolia-rpc.publicnode.com'),
+    [polygon.id]:    http('https://polygon-rpc.com'),
+    [arbitrum.id]:   http('https://arb1.arbitrum.io/rpc'),
+    [base.id]:       http('https://mainnet.base.org'),
+    [mainnet.id]:    http('https://eth.llamarpc.com'),
   },
   ssr: false,
 });
+
+// Export chain references used in BuySection
+export { sepolia, bscTestnet, polygon, arbitrum, base, mainnet };
