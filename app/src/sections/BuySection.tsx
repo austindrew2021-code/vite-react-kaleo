@@ -6,11 +6,12 @@ import {
   ExternalLink, AlertCircle, CheckCircle2,
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
-import { useAccount, useSendTransaction, useDisconnect, useSwitchChain } from 'wagmi';
+import { useAccount, useSendTransaction, useDisconnect, useSwitchChain, useWriteContract } from 'wagmi';
 import { parseEther } from 'viem';
 import { sepolia, bscTestnet } from 'wagmi/chains';
 import { usePresaleStore, getCurrentStage, LISTING_PRICE_USD, useWalletStore } from '../store/presaleStore';
 import { BtcDiagnostic } from '../components/BtcDiagnostic';
+import { useConnectModal } from '@rainbow-me/rainbowkit';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -333,7 +334,23 @@ export function BuySection() {
   const { address, isConnected, connector } = useAccount();
   const { disconnect: evmDisconnect } = useDisconnect();
   const { sendTransactionAsync }        = useSendTransaction();
+  const { writeContractAsync }          = useWriteContract();
   const { switchChainAsync }            = useSwitchChain();
+  const { openConnectModal }            = useConnectModal();
+
+  // Sync wagmi connection → evmInjectedAddr so buy flow always has senderAddress
+  // Fires when user connects via RainbowKit modal (WalletConnect or injected via modal)
+  useEffect(() => {
+    if (isConnected && address && !evmInjectedAddr) {
+      setEvmInjectedAddr(address);
+      setEvmInjectedName(connector?.name || 'WalletConnect');
+    }
+    if (!isConnected && evmInjectedName === (connector?.name || 'WalletConnect')) {
+      // Wagmi disconnected — clear injected addr if it was set by wagmi
+      setEvmInjectedAddr('');
+      setEvmInjectedName('');
+    }
+  }, [isConnected, address]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   // UI state
   const [tab,           setTab]          = useState<'crypto' | 'card'>('crypto');
@@ -684,9 +701,14 @@ export function BuySection() {
             localStorage.setItem('_kleo_evm_wallet_name', isInEvmBrowser() || 'Wallet');
           }
         } catch (e: any) { setTxError(e?.message || 'Connection rejected'); setTxStatus('error'); }
+      } else if (isConnected && address) {
+        // Already connected via WalletConnect — sync address and switch chain
+        setEvmInjectedAddr(address);
+        setEvmInjectedName(connector?.name || 'WalletConnect');
+        try { await switchChainAsync({ chainId: (selected as any).chainId }); } catch {}
       } else {
-        // No injected provider — show wallet picker to open in-app browser
-        setShowEvmPicker(true);
+        // No injected provider — open RainbowKit modal (WalletConnect + 300+ wallets)
+        openConnectModal?.();
       }
 
     } else if (chain === 'sol') {
@@ -945,10 +967,24 @@ export function BuySection() {
             });
           }
         } else {
-          // Desktop / WalletConnect fallback (native only)
+          // WalletConnect fallback — handles native coins AND ERC-20 tokens
           await switchChainAsync({ chainId: targetChainId });
-          await new Promise<void>(resolve => setTimeout(resolve, 800));
-          hash = await sendTransactionAsync({ to: PRESALE_ETH_WALLET, value: parseEther(amount) });
+          await new Promise<void>(resolve => setTimeout(resolve, 600));
+          if (tokenInfo) {
+            // ERC-20 transfer (USDC / USDT) via WalletConnect
+            const tokenAmount = BigInt(Math.round(usdEst * 10 ** tokenInfo.decimals));
+            hash = await writeContractAsync({
+              address: tokenInfo.address as `0x${string}`,
+              abi: [{ name: 'transfer', type: 'function', stateMutability: 'nonpayable',
+                inputs: [{ name: 'to', type: 'address' }, { name: 'amount', type: 'uint256' }],
+                outputs: [{ name: '', type: 'bool' }] }],
+              functionName: 'transfer',
+              args: [PRESALE_ETH_WALLET as `0x${string}`, tokenAmount],
+            });
+          } else {
+            // Native coin (ETH / BNB) via WalletConnect
+            hash = await sendTransactionAsync({ to: PRESALE_ETH_WALLET, value: parseEther(amount) });
+          }
         }
         await recordPurchase(hash, usdEst, tokensEst, senderAddress, selected.id);
       }
@@ -1088,7 +1124,7 @@ export function BuySection() {
                     <span className="text-xl">👛</span>
                     <div className="text-left">
                       <p className="text-[#F4F6FA] font-semibold text-sm">Connect {selected.label} Wallet</p>
-                      <p className="text-[#A7B0B7] text-xs">MetaMask · Trust · Coinbase</p>
+                      <p className="text-[#A7B0B7] text-xs">MetaMask · WalletConnect · 300+ wallets</p>
                     </div>
                   </button>
                 )
