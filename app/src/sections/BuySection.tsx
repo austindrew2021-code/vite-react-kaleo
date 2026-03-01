@@ -898,12 +898,14 @@ export function BuySection() {
           return;
         }
       } else {
-        if (!address) throw new Error('Connect wallet first');
-        const senderAddress = address;
+        const senderAddress = evmInjectedAddr || address;
+        if (!senderAddress) throw new Error('Connect an EVM wallet first');
         const targetChainId = selected.chainId!;
         const tokenKey = (selected as any).token as string | undefined;
         const tokenInfo = tokenKey ? TOKEN_CONTRACTS[tokenKey] : undefined;
+        // Use injected provider (in-browser wallet) OR wagmi
         const ethProvider = (window as any).ethereum;
+        if (!ethProvider && !address) throw new Error('No EVM wallet connected');
 
         // Helper: switch chain via injected provider
         const switchToChain = async (chainId: number) => {
@@ -986,6 +988,7 @@ export function BuySection() {
   const presets: Record<string, number[]> = {
     SOL: [0.5, 1, 2, 5], ETH: [0.01, 0.05, 0.1, 0.5],
     BNB: [0.05, 0.2, 0.5, 1], BTC: [0.0005, 0.001, 0.005, 0.01],
+    USDC: [10, 25, 50, 100], USDT: [10, 25, 50, 100],
   };
   const evmConnected = isConnected || !!evmInjectedAddr;
   const walletReady = isBtc ? btcConnected : isEvm ? evmConnected : solConnected;
@@ -1191,10 +1194,10 @@ export function BuySection() {
                     </span>
                   </div>
                   <div className="flex gap-2 mt-3">
-                    {presets[currency].map(a => (
+                    {(presets[currency] ?? []).map(a => (
                       <button key={a} onClick={() => setAmount(String(a))}
                         className="flex-1 py-2 rounded-lg bg-white/5 border border-white/10 hover:border-[#2BFFF1]/40 text-xs text-[#A7B0B7] transition-colors">
-                        {a}
+                        {(currency === 'USDC' || currency === 'USDT') ? `$${a}` : a}
                       </button>
                     ))}
                   </div>
@@ -1204,7 +1207,12 @@ export function BuySection() {
                       <p className="text-[#2BFFF1] text-2xl font-bold">
                         {tokensEst.toLocaleString()} <span className="text-base font-normal">KLEO</span>
                       </p>
-                      <p className="text-[#A7B0B7] text-xs mt-1">~${usdEst.toLocaleString('en-US', { maximumFractionDigits: 0 })} USD</p>
+                      <p className="text-[#A7B0B7] text-xs mt-1">
+                        {(currency === 'USDC' || currency === 'USDT')
+                          ? `Sending ${amount} ${currency} directly`
+                          : `~$${usdEst.toLocaleString('en-US', { maximumFractionDigits: 0 })} USD`
+                        }
+                      </p>
                     </div>
                   )}
                 </div>
