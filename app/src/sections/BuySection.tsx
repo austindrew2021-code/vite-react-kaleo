@@ -8,7 +8,7 @@ import {
 import { createClient } from '@supabase/supabase-js';
 import { useAccount, useSendTransaction, useDisconnect, useSwitchChain, useWriteContract } from 'wagmi';
 import { parseEther } from 'viem';
-import { sepolia, bscTestnet } from 'wagmi/chains';
+import { sepolia, bscTestnet, polygon, arbitrum, base } from 'wagmi/chains';
 import { usePresaleStore, getCurrentStage, LISTING_PRICE_USD, useWalletStore } from '../store/presaleStore';
 import { BtcDiagnostic } from '../components/BtcDiagnostic';
 import { useConnectModal } from '@rainbow-me/rainbowkit';
@@ -252,10 +252,105 @@ const COINGECKO_IDS: Record<string, string> = {
 
 // ERC-20 token contracts (⚠️ TESTNET — swap for mainnet at launch)
 // Mainnet: USDC=0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48  USDT=0xdAC17F958D2ee523a2206206994597C13D831ec7
-const TOKEN_CONTRACTS: Record<string, { address: string; decimals: number; chainId: number }> = {
-  USDC: { address: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238', decimals: 6, chainId: sepolia.id },   // Sepolia USDC
-  USDT: { address: '0x337610d27c682E347C9cD60BD4b3b107C9d34dDd', decimals: 18, chainId: bscTestnet.id }, // BSC Testnet USDT
+// ── Stable chain options (shown as picker when USDC/USDT selected) ──────────
+// ⚠️  TESTNET contracts — swap all addresses + chainIds before mainnet launch
+// Mainnet addresses commented next to each entry
+const STABLE_CHAINS: Record<string, {
+  id: string; label: string; icon: string;
+  chainId: number; chainName: string; chainHex: string;
+  nativeCurrency: { name: string; symbol: string; decimals: number };
+  rpcUrls: string[]; blockExplorer: string;
+  usdc?: { address: string; decimals: number };
+  usdt?: { address: string; decimals: number };
+}[]> = {
+  USDC: [
+    {
+      id: 'eth', label: 'Ethereum', icon: 'Ξ',
+      chainId: sepolia.id, chainName: 'Sepolia Testnet', chainHex: '0xaa36a7',  // mainnet: 1 / 0x1
+      nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+      rpcUrls: ['https://ethereum-sepolia-rpc.publicnode.com'],                   // mainnet: https://eth.llamarpc.com
+      blockExplorer: 'https://sepolia.etherscan.io',
+      usdc: { address: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238', decimals: 6 }, // mainnet: 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
+    },
+    {
+      id: 'bnb', label: 'BNB Chain', icon: '◆',
+      chainId: bscTestnet.id, chainName: 'BSC Testnet', chainHex: '0x61',        // mainnet: 56 / 0x38
+      nativeCurrency: { name: 'tBNB', symbol: 'tBNB', decimals: 18 },
+      rpcUrls: ['https://bsc-testnet-rpc.publicnode.com'],                        // mainnet: https://bsc-dataseed.binance.org
+      blockExplorer: 'https://testnet.bscscan.com',
+      usdc: { address: '0x64544969ed7EBf5f083679233325356EbE738930', decimals: 18 }, // mainnet: 0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d
+    },
+    {
+      id: 'polygon', label: 'Polygon', icon: '⬡',
+      chainId: polygon.id, chainName: 'Polygon', chainHex: '0x89',
+      nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 },
+      rpcUrls: ['https://polygon-rpc.com'],
+      blockExplorer: 'https://polygonscan.com',
+      usdc: { address: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', decimals: 6 }, // mainnet native USDC
+    },
+    {
+      id: 'arbitrum', label: 'Arbitrum', icon: '🔵',
+      chainId: arbitrum.id, chainName: 'Arbitrum One', chainHex: '0xa4b1',
+      nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+      rpcUrls: ['https://arb1.arbitrum.io/rpc'],
+      blockExplorer: 'https://arbiscan.io',
+      usdc: { address: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831', decimals: 6 },
+    },
+    {
+      id: 'base', label: 'Base', icon: '🔷',
+      chainId: base.id, chainName: 'Base', chainHex: '0x2105',
+      nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+      rpcUrls: ['https://mainnet.base.org'],
+      blockExplorer: 'https://basescan.org',
+      usdc: { address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', decimals: 6 },
+    },
+  ],
+  USDT: [
+    {
+      id: 'eth', label: 'Ethereum', icon: 'Ξ',
+      chainId: sepolia.id, chainName: 'Sepolia Testnet', chainHex: '0xaa36a7',  // mainnet: 1
+      nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+      rpcUrls: ['https://ethereum-sepolia-rpc.publicnode.com'],
+      blockExplorer: 'https://sepolia.etherscan.io',
+      usdt: { address: '0x7169D38820dfd117C3FA1f22a697dBA58d90BA06', decimals: 6 }, // mainnet: 0xdAC17F958D2ee523a2206206994597C13D831ec7
+    },
+    {
+      id: 'bnb', label: 'BNB Chain', icon: '◆',
+      chainId: bscTestnet.id, chainName: 'BSC Testnet', chainHex: '0x61',        // mainnet: 56
+      nativeCurrency: { name: 'tBNB', symbol: 'tBNB', decimals: 18 },
+      rpcUrls: ['https://bsc-testnet-rpc.publicnode.com'],
+      blockExplorer: 'https://testnet.bscscan.com',
+      usdt: { address: '0x337610d27c682E347C9cD60BD4b3b107C9d34dDd', decimals: 18 }, // mainnet: 0x55d398326f99059fF775485246999027B3197955
+    },
+    {
+      id: 'polygon', label: 'Polygon', icon: '⬡',
+      chainId: polygon.id, chainName: 'Polygon', chainHex: '0x89',
+      nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 },
+      rpcUrls: ['https://polygon-rpc.com'],
+      blockExplorer: 'https://polygonscan.com',
+      usdt: { address: '0xc2132D05D31c914a87C6611C10748AEb04B58e8F', decimals: 6 },
+    },
+    {
+      id: 'arbitrum', label: 'Arbitrum', icon: '🔵',
+      chainId: arbitrum.id, chainName: 'Arbitrum One', chainHex: '0xa4b1',
+      nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+      rpcUrls: ['https://arb1.arbitrum.io/rpc'],
+      blockExplorer: 'https://arbiscan.io',
+      usdt: { address: '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9', decimals: 6 },
+    },
+  ],
 };
+
+// Legacy flat map used by WalletConnect writeContractAsync path — resolved dynamically
+type TokenInfo = { address: string; decimals: number; chainId: number };
+function getTokenInfo(token: string, stableChainId: string): TokenInfo | undefined {
+  const chains = STABLE_CHAINS[token];
+  if (!chains) return undefined;
+  const chain = chains.find(c => c.id === stableChainId) ?? chains[0];
+  const info = token === 'USDC' ? chain.usdc : chain.usdt;
+  if (!info) return undefined;
+  return { ...info, chainId: chain.chainId };
+}
 
 // Encode ERC-20 transfer(address,uint256) calldata — no ethers needed
 function encodeERC20Transfer(to: string, amount: bigint): string {
@@ -269,8 +364,8 @@ const CURRENCIES = [
   { id: 'SOL',  label: 'Solana',   symbol: 'SOL',  icon: '◎', color: 'text-purple-400', chain: 'sol' },
   { id: 'ETH',  label: 'Ethereum', symbol: 'ETH',  icon: 'Ξ', color: 'text-blue-400',   chain: 'evm', chainId: sepolia.id },
   { id: 'BNB',  label: 'BNB',      symbol: 'BNB',  icon: '◆', color: 'text-yellow-400', chain: 'evm', chainId: bscTestnet.id },
-  { id: 'USDC', label: 'USDC',     symbol: 'USDC', icon: '$', color: 'text-green-400',  chain: 'evm', chainId: sepolia.id,    token: 'USDC' },
-  { id: 'USDT', label: 'USDT',     symbol: 'USDT', icon: '₮', color: 'text-teal-400',   chain: 'evm', chainId: bscTestnet.id, token: 'USDT' },
+  { id: 'USDC', label: 'USDC',     symbol: 'USDC', icon: '$', color: 'text-green-400',  chain: 'evm', token: 'USDC' },
+  { id: 'USDT', label: 'USDT',     symbol: 'USDT', icon: '₮', color: 'text-teal-400',   chain: 'evm', token: 'USDT' },
   { id: 'BTC',  label: 'Bitcoin',  symbol: 'BTC',  icon: '₿', color: 'text-orange-400', chain: 'btc' },
 ];
 
@@ -363,6 +458,7 @@ export function BuySection() {
   const [cardUsd,       setCardUsd]      = useState('100');
   const [stripeLoading, setStripeLoading] = useState(false);
   const [liveRates,     setLiveRates]    = useState<Record<string,number>>({ ETH: 3200, BNB: 580, SOL: 170, BTC: 65000, USDC: 1, USDT: 1 });
+  const [stableChainId, setStableChainId] = useState<string>('bnb'); // selected chain for USDC/USDT
   const [priceLoading,  setPriceLoading] = useState(false);
   const [priceError,    setPriceError]   = useState(false);
 
@@ -922,9 +1018,13 @@ export function BuySection() {
       } else {
         const senderAddress = evmInjectedAddr || address;
         if (!senderAddress) throw new Error('Connect an EVM wallet first');
-        const targetChainId = selected.chainId!;
+        const isStableToken = !!(selected as any).token;
+        const activeStableChain = isStableToken
+          ? (STABLE_CHAINS[(selected as any).token]?.find((c: any) => c.id === stableChainId) ?? STABLE_CHAINS[(selected as any).token]?.[0])
+          : null;
+        const targetChainId = activeStableChain?.chainId ?? selected.chainId!;
         const tokenKey = (selected as any).token as string | undefined;
-        const tokenInfo = tokenKey ? TOKEN_CONTRACTS[tokenKey] : undefined;
+        const tokenInfo = tokenKey ? getTokenInfo(tokenKey, stableChainId) : undefined;
         // Use injected provider (in-browser wallet) OR wagmi
         const ethProvider = (window as any).ethereum;
         if (!ethProvider && !address) throw new Error('No EVM wallet connected');
@@ -937,9 +1037,14 @@ export function BuySection() {
               await ethProvider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: `0x${chainId.toString(16)}` }] });
             } catch (e: any) {
               if (e.code === 4902) {
-                const chainData = chainId === 97
-                  ? { chainId: '0x61', chainName: 'BSC Testnet', nativeCurrency: { name: 'tBNB', symbol: 'tBNB', decimals: 18 }, rpcUrls: ['https://bsc-testnet-rpc.publicnode.com'], blockExplorerUrls: ['https://testnet.bscscan.com'] }
-                  : { chainId: '0xaa36a7', chainName: 'Sepolia', nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }, rpcUrls: ['https://ethereum-sepolia-rpc.publicnode.com'], blockExplorerUrls: ['https://sepolia.etherscan.io'] };
+                // Find chain data from STABLE_CHAINS or fall back to known defaults
+                const allChains = [...(STABLE_CHAINS.USDC ?? []), ...(STABLE_CHAINS.USDT ?? [])];
+                const knownChain = allChains.find(c => c.chainId === chainId);
+                const chainData = knownChain
+                  ? { chainId: knownChain.chainHex, chainName: knownChain.chainName, nativeCurrency: knownChain.nativeCurrency, rpcUrls: knownChain.rpcUrls, blockExplorerUrls: [knownChain.blockExplorer] }
+                  : chainId === 97
+                    ? { chainId: '0x61', chainName: 'BSC Testnet', nativeCurrency: { name: 'tBNB', symbol: 'tBNB', decimals: 18 }, rpcUrls: ['https://bsc-testnet-rpc.publicnode.com'], blockExplorerUrls: ['https://testnet.bscscan.com'] }
+                    : { chainId: '0xaa36a7', chainName: 'Sepolia', nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }, rpcUrls: ['https://ethereum-sepolia-rpc.publicnode.com'], blockExplorerUrls: ['https://sepolia.etherscan.io'] };
                 await ethProvider.request({ method: 'wallet_addEthereumChain', params: [chainData] });
               } else throw e;
             }
@@ -1085,6 +1190,31 @@ export function BuySection() {
                 </button>
               ))}
             </div>
+
+            {/* Chain picker — shown when USDC or USDT selected */}
+            {(currency === 'USDC' || currency === 'USDT') && (
+              <div className="mb-4">
+                <p className="text-[#A7B0B7] text-xs mb-2 font-medium">
+                  Select network to send {currency} from:
+                </p>
+                <div className="flex gap-2 flex-wrap">
+                  {(STABLE_CHAINS[currency] ?? []).map(sc => (
+                    <button
+                      key={sc.id}
+                      onClick={() => setStableChainId(sc.id)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all
+                        ${stableChainId === sc.id
+                          ? 'bg-[#2BFFF1]/15 border-[#2BFFF1]/60 text-[#2BFFF1]'
+                          : 'bg-white/5 border-white/10 text-[#A7B0B7] hover:border-white/25 hover:text-white'
+                        }`}
+                    >
+                      <span className="text-sm leading-none">{sc.icon}</span>
+                      {sc.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Wallet connect section */}
             <div className="mb-5">
