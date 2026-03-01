@@ -71,6 +71,23 @@ export function Navigation() {
     setMobileOpen(false);
   };
 
+  const handleConnectWallet = async () => {
+    const eth = (window as any).ethereum;
+    if (eth && !evmConnected) {
+      // Inside a wallet browser — connect directly (no modal needed)
+      try {
+        const accounts: string[] = await eth.request({ method: 'eth_requestAccounts' });
+        if (accounts[0]) {
+          // Wagmi will pick this up automatically via the injected connector
+          // Force wagmi sync by also calling openConnectModal as fallback
+        }
+      } catch {}
+    } else {
+      // Desktop / external browser — open RainbowKit modal (WalletConnect + all wallets)
+      openConnectModal?.();
+    }
+  };
+
   return (
     <>
       <nav
@@ -172,7 +189,7 @@ export function Navigation() {
           ) : (
             /* Not connected: open RainbowKit modal */
             <button
-              onClick={() => openConnectModal?.()}
+              onClick={handleConnectWallet}
               className="neon-button px-5 py-2.5 text-sm font-semibold rounded-xl">
               Connect Wallet
             </button>
