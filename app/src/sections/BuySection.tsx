@@ -6,7 +6,8 @@ import {
   ExternalLink, AlertCircle, CheckCircle2,
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
-import { useAccount, useSendTransaction, useDisconnect, useSwitchChain, useWriteContract } from 'wagmi';
+import { useAccount, useSendTransaction, useDisconnect, useSwitchChain, useWriteContract, useConnect, useChainId } from 'wagmi';
+import { injected } from 'wagmi/connectors';
 import { parseEther } from 'viem';
 import { sepolia, bscTestnet, arbitrumSepolia, baseSepolia, polygonAmoy } from 'wagmi/chains';
 import { usePresaleStore, getCurrentStage, LISTING_PRICE_USD, useWalletStore } from '../store/presaleStore';
@@ -352,14 +353,6 @@ function getTokenInfo(token: string, stableChainId: string): TokenInfo | undefin
   return { ...info, chainId: chain.chainId };
 }
 
-// Encode ERC-20 transfer(address,uint256) calldata — no ethers needed
-function encodeERC20Transfer(to: string, amount: bigint): string {
-  const selector = 'a9059cbb'; // transfer(address,uint256)
-  const paddedTo = to.replace('0x', '').toLowerCase().padStart(64, '0');
-  const paddedAmt = amount.toString(16).padStart(64, '0');
-  return `0x${selector}${paddedTo}${paddedAmt}`;
-}
-
 const CURRENCIES = [
   { id: 'SOL',  label: 'Solana',   symbol: 'SOL',  icon: '◎', color: 'text-purple-400', chain: 'sol' },
   { id: 'ETH',  label: 'Ethereum', symbol: 'ETH',  icon: 'Ξ', color: 'text-blue-400',   chain: 'evm', chainId: sepolia.id },
@@ -427,11 +420,13 @@ export function BuySection() {
 
   // EVM (wagmi)
   const { address, isConnected, connector } = useAccount();
-  const { disconnect: evmDisconnect } = useDisconnect();
-  const { sendTransactionAsync }        = useSendTransaction();
-  const { writeContractAsync }          = useWriteContract();
-  const { switchChainAsync }            = useSwitchChain();
-  const { openConnectModal }            = useConnectModal();
+  const { disconnect: evmDisconnect }       = useDisconnect();
+  const { sendTransactionAsync }            = useSendTransaction();
+  const { writeContractAsync }              = useWriteContract();
+  const { switchChainAsync }               = useSwitchChain();
+  const { openConnectModal }               = useConnectModal();
+  const { connectAsync }                   = useConnect();
+  const currentChainId                     = useChainId();
 
   // Sync wagmi connection → evmInjectedAddr so buy flow always has senderAddress
   // Fires when user connects via RainbowKit modal (WalletConnect or injected via modal)
@@ -765,54 +760,37 @@ export function BuySection() {
     const chain = selected.chain;
 
     if (chain === 'evm') {
-      // ── EVM (ETH / BNB / USDC / USDT) ───────────────────────────────────
-      const ethProvider = (window as any).ethereum;
-      if (ethProvider) {
-        // Inside an EVM wallet browser — connect directly to correct chain
+      // ── EVM (ETH / BNB / USDC / USDT) ────────────────────────────────────
+      // Professional approach: route ALL connections through wagmi's connector system.
+      // wagmi abstracts over injected (MetaMask, Trust, etc.) AND WalletConnect
+      // so chain switching and tx signing use one unified, reliable path.
+      if ((window as any).ethereum && !isConnected) {
+        // Wallet browser detected — connect via wagmi's injected() connector.
+        // This registers the connection with wagmi so switchChainAsync/writeContractAsync work.
         try {
-          // For stablecoins, chainId comes from stableChain picker; for ETH/BNB from CURRENCIES
-          const tokenKey = (selected as any).token as string | undefined;
-          const activeStable = tokenKey
-            ? (STABLE_CHAINS[tokenKey]?.find(c => c.id === stableChainId) ?? STABLE_CHAINS[tokenKey]?.[0])
-            : null;
-          const targetId = activeStable?.chainId ?? (selected as any).chainId as number;
-          const chainHex = await ethProvider.request({ method: 'eth_chainId' });
-          if (parseInt(chainHex, 16) !== targetId) {
-            try {
-              await ethProvider.request({
-                method: 'wallet_switchEthereumChain',
-                params: [{ chainId: `0x${targetId.toString(16)}` }],
-              });
-            } catch (e: any) {
-              if (e.code === 4902) {
-                // Build chain data from STABLE_CHAINS if available, else use hardcoded defaults
-                const allStableChains = [...(STABLE_CHAINS.USDC ?? []), ...(STABLE_CHAINS.USDT ?? [])];
-                const knownChain = allStableChains.find(c => c.chainId === targetId);
-                const chainData = knownChain
-                  ? { chainId: knownChain.chainHex, chainName: knownChain.chainName, nativeCurrency: knownChain.nativeCurrency, rpcUrls: knownChain.rpcUrls, blockExplorerUrls: [knownChain.blockExplorer] }
-                  : targetId === 97
-                    ? { chainId: '0x61', chainName: 'BSC Testnet', nativeCurrency: { name: 'tBNB', symbol: 'tBNB', decimals: 18 }, rpcUrls: ['https://bsc-testnet-rpc.publicnode.com'], blockExplorerUrls: ['https://testnet.bscscan.com'] }
-                    : { chainId: '0xaa36a7', chainName: 'Sepolia', nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }, rpcUrls: ['https://ethereum-sepolia-rpc.publicnode.com'], blockExplorerUrls: ['https://sepolia.etherscan.io'] };
-                await ethProvider.request({ method: 'wallet_addEthereumChain', params: [chainData] });
-              } else throw e;
-            }
-            await new Promise<void>(r => setTimeout(r, 500));
-          }
-          const accounts: string[] = await ethProvider.request({ method: 'eth_requestAccounts' });
-          if (accounts[0]) {
-            setEvmInjectedAddr(accounts[0]);
+          const result = await connectAsync({ connector: injected() });
+          const addr = result.accounts[0];
+          if (addr) {
+            setEvmInjectedAddr(addr);
             setEvmInjectedName((isInEvmBrowser() as string) || 'Wallet');
-            localStorage.setItem('_kleo_evm_address', accounts[0]);
+            localStorage.setItem('_kleo_evm_address', addr);
             localStorage.setItem('_kleo_evm_wallet_name', isInEvmBrowser() || 'Wallet');
           }
-        } catch (e: any) { setTxError(e?.message || 'Connection rejected'); setTxStatus('error'); }
+        } catch (e: any) {
+          // User rejected or already connected — try to get accounts silently
+          if (address) {
+            setEvmInjectedAddr(address);
+            setEvmInjectedName(connector?.name || 'Wallet');
+          } else {
+            setTxError(e?.message || 'Connection rejected');
+          }
+        }
       } else if (isConnected && address) {
-        // Already connected via WalletConnect — sync address and switch chain
+        // Already connected via wagmi (WalletConnect or injected) — just sync UI
         setEvmInjectedAddr(address);
-        setEvmInjectedName(connector?.name || 'WalletConnect');
-        try { await switchChainAsync({ chainId: (selected as any).chainId }); } catch {}
+        setEvmInjectedName(connector?.name || 'Connected');
       } else {
-        // No injected provider — open RainbowKit modal (WalletConnect + 300+ wallets)
+        // No wallet found — open RainbowKit modal (WalletConnect + 300+ wallets)
         openConnectModal?.();
       }
 
@@ -1025,107 +1003,87 @@ export function BuySection() {
           return;
         }
       } else {
-        const senderAddress = evmInjectedAddr || address;
+        // ── EVM send (ETH · BNB · USDC · USDT) ───────────────────────────────
+        // Single unified path: wagmi handles BOTH injected wallets AND WalletConnect.
+        // No window.ethereum calls for tx — wagmi's connector abstraction routes correctly.
+        const senderAddress = address || evmInjectedAddr;
         if (!senderAddress) throw new Error('Connect an EVM wallet first');
 
-        const isStableToken = !!(selected as any).token;
-        const activeStableChain = isStableToken
-          ? (STABLE_CHAINS[(selected as any).token]?.find((c: any) => c.id === stableChainId) ?? STABLE_CHAINS[(selected as any).token]?.[0])
-          : null;
-        const targetChainId = activeStableChain?.chainId ?? selected.chainId!;
+        // Resolve target chain + token contract
         const tokenKey = (selected as any).token as string | undefined;
+        const activeStableChain = tokenKey
+          ? (STABLE_CHAINS[tokenKey]?.find((c: any) => c.id === stableChainId) ?? STABLE_CHAINS[tokenKey]?.[0])
+          : null;
+        const targetChainId = (activeStableChain?.chainId ?? selected.chainId) as number;
         const tokenInfo = tokenKey ? getTokenInfo(tokenKey, stableChainId) : undefined;
 
-        // ── Provider selection: injected browser wallet vs WalletConnect ──
-        // If the user has BOTH a browser extension (window.ethereum) AND a
-        // WalletConnect session (wagmi address), we must use the one they
-        // actually connected. Rule: evmInjectedAddr was set by directly calling
-        // eth_requestAccounts on window.ethereum — so if it matches senderAddress
-        // we use window.ethereum. Otherwise we use wagmi (WalletConnect path).
-        const injectedProvider = (window as any).ethereum;
-        const useInjected = !!(injectedProvider && evmInjectedAddr &&
-          evmInjectedAddr.toLowerCase() === senderAddress.toLowerCase());
-
-        if (!injectedProvider && !isConnected) throw new Error('No EVM wallet connected');
-
-        // Helper: switch chain via injected provider
-        const switchToChain = async (chainId: number) => {
-          const chainHex = await injectedProvider.request({ method: 'eth_chainId' });
-          if (parseInt(chainHex, 16) !== chainId) {
-            try {
-              await injectedProvider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: `0x${chainId.toString(16)}` }] });
-            } catch (e: any) {
-              if (e.code === 4902) {
-                // Find chain data from STABLE_CHAINS or fall back to known defaults
-                const allChains = [...(STABLE_CHAINS.USDC ?? []), ...(STABLE_CHAINS.USDT ?? [])];
-                const knownChain = allChains.find(c => c.chainId === chainId);
-                const chainData = knownChain
-                  ? { chainId: knownChain.chainHex, chainName: knownChain.chainName, nativeCurrency: knownChain.nativeCurrency, rpcUrls: knownChain.rpcUrls, blockExplorerUrls: [knownChain.blockExplorer] }
-                  : chainId === 97
-                    ? { chainId: '0x61', chainName: 'BSC Testnet', nativeCurrency: { name: 'tBNB', symbol: 'tBNB', decimals: 18 }, rpcUrls: ['https://bsc-testnet-rpc.publicnode.com'], blockExplorerUrls: ['https://testnet.bscscan.com'] }
-                    : { chainId: '0xaa36a7', chainName: 'Sepolia', nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }, rpcUrls: ['https://ethereum-sepolia-rpc.publicnode.com'], blockExplorerUrls: ['https://sepolia.etherscan.io'] };
-                await injectedProvider.request({ method: 'wallet_addEthereumChain', params: [chainData] });
-              } else throw e;
+        // ── Step 1: Switch chain if needed ────────────────────────────────────
+        // switchChainAsync works for injected (if connected via connectAsync(injected()))
+        // AND WalletConnect — it's the single source of truth.
+        if (currentChainId !== targetChainId) {
+          try {
+            await switchChainAsync({ chainId: targetChainId });
+          } catch (switchErr: any) {
+            // Chain not in wallet — add it then retry
+            const allChains = [...(STABLE_CHAINS.USDC ?? []), ...(STABLE_CHAINS.USDT ?? [])];
+            const chainMeta = allChains.find(c => c.chainId === targetChainId);
+            if (chainMeta && (window as any).ethereum) {
+              await (window as any).ethereum.request({
+                method: 'wallet_addEthereumChain',
+                params: [{ chainId: chainMeta.chainHex, chainName: chainMeta.chainName,
+                  nativeCurrency: chainMeta.nativeCurrency,
+                  rpcUrls: chainMeta.rpcUrls, blockExplorerUrls: [chainMeta.blockExplorer] }],
+              });
+              await switchChainAsync({ chainId: targetChainId });
+            } else {
+              throw new Error(`Please switch to the correct network in your wallet: chain ID ${targetChainId}`);
             }
-            await new Promise<void>(resolve => setTimeout(resolve, 600));
           }
-        };
+          // Poll until chain confirmed — do NOT use a fixed setTimeout
+          await new Promise<void>((resolve, reject) => {
+            const deadline = Date.now() + 15000;
+            const check = () => {
+              if (Date.now() > deadline) { reject(new Error('Chain switch timed out — please try again')); return; }
+              (window as any).ethereum?.request({ method: 'eth_chainId' }).then((hex: string) => {
+                if (parseInt(hex, 16) === targetChainId) resolve();
+                else setTimeout(check, 400);
+              }).catch(() => resolve()); // no injected provider = WalletConnect handles it
+            };
+            setTimeout(check, 400);
+          });
+        }
 
-        if (useInjected) {
-          await switchToChain(targetChainId);
+        // ── Step 2: Send transaction ────────────────────────────────────────
+        if (tokenInfo) {
+          // ── ERC-20 (USDC / USDT) ────────────────────────────────────────
+          // Precision-safe: multiply in BigInt to avoid float overflow at 18 decimals
+          const centsAmount = BigInt(Math.round(usdEst * 100));
+          const tokenAmount = centsAmount * (10n ** BigInt(tokenInfo.decimals)) / 100n;
 
-          if (tokenInfo) {
-            // ── ERC-20 token transfer (USDC / USDT) ──────────────────────
-            // Amount in token units (USDC=6 decimals, USDT=18 decimals)
-            // Precision-safe: avoid float * 10^18 overflow (exceeds JS MAX_SAFE_INTEGER)
-            // Multiply integer cents then scale: e.g. $10.50 → 1050n * 10^(18-2) = 10.5 * 10^18
-            const centsAmount = BigInt(Math.round(usdEst * 100));
-            const tokenAmount = centsAmount * (10n ** BigInt(tokenInfo.decimals)) / 100n;
-            const data = encodeERC20Transfer(PRESALE_ETH_WALLET, tokenAmount);
-            // ERC-20 transfer: value MUST be omitted or '0x0', gas cap prevents
-            // "block gas limit" fallback that shows $15M fee when tx would revert
-            hash = await injectedProvider.request({
-              method: 'eth_sendTransaction',
-              params: [{ from: senderAddress, to: tokenInfo.address as `0x${string}`, data,
-                value: '0x0',
-                gas: '0x186A0', // 100,000 gas — safe upper bound for any ERC-20 transfer
-              }],
-            });
-          } else {
-            // ── Native coin transfer (ETH / BNB) ──────────────────────────
-            hash = await injectedProvider.request({
-              method: 'eth_sendTransaction',
-              params: [{ from: senderAddress, to: PRESALE_ETH_WALLET,
-                value: `0x${BigInt(parseEther(amount)).toString(16)}`,
-                gas: '0x5208', // 21,000 — exact for native ETH/BNB transfers
-              }],
-            });
-          }
+          // Standard ERC-20 ABI — MetaMask recognises this and shows "Transfer X USDC to 0x..."
+          hash = await writeContractAsync({
+            chainId: targetChainId,
+            address: tokenInfo.address as `0x${string}`,
+            abi: [{
+              name: 'transfer',
+              type: 'function',
+              stateMutability: 'nonpayable',
+              inputs: [
+                { name: 'recipient', type: 'address' },
+                { name: 'amount',    type: 'uint256' },
+              ],
+              outputs: [{ name: '', type: 'bool' }],
+            }] as const,
+            functionName: 'transfer',
+            args: [PRESALE_ETH_WALLET as `0x${string}`, tokenAmount],
+          });
         } else {
-          // WalletConnect fallback — handles native coins AND ERC-20 tokens
-          await switchChainAsync({ chainId: targetChainId });
-          await new Promise<void>(resolve => setTimeout(resolve, 600));
-          if (tokenInfo) {
-            // ERC-20 transfer (USDC / USDT) via WalletConnect
-            // Precision-safe BigInt math (same fix as injected path above)
-            const centsAmount = BigInt(Math.round(usdEst * 100));
-            const tokenAmount = centsAmount * (10n ** BigInt(tokenInfo.decimals)) / 100n;
-            hash = await writeContractAsync({
-              chainId: targetChainId, // lock tx to correct chain — prevents race with switchChainAsync
-              address: tokenInfo.address as `0x${string}`,
-              abi: [{
-                name: 'transfer', type: 'function', stateMutability: 'nonpayable',
-                inputs: [{ name: 'recipient', type: 'address' }, { name: 'amount', type: 'uint256' }],
-                outputs: [{ name: '', type: 'bool' }],
-              }],
-              functionName: 'transfer',
-              args: [PRESALE_ETH_WALLET as `0x${string}`, tokenAmount],
-              gas: 100000n, // safe upper bound, prevents $15M gas display on revert
-            });
-          } else {
-            // Native coin (ETH / BNB) via WalletConnect
-            hash = await sendTransactionAsync({ to: PRESALE_ETH_WALLET, value: parseEther(amount) });
-          }
+          // ── Native (ETH / BNB) ──────────────────────────────────────────
+          hash = await sendTransactionAsync({
+            chainId: targetChainId,
+            to: PRESALE_ETH_WALLET,
+            value: parseEther(amount),
+          });
         }
         await recordPurchase(hash, usdEst, tokensEst, senderAddress, selected.id);
       }
