@@ -8,7 +8,7 @@ import {
 import { createClient } from '@supabase/supabase-js';
 import { useAccount, useSendTransaction, useDisconnect, useSwitchChain, useWriteContract } from 'wagmi';
 import { parseEther } from 'viem';
-import { sepolia, bscTestnet, polygon, arbitrum, base } from 'wagmi/chains';
+import { sepolia, bscTestnet, arbitrumSepolia, baseSepolia, polygonAmoy } from 'wagmi/chains';
 import { usePresaleStore, getCurrentStage, LISTING_PRICE_USD, useWalletStore } from '../store/presaleStore';
 import { BtcDiagnostic } from '../components/BtcDiagnostic';
 import { useConnectModal } from '@rainbow-me/rainbowkit';
@@ -281,28 +281,28 @@ const STABLE_CHAINS: Record<string, {
       usdc: { address: '0x64544969ed7EBf5f083679233325356EbE738930', decimals: 18 }, // mainnet: 0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d
     },
     {
-      id: 'polygon', label: 'Polygon', icon: '⬡',
-      chainId: polygon.id, chainName: 'Polygon', chainHex: '0x89',
+      id: 'polygon', label: 'Polygon Amoy', icon: '⬡',
+      chainId: polygonAmoy.id, chainName: 'Polygon Amoy Testnet', chainHex: '0x13882',
       nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 },
-      rpcUrls: ['https://polygon-rpc.com'],
-      blockExplorer: 'https://polygonscan.com',
-      usdc: { address: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', decimals: 6 }, // mainnet native USDC
+      rpcUrls: ['https://rpc-amoy.polygon.technology'],
+      blockExplorer: 'https://www.oklink.com/amoy',
+      usdc: { address: '0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582', decimals: 6 }, // mainnet: 0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359
     },
     {
-      id: 'arbitrum', label: 'Arbitrum', icon: '🔵',
-      chainId: arbitrum.id, chainName: 'Arbitrum One', chainHex: '0xa4b1',
+      id: 'arbitrum', label: 'Arbitrum Sepolia', icon: '🔵',
+      chainId: arbitrumSepolia.id, chainName: 'Arbitrum Sepolia', chainHex: '0x66eee',
       nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
-      rpcUrls: ['https://arb1.arbitrum.io/rpc'],
-      blockExplorer: 'https://arbiscan.io',
-      usdc: { address: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831', decimals: 6 },
+      rpcUrls: ['https://sepolia-rollup.arbitrum.io/rpc'],
+      blockExplorer: 'https://sepolia.arbiscan.io',
+      usdc: { address: '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d', decimals: 6 }, // mainnet: 0xaf88d065e77c8cC2239327C5EDb3A432268e5831
     },
     {
-      id: 'base', label: 'Base', icon: '🔷',
-      chainId: base.id, chainName: 'Base', chainHex: '0x2105',
+      id: 'base', label: 'Base Sepolia', icon: '🔷',
+      chainId: baseSepolia.id, chainName: 'Base Sepolia', chainHex: '0x14a34',
       nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
-      rpcUrls: ['https://mainnet.base.org'],
-      blockExplorer: 'https://basescan.org',
-      usdc: { address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', decimals: 6 },
+      rpcUrls: ['https://sepolia.base.org'],
+      blockExplorer: 'https://sepolia.basescan.org',
+      usdc: { address: '0x036CbD53842c5426634e7929541eC2318f3dCF7e', decimals: 6 }, // mainnet: 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
     },
   ],
   USDT: [
@@ -323,20 +323,20 @@ const STABLE_CHAINS: Record<string, {
       usdt: { address: '0x337610d27c682E347C9cD60BD4b3b107C9d34dDd', decimals: 18 }, // mainnet: 0x55d398326f99059fF775485246999027B3197955
     },
     {
-      id: 'polygon', label: 'Polygon', icon: '⬡',
-      chainId: polygon.id, chainName: 'Polygon', chainHex: '0x89',
+      id: 'polygon', label: 'Polygon Amoy', icon: '⬡',
+      chainId: polygonAmoy.id, chainName: 'Polygon Amoy Testnet', chainHex: '0x13882',
       nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 },
-      rpcUrls: ['https://polygon-rpc.com'],
-      blockExplorer: 'https://polygonscan.com',
-      usdt: { address: '0xc2132D05D31c914a87C6611C10748AEb04B58e8F', decimals: 6 },
+      rpcUrls: ['https://rpc-amoy.polygon.technology'],
+      blockExplorer: 'https://www.oklink.com/amoy',
+      usdt: { address: '0xAcDe43b9E5f72a4F554D4346e69e8e7aC8be9dC8', decimals: 6 }, // mainnet: 0xc2132D05D31c914a87C6611C10748AEb04B58e8F
     },
     {
-      id: 'arbitrum', label: 'Arbitrum', icon: '🔵',
-      chainId: arbitrum.id, chainName: 'Arbitrum One', chainHex: '0xa4b1',
+      id: 'arbitrum', label: 'Arbitrum Sepolia', icon: '🔵',
+      chainId: arbitrumSepolia.id, chainName: 'Arbitrum Sepolia', chainHex: '0x66eee',
       nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
-      rpcUrls: ['https://arb1.arbitrum.io/rpc'],
-      blockExplorer: 'https://arbiscan.io',
-      usdt: { address: '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9', decimals: 6 },
+      rpcUrls: ['https://sepolia-rollup.arbitrum.io/rpc'],
+      blockExplorer: 'https://sepolia.arbiscan.io',
+      usdt: { address: '0x4D7d2eA3E72533e62Ca0E7C31a0a82e0bdc0CaB8', decimals: 6 }, // mainnet: 0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9
     },
   ],
 };
@@ -770,7 +770,12 @@ export function BuySection() {
       if (ethProvider) {
         // Inside an EVM wallet browser — connect directly to correct chain
         try {
-          const targetId = (selected as any).chainId as number;
+          // For stablecoins, chainId comes from stableChain picker; for ETH/BNB from CURRENCIES
+          const tokenKey = (selected as any).token as string | undefined;
+          const activeStable = tokenKey
+            ? (STABLE_CHAINS[tokenKey]?.find(c => c.id === stableChainId) ?? STABLE_CHAINS[tokenKey]?.[0])
+            : null;
+          const targetId = activeStable?.chainId ?? (selected as any).chainId as number;
           const chainHex = await ethProvider.request({ method: 'eth_chainId' });
           if (parseInt(chainHex, 16) !== targetId) {
             try {
@@ -780,11 +785,15 @@ export function BuySection() {
               });
             } catch (e: any) {
               if (e.code === 4902) {
-                const chains: Record<number, object> = {
-                  97: { chainId: '0x61', chainName: 'BSC Testnet', nativeCurrency: { name: 'tBNB', symbol: 'tBNB', decimals: 18 }, rpcUrls: ['https://bsc-testnet-rpc.publicnode.com'], blockExplorerUrls: ['https://testnet.bscscan.com'] },
-                  11155111: { chainId: '0xaa36a7', chainName: 'Sepolia', nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }, rpcUrls: ['https://ethereum-sepolia-rpc.publicnode.com'], blockExplorerUrls: ['https://sepolia.etherscan.io'] },
-                };
-                await ethProvider.request({ method: 'wallet_addEthereumChain', params: [chains[targetId]] });
+                // Build chain data from STABLE_CHAINS if available, else use hardcoded defaults
+                const allStableChains = [...(STABLE_CHAINS.USDC ?? []), ...(STABLE_CHAINS.USDT ?? [])];
+                const knownChain = allStableChains.find(c => c.chainId === targetId);
+                const chainData = knownChain
+                  ? { chainId: knownChain.chainHex, chainName: knownChain.chainName, nativeCurrency: knownChain.nativeCurrency, rpcUrls: knownChain.rpcUrls, blockExplorerUrls: [knownChain.blockExplorer] }
+                  : targetId === 97
+                    ? { chainId: '0x61', chainName: 'BSC Testnet', nativeCurrency: { name: 'tBNB', symbol: 'tBNB', decimals: 18 }, rpcUrls: ['https://bsc-testnet-rpc.publicnode.com'], blockExplorerUrls: ['https://testnet.bscscan.com'] }
+                    : { chainId: '0xaa36a7', chainName: 'Sepolia', nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }, rpcUrls: ['https://ethereum-sepolia-rpc.publicnode.com'], blockExplorerUrls: ['https://sepolia.etherscan.io'] };
+                await ethProvider.request({ method: 'wallet_addEthereumChain', params: [chainData] });
               } else throw e;
             }
             await new Promise<void>(r => setTimeout(r, 500));
@@ -1018,6 +1027,7 @@ export function BuySection() {
       } else {
         const senderAddress = evmInjectedAddr || address;
         if (!senderAddress) throw new Error('Connect an EVM wallet first');
+
         const isStableToken = !!(selected as any).token;
         const activeStableChain = isStableToken
           ? (STABLE_CHAINS[(selected as any).token]?.find((c: any) => c.id === stableChainId) ?? STABLE_CHAINS[(selected as any).token]?.[0])
@@ -1025,16 +1035,25 @@ export function BuySection() {
         const targetChainId = activeStableChain?.chainId ?? selected.chainId!;
         const tokenKey = (selected as any).token as string | undefined;
         const tokenInfo = tokenKey ? getTokenInfo(tokenKey, stableChainId) : undefined;
-        // Use injected provider (in-browser wallet) OR wagmi
-        const ethProvider = (window as any).ethereum;
-        if (!ethProvider && !address) throw new Error('No EVM wallet connected');
+
+        // ── Provider selection: injected browser wallet vs WalletConnect ──
+        // If the user has BOTH a browser extension (window.ethereum) AND a
+        // WalletConnect session (wagmi address), we must use the one they
+        // actually connected. Rule: evmInjectedAddr was set by directly calling
+        // eth_requestAccounts on window.ethereum — so if it matches senderAddress
+        // we use window.ethereum. Otherwise we use wagmi (WalletConnect path).
+        const injectedProvider = (window as any).ethereum;
+        const useInjected = !!(injectedProvider && evmInjectedAddr &&
+          evmInjectedAddr.toLowerCase() === senderAddress.toLowerCase());
+
+        if (!injectedProvider && !isConnected) throw new Error('No EVM wallet connected');
 
         // Helper: switch chain via injected provider
         const switchToChain = async (chainId: number) => {
-          const chainHex = await ethProvider.request({ method: 'eth_chainId' });
+          const chainHex = await injectedProvider.request({ method: 'eth_chainId' });
           if (parseInt(chainHex, 16) !== chainId) {
             try {
-              await ethProvider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: `0x${chainId.toString(16)}` }] });
+              await injectedProvider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: `0x${chainId.toString(16)}` }] });
             } catch (e: any) {
               if (e.code === 4902) {
                 // Find chain data from STABLE_CHAINS or fall back to known defaults
@@ -1045,30 +1064,41 @@ export function BuySection() {
                   : chainId === 97
                     ? { chainId: '0x61', chainName: 'BSC Testnet', nativeCurrency: { name: 'tBNB', symbol: 'tBNB', decimals: 18 }, rpcUrls: ['https://bsc-testnet-rpc.publicnode.com'], blockExplorerUrls: ['https://testnet.bscscan.com'] }
                     : { chainId: '0xaa36a7', chainName: 'Sepolia', nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }, rpcUrls: ['https://ethereum-sepolia-rpc.publicnode.com'], blockExplorerUrls: ['https://sepolia.etherscan.io'] };
-                await ethProvider.request({ method: 'wallet_addEthereumChain', params: [chainData] });
+                await injectedProvider.request({ method: 'wallet_addEthereumChain', params: [chainData] });
               } else throw e;
             }
             await new Promise<void>(resolve => setTimeout(resolve, 600));
           }
         };
 
-        if (ethProvider) {
+        if (useInjected) {
           await switchToChain(targetChainId);
 
           if (tokenInfo) {
             // ── ERC-20 token transfer (USDC / USDT) ──────────────────────
             // Amount in token units (USDC=6 decimals, USDT=18 decimals)
-            const tokenAmount = BigInt(Math.round(usdEst * 10 ** tokenInfo.decimals));
+            // Precision-safe: avoid float * 10^18 overflow (exceeds JS MAX_SAFE_INTEGER)
+            // Multiply integer cents then scale: e.g. $10.50 → 1050n * 10^(18-2) = 10.5 * 10^18
+            const centsAmount = BigInt(Math.round(usdEst * 100));
+            const tokenAmount = centsAmount * (10n ** BigInt(tokenInfo.decimals)) / 100n;
             const data = encodeERC20Transfer(PRESALE_ETH_WALLET, tokenAmount);
-            hash = await ethProvider.request({
+            // ERC-20 transfer: value MUST be omitted or '0x0', gas cap prevents
+            // "block gas limit" fallback that shows $15M fee when tx would revert
+            hash = await injectedProvider.request({
               method: 'eth_sendTransaction',
-              params: [{ from: senderAddress, to: tokenInfo.address, data, value: '0x0' }],
+              params: [{ from: senderAddress, to: tokenInfo.address as `0x${string}`, data,
+                value: '0x0',
+                gas: '0x186A0', // 100,000 gas — safe upper bound for any ERC-20 transfer
+              }],
             });
           } else {
             // ── Native coin transfer (ETH / BNB) ──────────────────────────
-            hash = await ethProvider.request({
+            hash = await injectedProvider.request({
               method: 'eth_sendTransaction',
-              params: [{ from: senderAddress, to: PRESALE_ETH_WALLET, value: `0x${BigInt(parseEther(amount)).toString(16)}` }],
+              params: [{ from: senderAddress, to: PRESALE_ETH_WALLET,
+                value: `0x${BigInt(parseEther(amount)).toString(16)}`,
+                gas: '0x5208', // 21,000 — exact for native ETH/BNB transfers
+              }],
             });
           }
         } else {
@@ -1077,14 +1107,20 @@ export function BuySection() {
           await new Promise<void>(resolve => setTimeout(resolve, 600));
           if (tokenInfo) {
             // ERC-20 transfer (USDC / USDT) via WalletConnect
-            const tokenAmount = BigInt(Math.round(usdEst * 10 ** tokenInfo.decimals));
+            // Precision-safe BigInt math (same fix as injected path above)
+            const centsAmount = BigInt(Math.round(usdEst * 100));
+            const tokenAmount = centsAmount * (10n ** BigInt(tokenInfo.decimals)) / 100n;
             hash = await writeContractAsync({
+              chainId: targetChainId, // lock tx to correct chain — prevents race with switchChainAsync
               address: tokenInfo.address as `0x${string}`,
-              abi: [{ name: 'transfer', type: 'function', stateMutability: 'nonpayable',
-                inputs: [{ name: 'to', type: 'address' }, { name: 'amount', type: 'uint256' }],
-                outputs: [{ name: '', type: 'bool' }] }],
+              abi: [{
+                name: 'transfer', type: 'function', stateMutability: 'nonpayable',
+                inputs: [{ name: 'recipient', type: 'address' }, { name: 'amount', type: 'uint256' }],
+                outputs: [{ name: '', type: 'bool' }],
+              }],
               functionName: 'transfer',
               args: [PRESALE_ETH_WALLET as `0x${string}`, tokenAmount],
+              gas: 100000n, // safe upper bound, prevents $15M gas display on revert
             });
           } else {
             // Native coin (ETH / BNB) via WalletConnect
