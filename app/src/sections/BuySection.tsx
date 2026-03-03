@@ -22,7 +22,7 @@ const supabase = _sbUrl && _sbKey ? createClient(_sbUrl, _sbKey) : null;
 
 // ── Receiving wallet addresses ────────────────────────────────────────────
 // ⚠️ TESTNET — swap back to mainnet address before going live
-const PRESALE_ETH_WALLET = '0x0722ef1dcfa7849b3bf0db375793bfacc52b8e39' as `0x${string}`; // same address works on Sepolia + BSC testnet
+const PRESALE_ETH_WALLET = '0x0722Ef1DCfa7849B3BF0DB375793bFAcc52b8e39' as `0x${string}`; // same address works on Sepolia + BSC testnet
 const PRESALE_SOL_WALLET = 'HAEC8fjg9Wpg1wpL8j5EQFRmrq4dj8BqYQVKgZZdKmRM'; // ⚠️ TESTNET: same address, just switch Phantom to Devnet
 const PRESALE_BTC_WALLET = 'bc1q3rdjpm36lcy30amzfkaqpvvm5xu8n8y665ajlx';
 
@@ -72,16 +72,30 @@ async function decryptPhantomPayload(phantomPubKey58: string, data58: string, no
 // ── Mobile detection ──────────────────────────────────────────────────────
 // isMobile removed — deeplink used on all platforms
 function isAndroid() { return /Android/i.test(navigator.userAgent); }
-function isInEvmBrowser() {
-  // Returns wallet name if we're inside an EVM wallet's in-app browser
+function isInEvmBrowser(): string | null {
   const eth = (window as any).ethereum;
   if (!eth) return null;
-  if (eth.isMetaMask)  return 'MetaMask';
-  if (eth.isTrust)     return 'Trust Wallet';
-  if (eth.isCoinbaseWallet) return 'Coinbase Wallet';
-  if (eth.isRainbow)   return 'Rainbow';
-  if (eth.isBraveWallet) return 'Brave Wallet';
-  return 'Wallet'; // generic injected
+  // Check specific wallets first (some also set isMetaMask, so order matters)
+  if (eth.isOKExWallet || eth.isOkxWallet)  return 'OKX Wallet';
+  if (eth.isBitKeep || eth.isBitget)         return 'Bitget Wallet';
+  if (eth.isSafePal)                         return 'SafePal';
+  if (eth.isBybit)                           return 'Bybit Wallet';
+  if (eth.isBinance || eth.isBinanceSmartWallet) return 'Binance Web3';
+  if (eth.isGate || eth.isGateWallet)        return 'Gate Wallet';
+  if (eth.isZerion)                          return 'Zerion';
+  if (eth.isRabby)                           return 'Rabby';
+  if (eth.isOneInch)                         return '1inch Wallet';
+  if (eth.isKraken)                          return 'Kraken Wallet';
+  if (eth.isOneKey)                          return 'OneKey';
+  if (eth.isTokenPocket)                     return 'TokenPocket';
+  if (eth.isImToken)                         return 'imToken';
+  if (eth.isFrontier)                        return 'Frontier';
+  if (eth.isRainbow)                         return 'Rainbow';
+  if (eth.isBraveWallet)                     return 'Brave Wallet';
+  if (eth.isCoinbaseWallet)                  return 'Coinbase Wallet';
+  if (eth.isTrust || eth.isTrustWallet)      return 'Trust Wallet';
+  if (eth.isMetaMask)                        return 'MetaMask';
+  return 'Wallet';
 }
 
 // EVM wallet in-app browser URL builders
@@ -329,7 +343,7 @@ const STABLE_CHAINS: Record<string, {
       nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 },
       rpcUrls: ['https://rpc-amoy.polygon.technology'],
       blockExplorer: 'https://www.oklink.com/amoy',
-      usdt: { address: '0xAcDe43b9E5f72a4F554D4346e69e8e7aC8be9dC8', decimals: 6 }, // mainnet: 0xc2132D05D31c914a87C6611C10748AEb04B58e8F
+      usdt: { address: '0xAcDe43b9E5F72A4F554D4346E69e8e7Ac8BE9dc8', decimals: 6 }, // mainnet: 0xc2132D05D31c914a87C6611C10748AEb04B58e8F
     },
     {
       id: 'arbitrum', label: 'Arbitrum Sepolia', icon: '🔵',
@@ -337,7 +351,7 @@ const STABLE_CHAINS: Record<string, {
       nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
       rpcUrls: ['https://sepolia-rollup.arbitrum.io/rpc'],
       blockExplorer: 'https://sepolia.arbiscan.io',
-      usdt: { address: '0x4D7d2eA3E72533e62Ca0E7C31a0a82e0bdc0CaB8', decimals: 6 }, // mainnet: 0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9
+      usdt: { address: '0x4d7d2eA3E72533e62cA0e7c31A0a82E0bDC0CAb8', decimals: 6 }, // mainnet: 0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9
     },
   ],
 };
@@ -428,19 +442,23 @@ export function BuySection() {
   const { connectAsync }                   = useConnect();
   const currentChainId                     = useChainId();
 
-  // Sync wagmi connection → evmInjectedAddr so buy flow always has senderAddress
-  // Fires when user connects via RainbowKit modal (WalletConnect or injected via modal)
+  // Sync wagmi connection → evmInjectedAddr so the buy flow always has a senderAddress.
+  // This fires for:
+  //   • RainbowKit / WalletConnect connects (from nav button)
+  //   • injected() connects (from connectAsync in connectWallet)
+  //   • Restored sessions on page reload
   useEffect(() => {
-    if (isConnected && address && !evmInjectedAddr) {
-      setEvmInjectedAddr(address);
-      setEvmInjectedName(connector?.name || 'WalletConnect');
+    if (isConnected && address) {
+      setEvmInjectedAddr(prev => prev || address); // don't overwrite if already set
+      setEvmInjectedName(prev => prev || connector?.name || 'Wallet');
     }
-    if (!isConnected && evmInjectedName === (connector?.name || 'WalletConnect')) {
-      // Wagmi disconnected — clear injected addr if it was set by wagmi
+    if (!isConnected) {
       setEvmInjectedAddr('');
       setEvmInjectedName('');
+      localStorage.removeItem('_kleo_evm_address');
+      localStorage.removeItem('_kleo_evm_wallet_name');
     }
-  }, [isConnected, address]);  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isConnected, address, connector?.name]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   // UI state
   const [tab,           setTab]          = useState<'crypto' | 'card'>('crypto');
@@ -760,37 +778,54 @@ export function BuySection() {
     const chain = selected.chain;
 
     if (chain === 'evm') {
-      // ── EVM (ETH / BNB / USDC / USDT) ────────────────────────────────────
-      // Professional approach: route ALL connections through wagmi's connector system.
-      // wagmi abstracts over injected (MetaMask, Trust, etc.) AND WalletConnect
-      // so chain switching and tx signing use one unified, reliable path.
-      if ((window as any).ethereum && !isConnected) {
-        // Wallet browser detected — connect via wagmi's injected() connector.
-        // This registers the connection with wagmi so switchChainAsync/writeContractAsync work.
-        try {
-          const result = await connectAsync({ connector: injected() });
-          const addr = result.accounts[0];
-          if (addr) {
-            setEvmInjectedAddr(addr);
-            setEvmInjectedName((isInEvmBrowser() as string) || 'Wallet');
-            localStorage.setItem('_kleo_evm_address', addr);
-            localStorage.setItem('_kleo_evm_wallet_name', isInEvmBrowser() || 'Wallet');
-          }
-        } catch (e: any) {
-          // User rejected or already connected — try to get accounts silently
-          if (address) {
-            setEvmInjectedAddr(address);
-            setEvmInjectedName(connector?.name || 'Wallet');
-          } else {
-            setTxError(e?.message || 'Connection rejected');
-          }
-        }
-      } else if (isConnected && address) {
-        // Already connected via wagmi (WalletConnect or injected) — just sync UI
+      // ── EVM connect — wallet browser first, then RainbowKit modal ─────────
+      // Priority: if ANY injected provider exists (MetaMask, Trust, Coinbase, OKX, etc.)
+      // connect directly via wagmi injected() — no modal, instant, single tap.
+      // Only open RainbowKit modal when no injected provider is found.
+      const hasInjected = !!(window as any).ethereum;
+
+      if (isConnected && address) {
+        // Already connected — just sync UI state and we're ready to buy
         setEvmInjectedAddr(address);
         setEvmInjectedName(connector?.name || 'Connected');
+        return; // don't re-trigger connection flow
+      }
+
+      if (hasInjected) {
+        // Wallet browser / extension detected — connect via wagmi injected() connector.
+        // injected() uses window.ethereum directly — no QR code, no redirect, instant.
+        try {
+          // Resolve target chain now so we connect to the right chain immediately.
+          // Fixes OKX and some wallets that default to their last-used chain.
+          const _tokenKey = (selected as any).token as string | undefined;
+          const _activeStable = _tokenKey
+            ? (STABLE_CHAINS[_tokenKey]?.find((c: any) => c.id === stableChainId) ?? STABLE_CHAINS[_tokenKey]?.[0])
+            : null;
+          const _targetChainId: number | undefined = _activeStable?.chainId ?? (selected as any).chainId;
+
+          const result = await connectAsync({
+            connector: injected(),
+            ...(_targetChainId ? { chainId: _targetChainId } : {}),
+          });
+          const acct = result.accounts[0];
+          if (acct) {
+            const name = isInEvmBrowser() || connector?.name || 'Wallet';
+            setEvmInjectedAddr(acct);
+            setEvmInjectedName(name);
+            localStorage.setItem('_kleo_evm_address', acct);
+            localStorage.setItem('_kleo_evm_wallet_name', name);
+          }
+        } catch (e: any) {
+          if (address) {
+            // Already authorised — wagmi threw "already connected" error, just sync
+            setEvmInjectedAddr(address);
+            setEvmInjectedName(connector?.name || 'Wallet');
+          } else if (!e?.message?.includes('rejected') && !e?.message?.includes('User')) {
+            setTxError(e?.message || 'Connection failed');
+          }
+        }
       } else {
-        // No wallet found — open RainbowKit modal (WalletConnect + 300+ wallets)
+        // No injected wallet — open RainbowKit / WalletConnect modal
         openConnectModal?.();
       }
 
@@ -1018,39 +1053,41 @@ export function BuySection() {
         const tokenInfo = tokenKey ? getTokenInfo(tokenKey, stableChainId) : undefined;
 
         // ── Step 1: Switch chain if needed ────────────────────────────────────
-        // switchChainAsync works for injected (if connected via connectAsync(injected()))
-        // AND WalletConnect — it's the single source of truth.
+        // switchChainAsync is fully async and resolves only after the wallet confirms.
+        // It works for both injected AND WalletConnect connectors.
+        // The returned chain object confirms the switch succeeded — no polling needed.
         if (currentChainId !== targetChainId) {
+          const allChains = [...(STABLE_CHAINS.USDC ?? []), ...(STABLE_CHAINS.USDT ?? [])];
+          const chainMeta = allChains.find(c => c.chainId === targetChainId);
+
           try {
             await switchChainAsync({ chainId: targetChainId });
           } catch (switchErr: any) {
-            // Chain not in wallet — add it then retry
-            const allChains = [...(STABLE_CHAINS.USDC ?? []), ...(STABLE_CHAINS.USDT ?? [])];
-            const chainMeta = allChains.find(c => c.chainId === targetChainId);
-            if (chainMeta && (window as any).ethereum) {
+            // Error 4902 = chain not added to wallet yet — add it first then switch
+            const isUnknownChain = switchErr?.code === 4902 ||
+              switchErr?.message?.includes('Unrecognized chain') ||
+              switchErr?.message?.includes('does not support');
+
+            if (isUnknownChain && chainMeta && (window as any).ethereum) {
               await (window as any).ethereum.request({
                 method: 'wallet_addEthereumChain',
                 params: [{ chainId: chainMeta.chainHex, chainName: chainMeta.chainName,
-                  nativeCurrency: chainMeta.nativeCurrency,
-                  rpcUrls: chainMeta.rpcUrls, blockExplorerUrls: [chainMeta.blockExplorer] }],
+                  nativeCurrency: chainMeta.nativeCurrency, rpcUrls: chainMeta.rpcUrls,
+                  blockExplorerUrls: [chainMeta.blockExplorer] }],
               });
+              // Retry switch after adding
               await switchChainAsync({ chainId: targetChainId });
             } else {
-              throw new Error(`Please switch to the correct network in your wallet: chain ID ${targetChainId}`);
+              throw new Error(
+                chainMeta
+                  ? `Switch to ${chainMeta.chainName} in your wallet, then try again.`
+                  : `Please switch your wallet to chain ID ${targetChainId}.`
+              );
             }
           }
-          // Poll until chain confirmed — do NOT use a fixed setTimeout
-          await new Promise<void>((resolve, reject) => {
-            const deadline = Date.now() + 15000;
-            const check = () => {
-              if (Date.now() > deadline) { reject(new Error('Chain switch timed out — please try again')); return; }
-              (window as any).ethereum?.request({ method: 'eth_chainId' }).then((hex: string) => {
-                if (parseInt(hex, 16) === targetChainId) resolve();
-                else setTimeout(check, 400);
-              }).catch(() => resolve()); // no injected provider = WalletConnect handles it
-            };
-            setTimeout(check, 400);
-          });
+          // Brief settle — wagmi needs one tick to update its internal chainId state
+          // after switchChainAsync resolves, otherwise writeContractAsync sees chain: undefined
+          await new Promise<void>(r => setTimeout(r, 300));
         }
 
         // ── Step 2: Send transaction ────────────────────────────────────────
