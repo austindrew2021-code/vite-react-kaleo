@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useWalletStore } from '../store/presaleStore';
-import { useAccount, useDisconnect } from 'wagmi';
+import { useAccount, useDisconnect, useConnections } from 'wagmi';
 import { Menu, X, ExternalLink } from 'lucide-react';
 import { gsap } from 'gsap';
 import { Link } from 'react-scroll'; // for smooth internal scrolling
@@ -21,6 +21,17 @@ export function Navigation() {
   const { solAddress, btcAddress, solWalletName, btcWalletName, disconnectSol, disconnectBtc, setShowEvmPicker } = useWalletStore();
   const { address: evmAddress, isConnected: evmConnected, connector: evmConnector } = useAccount();
   const { disconnect: evmDisconnect } = useDisconnect();
+  const evmConnections = useConnections();
+
+  // Kill ALL active wagmi connections at once — prevents the "two disconnects" bug
+  // that happens when multiple wallets (e.g. MetaMask + Phantom EVM) register via EIP-6963
+  const disconnectAll = () => {
+    if (evmConnections.length > 0) {
+      evmConnections.forEach(conn => evmDisconnect({ connector: conn.connector }));
+    } else {
+      evmDisconnect();
+    }
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -179,7 +190,7 @@ export function Navigation() {
                 <span className="text-[#2BFFF1] text-xs font-semibold hidden sm:block">{evmConnector.name}</span>
               )}
               <button
-                onClick={() => evmDisconnect()}
+                onClick={() => disconnectAll()}
                 className="text-[#A7B0B7] hover:text-red-400 text-xs ml-1 transition-colors leading-none"
                 title="Disconnect">
                 ×
@@ -259,4 +270,4 @@ export function Navigation() {
       )}
     </>
   );
-            }
+}
