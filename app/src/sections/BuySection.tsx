@@ -12,7 +12,6 @@ import { parseEther } from 'viem';
 import { sepolia, bscTestnet, arbitrumSepolia, baseSepolia, polygonAmoy } from 'wagmi/chains';
 import { usePresaleStore, getCurrentStage, LISTING_PRICE_USD, useWalletStore } from '../store/presaleStore';
 import { BtcDiagnostic } from '../components/BtcDiagnostic';
-import { useConnectModal } from '@rainbow-me/rainbowkit';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -97,88 +96,6 @@ function isInEvmBrowser(): string | null {
   if (eth.isMetaMask)                        return 'MetaMask';
   return 'Wallet';
 }
-
-// ── EVM wallet deeplink URL builders ──────────────────────────────────────
-// Each entry opens the dApp URL directly inside the wallet's built-in browser.
-// Sources: official developer docs for each wallet (see inline comments).
-// iOS: universal https:// links — routes to App Store if wallet not installed.
-// Android: native URI schemes / intent:// URIs.
-const EVM_WALLETS = [
-  {
-    id: 'metamask', name: 'MetaMask', icon: '🦊', color: 'text-orange-400',
-    desc: 'ETH · BNB · Polygon · Arbitrum',
-    openUrl: (url: string) => {
-      // https://docs.metamask.io/sdk/guides/use-deeplinks/
-      const clean = url.replace(/^https?:\/\//, '');
-      window.location.href = `https://metamask.app.link/dapp/${clean}`;
-    },
-  },
-  {
-    id: 'trust', name: 'Trust Wallet', icon: '🛡️', color: 'text-blue-400',
-    desc: 'ETH · BNB · 100+ chains',
-    openUrl: (url: string) => {
-      // https://developer.trustwallet.com/developer/develop-for-trust/deeplinking
-      // coin_id=60 = Ethereum. iOS browser removed from app — universal link used.
-      const enc = encodeURIComponent(url);
-      if (isAndroid()) window.location.href = `trust://open_url?coin_id=60&url=${enc}`;
-      else window.location.href = `https://link.trustwallet.com/open_url?coin_id=60&url=${enc}`;
-    },
-  },
-  {
-    id: 'coinbase', name: 'Coinbase Wallet', icon: '🔵', color: 'text-blue-500',
-    desc: 'ETH · Base · Polygon · Arbitrum',
-    openUrl: (url: string) => {
-      const enc = encodeURIComponent(url);
-      window.location.href = `https://go.cb-wallet.com/dapp?url=${enc}`;
-    },
-  },
-  {
-    id: 'okx', name: 'OKX Wallet', icon: '⭕', color: 'text-gray-300',
-    desc: 'ETH · BNB · SOL · 100+ chains',
-    openUrl: (url: string) => {
-      // https://web3.okx.com/build/docs/waas/app-universal-link
-      // Outer web3.okx.com/download wrapper handles App Store fallback
-      const inner = `okx://wallet/dapp/url?dappUrl=${encodeURIComponent(url)}`;
-      window.location.href = `https://web3.okx.com/download?deeplink=${encodeURIComponent(inner)}`;
-    },
-  },
-  {
-    id: 'bitget', name: 'Bitget Wallet', icon: '💎', color: 'text-cyan-400',
-    desc: 'ETH · BNB · SOL · 100+ chains',
-    openUrl: (url: string) => {
-      // https://docs.bitkeep.com/en/docs/guide/mobile/Deeplink.html
-      const enc = encodeURIComponent(url);
-      window.location.href = `https://bkcode.vip?action=dapp&url=${enc}`;
-    },
-  },
-  {
-    id: 'bybit', name: 'Bybit Wallet', icon: '🟡', color: 'text-yellow-400',
-    desc: 'ETH · BNB · Polygon · Base',
-    openUrl: (url: string) => {
-      const enc = encodeURIComponent(url);
-      window.location.href = `https://www.bybitglobal.com/en/web3-wallet/dapp?url=${enc}`;
-    },
-  },
-  {
-    id: 'rainbow', name: 'Rainbow', icon: '🌈', color: 'text-pink-400',
-    desc: 'ETH · Base · Arbitrum · Optimism',
-    openUrl: (url: string) => {
-      const enc = encodeURIComponent(url);
-      window.location.href = `https://rnbwapp.com/dapp?url=${enc}`;
-    },
-  },
-  {
-    id: 'phantom', name: 'Phantom', icon: '👻', color: 'text-purple-400',
-    desc: 'ETH · SOL · BTC · Polygon',
-    openUrl: (url: string) => {
-      const encoded = encodeURIComponent(url);
-      const ref = encodeURIComponent(new URL(url).origin);
-      if (isAndroid())
-        window.location.href = `intent://browse/${encoded}?ref=${ref}#Intent;scheme=phantom;package=app.phantom;S.browser_fallback_url=https%3A%2F%2Fphantom.app%2F;end`;
-      else window.location.href = `https://phantom.app/ul/browse/${encoded}?ref=${ref}`;
-    },
-  },
-];
 
 // ── Injected wallet types (desktop / in-app browser) ────────────────────
 type PhantomSolProvider = {
@@ -475,7 +392,7 @@ export function BuySection() {
   const { totalRaised, addRaised, addPurchase } = usePresaleStore();
   const {
     solAddress, btcAddress, solWalletName, btcWalletName,
-    setSolWallet, setBtcWallet, disconnectSol, disconnectBtc,
+    setSolWallet, setBtcWallet, disconnectSol, disconnectBtc, setShowEvmPicker,
   } = useWalletStore();
   const currentStage = getCurrentStage(totalRaised);
 
@@ -485,7 +402,6 @@ export function BuySection() {
   const { sendTransactionAsync }            = useSendTransaction();
   const { writeContractAsync }              = useWriteContract();
   const { switchChainAsync }               = useSwitchChain();
-  const { openConnectModal }               = useConnectModal();
   const { connectAsync }                   = useConnect();
   const currentChainId                     = useChainId();
 
@@ -544,7 +460,7 @@ export function BuySection() {
   // evmInjectedAddr removed — wagmi's address is single source of truth. Setter kept for legacy mount paths.
   const [, setEvmInjectedAddr]  = useState<string>('');
   const [evmInjectedName,   setEvmInjectedName]  = useState<string>('');
-  const [showEvmPicker,     setShowEvmPicker]    = useState(false);
+  // showEvmPicker is now global (walletStore) — shared with Navigation and any other CTA
 
   // Picker modals
   const [showInjectedPicker, setShowInjectedPicker] = useState(false);
@@ -1618,50 +1534,7 @@ export function BuySection() {
       )}
 
       {/* ── XVERSE / BTC PAYMENT MODAL ── */}
-      {/* EVM WALLET PICKER MODAL */}
-      {showEvmPicker && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
-          onClick={() => setShowEvmPicker(false)}>
-          <div className="bg-[#0B0E14] border border-white/10 rounded-2xl p-5 w-[min(92vw,400px)] shadow-2xl flex flex-col"
-            style={{ maxHeight: '85vh' }}
-            onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-[#F4F6FA] font-bold text-lg">Open in Wallet</h3>
-              <button onClick={() => setShowEvmPicker(false)} className="text-[#A7B0B7] hover:text-white text-xl leading-none">x</button>
-            </div>
-            <p className="text-[#A7B0B7] text-xs mb-4 leading-relaxed">
-              Tap your wallet below — you'll be taken directly into its built-in browser, already connected. Same as how Phantom works for Solana.
-            </p>
-            <div className="flex flex-col gap-2 overflow-y-auto flex-1">
-              {EVM_WALLETS.map(w => (
-                <button key={w.id}
-                  onClick={() => { setShowEvmPicker(false); w.openUrl(window.location.href); }}
-                  className="flex items-center gap-3 bg-white/5 hover:bg-white/10 active:bg-white/15 border border-white/10 hover:border-[#2BFFF1]/40 rounded-xl px-4 py-3 transition-all text-left">
-                  <span className="text-2xl leading-none w-8 text-center flex-shrink-0">{w.icon}</span>
-                  <div className="min-w-0">
-                    <p className="text-[#F4F6FA] font-semibold text-sm">{w.name}</p>
-                    <p className="text-[#A7B0B7] text-xs truncate">{w.desc}</p>
-                  </div>
-                  <span className="ml-auto text-[#2BFFF1] text-sm font-semibold flex-shrink-0">Open →</span>
-                </button>
-              ))}
-              <button
-                onClick={() => { setShowEvmPicker(false); openConnectModal?.(); }}
-                className="flex items-center gap-3 bg-white/5 hover:bg-white/10 border border-dashed border-white/20 hover:border-[#2BFFF1]/40 rounded-xl px-4 py-3 transition-all text-left mt-1">
-                <span className="text-2xl leading-none w-8 text-center flex-shrink-0">🔗</span>
-                <div>
-                  <p className="text-[#F4F6FA] font-semibold text-sm">Other / Desktop Wallet</p>
-                  <p className="text-[#A7B0B7] text-xs">WalletConnect QR · Ledger · Rabby · Zerion + more</p>
-                </div>
-                <span className="ml-auto text-[#2BFFF1] text-sm font-semibold flex-shrink-0">QR</span>
-              </button>
-            </div>
-            <p className="text-[#A7B0B7] text-xs text-center mt-4 pt-3 border-t border-white/5">
-              No wallet yet? <a href="https://metamask.io/download/" target="_blank" rel="noopener noreferrer" className="text-[#2BFFF1] hover:underline">Download MetaMask</a>
-            </p>
-          </div>
-        </div>
-      )}
+      {/* EVM picker moved to global <EvmWalletPicker> in App.tsx — triggered via walletStore.showEvmPicker */}
 
       {/* ── SOLANA PAY CONFIRMATION MODAL ── */}
       {showSolPay && (
