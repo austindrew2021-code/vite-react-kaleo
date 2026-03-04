@@ -489,18 +489,16 @@ export function BuySection() {
   const { connectAsync }                   = useConnect();
   const currentChainId                     = useChainId();
 
-  // Sync wagmi connection → evmInjectedAddr so the buy flow always has a senderAddress.
-  // This fires for:
-  //   • RainbowKit / WalletConnect connects (from nav button)
-  //   • injected() connects (from connectAsync in connectWallet)
-  //   • Restored sessions on page reload
+  // Sync connector name for display. wagmi's address/isConnected are the single source of truth.
+  // evmInjectedAddr state is no longer used — all reads use wagmi's address directly.
   useEffect(() => {
     if (isConnected && address) {
-      setEvmInjectedAddr(prev => prev || address); // don't overwrite if already set
-      setEvmInjectedName(prev => prev || connector?.name || 'Wallet');
+      const name = connector?.name || isInEvmBrowser() || localStorage.getItem('_kleo_evm_wallet_name') || 'Wallet';
+      setEvmInjectedName(name);
+      localStorage.setItem('_kleo_evm_address', address);
+      localStorage.setItem('_kleo_evm_wallet_name', name);
     }
     if (!isConnected) {
-      setEvmInjectedAddr('');
       setEvmInjectedName('');
       localStorage.removeItem('_kleo_evm_address');
       localStorage.removeItem('_kleo_evm_wallet_name');
@@ -543,7 +541,8 @@ export function BuySection() {
   };
 
   // EVM injected state (used when inside a wallet browser, supplements wagmi)
-  const [evmInjectedAddr,   setEvmInjectedAddr]  = useState<string>('');
+  // evmInjectedAddr removed — wagmi's address is single source of truth. Setter kept for legacy mount paths.
+  const [, setEvmInjectedAddr]  = useState<string>('');
   const [evmInjectedName,   setEvmInjectedName]  = useState<string>('');
   const [showEvmPicker,     setShowEvmPicker]    = useState(false);
 
@@ -799,21 +798,26 @@ export function BuySection() {
     init();
   }, [recordPurchase]);
 
-  // ── Live prices ────────────────────────────────────────────────────────
+  // ── Live prices — refresh every 60s ──────────────────────────────────
   useEffect(() => {
-    const ids = Object.values(COINGECKO_IDS).join(',');
-    setPriceLoading(true);
-    fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`)
-      .then(r => r.json())
-      .then(data => {
-        const rates: Record<string, number> = {};
-        for (const [sym, id] of Object.entries(COINGECKO_IDS)) {
-          if (data[id]?.usd) rates[sym] = data[id].usd;
-        }
-        if (Object.keys(rates).length) { setLiveRates(p => ({ ...p, ...rates })); setPriceError(false); }
-      })
-      .catch(() => setPriceError(true))
-      .finally(() => setPriceLoading(false));
+    const fetchPrices = () => {
+      const ids = Object.values(COINGECKO_IDS).join(',');
+      setPriceLoading(true);
+      fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`)
+        .then(r => r.json())
+        .then(data => {
+          const rates: Record<string, number> = {};
+          for (const [sym, id] of Object.entries(COINGECKO_IDS)) {
+            if (data[id]?.usd) rates[sym] = data[id].usd;
+          }
+          if (Object.keys(rates).length) { setLiveRates(p => ({ ...p, ...rates })); setPriceError(false); }
+        })
+        .catch(() => setPriceError(true))
+        .finally(() => setPriceLoading(false));
+    };
+    fetchPrices(); // immediate on mount
+    const interval = setInterval(fetchPrices, 60_000); // refresh every 60s
+    return () => clearInterval(interval);
   }, []);
 
   // ── USD estimate ───────────────────────────────────────────────────────
@@ -1009,7 +1013,11 @@ export function BuySection() {
   };
 
   const disconnectEvmInjected = () => {
-    setEvmInjectedAddr(''); setEvmInjectedName('');
+    // Must call wagmi's disconnect — clearing only local state leaves wagmi connected
+    // and the sync effect immediately re-sets the address from wagmi's still-live session.
+    evmDisconnect();
+    setEvmInjectedAddr('');
+    setEvmInjectedName('');
     localStorage.removeItem('_kleo_evm_address');
     localStorage.removeItem('_kleo_evm_wallet_name');
   };
@@ -1086,9 +1094,15 @@ export function BuySection() {
   };
 
   // ── Main buy ──────────────────────────────────────────────────────────
+  const MIN_USD = 10;
   const handleBuy = async () => {
     const n = parseFloat(amount);
     if (!n || n <= 0) return;
+    if (usdEst < MIN_USD) {
+      setTxError(`Minimum purchase is $${MIN_USD}. Enter a larger amount.`);
+      setTxStatus('error');
+      return;
+    }
     setTxStatus('pending'); setTxError('');
     try {
       let hash = '';
@@ -1122,7 +1136,7 @@ export function BuySection() {
         // ── EVM send (ETH · BNB · USDC · USDT) ───────────────────────────────
         // Single unified path: wagmi handles BOTH injected wallets AND WalletConnect.
         // No window.ethereum calls for tx — wagmi's connector abstraction routes correctly.
-        const senderAddress = address || evmInjectedAddr;
+        const senderAddress = address; // wagmi is the single source of truth for EVM address
         if (!senderAddress) throw new Error('Connect an EVM wallet first');
 
         // Resolve target chain + token contract
@@ -1208,8 +1222,19 @@ export function BuySection() {
       if (hash) { setTxHash(hash); setTxStatus('success'); }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Transaction failed';
-      setTxError(msg.includes('reject') || msg.includes('User') || msg.includes('cancel')
-        ? 'Transaction rejected — nothing was sent' : msg);
+      const friendlyMsg =
+        (msg.includes('reject') || msg.includes('User') || msg.includes('cancel'))
+          ? 'Transaction rejected — nothing was sent.'
+          : msg.includes('insufficient funds') || msg.includes('Insufficient')
+            ? 'Insufficient balance — check you have enough to cover the amount + gas.'
+            : msg.includes('nonce') || msg.includes('underpriced')
+              ? 'Transaction stuck — try resetting your wallet nonce or try again.'
+              : msg.includes('timeout') || msg.includes('Timeout')
+                ? 'Network timeout — your wallet may still process it. Check your tx history.'
+                : msg.includes('network') || msg.includes('Network')
+                  ? 'Network error — check your connection and try again.'
+                  : msg.length > 120 ? msg.slice(0, 120) + '…' : msg;
+      setTxError(friendlyMsg);
       setTxStatus('error');
     }
   };
@@ -1243,7 +1268,7 @@ export function BuySection() {
     BNB: [0.05, 0.2, 0.5, 1], BTC: [0.0005, 0.001, 0.005, 0.01],
     USDC: [10, 25, 50, 100], USDT: [10, 25, 50, 100],
   };
-  const evmConnected = isConnected || !!evmInjectedAddr;
+  const evmConnected = isConnected; // wagmi is the only truth; evmInjectedAddr no longer used as fallback
   const walletReady = isBtc ? btcConnected : isEvm ? evmConnected : solConnected;
 
   // ── RENDER ─────────────────────────────────────────────────────────────
@@ -1331,30 +1356,15 @@ export function BuySection() {
             {/* Wallet connect section */}
             <div className="mb-5">
               {isEvm ? (
-                evmInjectedAddr ? (
-                  /* Connected via in-app browser injection */
+                isConnected && address ? (
+                  /* Single unified connected state — wagmi is the only source of truth */
                   <div className="flex items-center justify-between bg-[#2BFFF1]/5 border border-[#2BFFF1]/20 rounded-xl px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-green-400" />
-                      <span className="text-[#F4F6FA] text-sm font-medium">{evmInjectedAddr.slice(0,6)}...{evmInjectedAddr.slice(-4)}</span>
-                      <span className="text-[#2BFFF1] text-xs font-semibold">{evmInjectedName} ✓</span>
+                      <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                      <span className="text-[#F4F6FA] text-sm font-medium">{address.slice(0,6)}...{address.slice(-4)}</span>
+                      <span className="text-[#2BFFF1] text-xs font-semibold">{evmInjectedName || connector?.name || 'Connected'} ✓</span>
                     </div>
                     <button onClick={disconnectEvmInjected}
-                      className="text-[#A7B0B7] hover:text-red-400 text-xs transition-colors px-2 py-1 rounded-lg hover:bg-red-500/10">
-                      Disconnect
-                    </button>
-                  </div>
-                ) : isConnected && address ? (
-                  /* Connected via WalletConnect (desktop fallback) */
-                  <div className="flex items-center justify-between bg-[#2BFFF1]/5 border border-[#2BFFF1]/20 rounded-xl px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-green-400" />
-                      <span className="text-[#F4F6FA] text-sm font-medium">{address.slice(0,6)}...{address.slice(-4)}</span>
-                      {connector?.name && (
-                        <span className="text-[#2BFFF1] text-xs font-semibold">{connector.name} ✓</span>
-                      )}
-                    </div>
-                    <button onClick={() => evmDisconnect()}
                       className="text-[#A7B0B7] hover:text-red-400 text-xs transition-colors px-2 py-1 rounded-lg hover:bg-red-500/10">
                       Disconnect
                     </button>
@@ -1366,7 +1376,7 @@ export function BuySection() {
                     <span className="text-xl">👛</span>
                     <div className="text-left">
                       <p className="text-[#F4F6FA] font-semibold text-sm">Connect {selected.label} Wallet</p>
-                      <p className="text-[#A7B0B7] text-xs">MetaMask · WalletConnect · 300+ wallets</p>
+                      <p className="text-[#A7B0B7] text-xs">{isInEvmBrowser() ? 'Tap to connect instantly' : 'Opens in your wallet — 1 tap'}</p>
                     </div>
                   </button>
                 )
@@ -1494,11 +1504,15 @@ export function BuySection() {
                     </div>
                   )}
                 </div>
-                <button onClick={handleBuy} disabled={!amount || parseFloat(amount) <= 0}
+                <button
+                  onClick={handleBuy}
+                  disabled={!amount || parseFloat(amount) <= 0 || (txStatus as string) === 'pending' || usdEst < 10}
                   className="neon-button w-full py-5 text-xl font-bold flex items-center justify-center gap-3 disabled:opacity-40 disabled:cursor-not-allowed">
                   {(txStatus as string) === 'pending'
                     ? <><svg className="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Processing...</>
-                    : <>Buy KLEO with {selected.symbol} <ArrowRight className="w-5 h-5" /></>}
+                    : usdEst > 0 && usdEst < 10
+                      ? <>Min. $10 required</>
+                      : <>Buy KLEO with {selected.symbol} <ArrowRight className="w-5 h-5" /></>}
                 </button>
               </>
             )}
