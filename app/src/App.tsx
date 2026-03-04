@@ -11,6 +11,7 @@ import { usePresaleStore, getCurrentStage } from './store/presaleStore';
 
 import { config } from './wagmi';
 import { Navigation } from './components/Navigation';
+import { EvmWalletPicker } from './components/EvmWalletPicker';
 import { HeroSection } from './sections/HeroSection';
 import { PresaleProgress } from './sections/PresaleProgress';
 import { BuySection } from './sections/BuySection';
@@ -209,6 +210,8 @@ function AppContent() {
       )}
 
       <Navigation />
+      {/* Global EVM wallet picker — triggered by Nav, BuySection, or any CTA */}
+      <EvmWalletPicker />
       <main className="relative">
         <HeroSection />
         <PresaleProgress direction={direction} />
