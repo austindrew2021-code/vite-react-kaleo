@@ -18,9 +18,7 @@ import {
   phantomWallet,
   okxWallet,
   bitgetWallet,
-  backpackWallet,
   safepalWallet,
-  magicEdenWallet,
   bybitWallet,
   binanceWallet,
   gateWallet,
@@ -29,7 +27,6 @@ import {
   imTokenWallet,
   frontierWallet,
   coin98Wallet,
-  // roninWallet REMOVED — Ronin is locked to Ronin chain only, always fails on BSC/ETH/ARB
 } from '@rainbow-me/rainbowkit/wallets';
 import { createConfig, http, fallback } from 'wagmi';
 import {
@@ -44,8 +41,11 @@ const APP_ICON  = 'https://kaleo-presale.vercel.app/logo.png';
 const APP_URL   = 'https://kaleo-presale.vercel.app';
 
 // ── Wallet compatibility ───────────────────────────────────────────────────
+// magicEdenWallet + backpackWallet REMOVED — Solana-native wallets that inject
+// aggressively via EIP-6963, creating ghost connections alongside MetaMask.
+// This caused the "two disconnects" bug (Magic Eden first, then MetaMask).
 // BSC support:  Trust, Binance, OKX, Bitget, Bybit, Gate, TokenPocket, imToken, SafePal, Coin98, 1inch, Frontier
-// No BSC:       Rainbow, Kraken, Zerion, Phantom-EVM, Backpack, Uniswap, Coinbase-EOA
+// No BSC:       Rainbow, Kraken, Zerion, Phantom-EVM, Uniswap, Coinbase-EOA
 // All EVM:      MetaMask, OKX, Rabby, OneKey, Frame (via wallet_addEthereumChain)
 // Coinbase Smart Wallet (default) BREAKS switchChain on non-Base — use EOA mode.
 // Ledger ERC-20: requires Blind Signing enabled in Ledger Live settings.
@@ -83,9 +83,7 @@ const connectors = connectorsForWallets(
         okxWallet,
         bitgetWallet,
         phantomWallet,
-        backpackWallet,
         safepalWallet,
-        magicEdenWallet,
       ],
     },
     {
