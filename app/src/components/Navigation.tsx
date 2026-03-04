@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useWalletStore } from '../store/presaleStore';
-import { useConnectModal } from '@rainbow-me/rainbowkit';
 import { useAccount, useDisconnect } from 'wagmi';
 import { Menu, X, ExternalLink } from 'lucide-react';
 import { gsap } from 'gsap';
@@ -19,9 +18,8 @@ const navLinks = [
 export function Navigation() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const { solAddress, btcAddress, solWalletName, btcWalletName, disconnectSol, disconnectBtc } = useWalletStore();
+  const { solAddress, btcAddress, solWalletName, btcWalletName, disconnectSol, disconnectBtc, setShowEvmPicker } = useWalletStore();
   const { address: evmAddress, isConnected: evmConnected, connector: evmConnector } = useAccount();
-  const { openConnectModal } = useConnectModal();
   const { disconnect: evmDisconnect } = useDisconnect();
 
   useEffect(() => {
@@ -73,18 +71,19 @@ export function Navigation() {
 
   const handleConnectWallet = async () => {
     const eth = (window as any).ethereum;
-    if (eth && !evmConnected) {
-      // Inside a wallet browser — connect directly (no modal needed)
+    if (evmConnected) return; // already connected — pill shows in nav
+
+    if (eth) {
+      // Already inside a wallet browser — connect directly via injected provider
       try {
-        const accounts: string[] = await eth.request({ method: 'eth_requestAccounts' });
-        if (accounts[0]) {
-          // Wagmi will pick this up automatically via the injected connector
-          // Force wagmi sync by also calling openConnectModal as fallback
-        }
-      } catch {}
+        await eth.request({ method: 'eth_requestAccounts' });
+      } catch { /* user dismissed */ }
     } else {
-      // Desktop / external browser — open RainbowKit modal (WalletConnect + all wallets)
-      openConnectModal?.();
+      // External browser — open the global EVM picker (deeplink into wallet browser)
+      // This is the same picker used by the buy card, ensuring consistent UX.
+      // Never opens RainbowKit modal directly — that shows WalletConnect relay which
+      // tells mobile users "go back to browser" instead of opening the dApp inside the wallet.
+      setShowEvmPicker(true);
     }
   };
 
@@ -260,4 +259,4 @@ export function Navigation() {
       )}
     </>
   );
-}
+            }
