@@ -123,10 +123,16 @@ export const usePresaleStore = create<PresaleState>()(
 interface WalletState {
   solAddress: string;
   btcAddress: string;
-  solWalletName: string; // e.g. "Phantom", "Solflare"
+  solWalletName: string;
   btcWalletName: string;
+  // Global EVM picker flag — any component can open it (Navigation, BuySection, Hero CTA, etc.)
+  // This ensures every "Connect Wallet" entry point uses the same deeplink picker, not
+  // the RainbowKit modal which routes mobile wallets through WalletConnect relay
+  // and shows "go back to browser" instead of opening the dApp in the wallet browser.
+  showEvmPicker: boolean;
   setSolWallet: (address: string, name: string) => void;
   setBtcWallet: (address: string, name: string) => void;
+  setShowEvmPicker: (v: boolean) => void;
   disconnectSol: () => void;
   disconnectBtc: () => void;
 }
@@ -136,8 +142,10 @@ export const useWalletStore = create<WalletState>()((set) => ({
   btcAddress: '',
   solWalletName: '',
   btcWalletName: '',
+  showEvmPicker: false,
   setSolWallet: (address, name) => set({ solAddress: address, solWalletName: name }),
   setBtcWallet: (address, name) => set({ btcAddress: address, btcWalletName: name }),
+  setShowEvmPicker: (v) => set({ showEvmPicker: v }),
   disconnectSol: () => {
     localStorage.removeItem('_kleo_phantom_session');
     localStorage.removeItem('_kleo_phantom_pubkey');
