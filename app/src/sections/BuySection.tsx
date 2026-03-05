@@ -500,33 +500,6 @@ export function BuySection() {
       const nonce         = params.get('nonce');
       const errorCode     = params.get('errorCode');
 
-      // ── Handle Stripe checkout return ─────────────────────────────────────
-      const stripeSuccess = params.get('success');
-      const stripeCanceled = params.get('canceled');
-      if (stripeSuccess === 'true') {
-        const returnedTokens = Number(params.get('tokens') || 0);
-        const returnedUsd    = Number(params.get('usd') || 0);
-        const returnedWallet = params.get('wallet') || '';
-        // Clean URL
-        window.history.replaceState({}, '', window.location.pathname);
-        // Record the purchase in Supabase
-        const sessionId = params.get('session_id') || 'stripe-' + Date.now();
-        if (returnedTokens > 0 && returnedUsd > 0) {
-          try {
-            await recordPurchase(sessionId, returnedUsd, returnedTokens, returnedWallet, 'CARD');
-          } catch {}
-          setCardSuccess({ tokens: returnedTokens, usd: returnedUsd });
-          setTab('card');
-        }
-        return;
-      }
-      if (stripeCanceled === 'true') {
-        window.history.replaceState({}, '', window.location.pathname);
-        setCardError('Payment canceled — your card was not charged.');
-        setTab('card');
-        return;
-      }
-
       if (phantomPubKey || errorCode || params.get('errorMessage')) {
         window.history.replaceState({}, '', window.location.pathname);
       }
