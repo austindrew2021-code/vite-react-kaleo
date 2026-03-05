@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import {
@@ -12,6 +12,7 @@ import { parseEther } from 'viem';
 import { sepolia, bscTestnet, arbitrumSepolia, baseSepolia, polygonAmoy } from 'wagmi/chains';
 import { usePresaleStore, getCurrentStage, LISTING_PRICE_USD, useWalletStore } from '../store/presaleStore';
 import { BtcDiagnostic } from '../components/BtcDiagnostic';
+import { SolWalletPicker } from '../components/SolWalletPicker';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -69,8 +70,7 @@ async function decryptPhantomPayload(phantomPubKey58: string, data58: string, no
 
 
 // ── Mobile detection ──────────────────────────────────────────────────────
-// isMobile removed — deeplink used on all platforms
-function isAndroid() { return /Android/i.test(navigator.userAgent); }
+// isAndroid/isMobile live in SolWalletPicker — only isInEvmBrowser needed here
 function isInEvmBrowser(): string | null {
   const eth = (window as any).ethereum;
   if (!eth) return null;
@@ -127,57 +127,10 @@ declare global {
 
 // ── Injected wallet registry (desktop / in-app browser fallback) ──────────
 interface DetectedWallet {
-  id: string; name: string; icon: string; color: string;
+  id: string; name: string; icon: React.ReactNode | string; color?: string;
   connect: () => Promise<string>;
   sendSol?: (to: string, lamports: number, conn: unknown) => Promise<string>;
   sendBtc?: (to: string, satoshis: number) => Promise<string>;
-}
-
-function detectSolanaWallets(): DetectedWallet[] {
-  const list: DetectedWallet[] = [];
-  if (window.phantom?.solana) list.push({
-    id: 'phantom', name: 'Phantom', icon: '👻', color: 'text-purple-400',
-    connect: async () => (await window.phantom!.solana!.connect()).publicKey.toString(),
-    sendSol: async (to, lamports, conn) => {
-      const { PublicKey, SystemProgram, Transaction } = await import('@solana/web3.js');
-      const pk = window.phantom!.solana!.publicKey!;
-      const tx = new Transaction().add(SystemProgram.transfer({
-        fromPubkey: new PublicKey(pk.toString()), toPubkey: new PublicKey(to), lamports,
-      }));
-      const { blockhash } = await (conn as any).getLatestBlockhash();
-      tx.recentBlockhash = blockhash; tx.feePayer = new PublicKey(pk.toString());
-      return (await window.phantom!.solana!.signAndSendTransaction(tx)).signature;
-    },
-  });
-  if (window.solflare) list.push({
-    id: 'solflare', name: 'Solflare', icon: '🔥', color: 'text-orange-400',
-    connect: async () => { await window.solflare!.connect(); return window.solflare!.publicKey!.toString(); },
-    sendSol: async (to, lamports, conn) => {
-      const { PublicKey, SystemProgram, Transaction } = await import('@solana/web3.js');
-      const pk = window.solflare!.publicKey!;
-      const tx = new Transaction().add(SystemProgram.transfer({
-        fromPubkey: new PublicKey(pk.toString()), toPubkey: new PublicKey(to), lamports,
-      }));
-      const { blockhash } = await (conn as any).getLatestBlockhash();
-      tx.recentBlockhash = blockhash; tx.feePayer = new PublicKey(pk.toString());
-      return (await window.solflare!.signAndSendTransaction(tx)).signature;
-    },
-  });
-  if (window.okxwallet?.solana) list.push({
-    id: 'okx-sol', name: 'OKX Wallet', icon: '⭕', color: 'text-gray-300',
-    connect: async () => (await window.okxwallet!.solana!.connect()).publicKey.toString(),
-    sendSol: async (to, lamports, conn) => {
-      const { PublicKey, SystemProgram, Transaction } = await import('@solana/web3.js');
-      const pk = window.okxwallet!.solana!.publicKey!;
-      const tx = new Transaction().add(SystemProgram.transfer({
-        fromPubkey: new PublicKey(pk.toString()), toPubkey: new PublicKey(to), lamports,
-      }));
-      const { blockhash } = await (conn as any).getLatestBlockhash();
-      tx.recentBlockhash = blockhash; tx.feePayer = new PublicKey(pk.toString());
-      return (await window.okxwallet!.solana!.signAndSendTransaction(tx)).signature;
-    },
-  });
-  return list;
 }
 
 function detectBitcoinWallets(): DetectedWallet[] {
@@ -423,7 +376,7 @@ export function BuySection() {
   const { totalRaised, addRaised, addPurchase } = usePresaleStore();
   const {
     solAddress, btcAddress, solWalletName, btcWalletName,
-    setSolWallet, setBtcWallet, disconnectSol, disconnectBtc, setShowEvmPicker,
+    setSolWallet, setBtcWallet, disconnectSol, disconnectBtc, setShowEvmPicker, setShowSolPicker,
   } = useWalletStore();
   const currentStage = getCurrentStage(totalRaised);
 
@@ -498,11 +451,10 @@ export function BuySection() {
   const [evmInjectedName,   setEvmInjectedName]  = useState<string>('');
   // showEvmPicker is now global (walletStore) — shared with Navigation and any other CTA
 
-  // Picker modals
-  const [showInjectedPicker, setShowInjectedPicker] = useState(false);
-  const [injectedWallets,    setInjectedWallets]    = useState<DetectedWallet[]>([]);
-  const [pickerType,         setPickerType]         = useState<'sol'|'btc'>('sol');
-  const [activeWallet,       setActiveWallet]       = useState<DetectedWallet | null>(null);
+  // BTC multi-wallet picker (when user has >1 BTC wallet installed)
+  const [showBtcInjectedPicker, setShowBtcInjectedPicker] = useState(false);
+  const [injectedBtcWallets,    setInjectedBtcWallets]    = useState<DetectedWallet[]>([]);
+  const [activeWallet,          setActiveWallet]           = useState<DetectedWallet | null>(null);
 
   // BTC mobile picker modal
   const [showBtcPicker,  setShowBtcPicker]  = useState(false);
@@ -647,9 +599,25 @@ export function BuySection() {
 
       // ── Smart auto-connect based on detected wallet browser ───────────────
       // Each wallet browser gets exactly one connection type — no cross-chain fights.
+      //
+      // CRITICAL: window.phantom.solana exists on BOTH:
+      //   a) Desktop Chrome with Phantom extension installed
+      //   b) Phantom mobile app's built-in browser
+      //
+      // We only want to auto-connect in case (b). The reliable signal for (b) is:
+      //   - window.phantom.solana exists AND
+      //   - window.ethereum is injected by Phantom itself (eth.isPhantom = true)
+      //   - OR there is NO window.ethereum at all (Phantom mobile often omits it on SOL tab)
+      // On desktop (case a), Phantom injects eth.isPhantom too — but the user has
+      // a real browser, so we MUST check navigator.userAgent for mobile as well.
 
       const eth = (window as any).ethereum;
-      const isPhantomBrowser = !!(window.phantom?.solana) && !eth?.isMetaMask;
+      const ua = navigator.userAgent;
+      const isMobileUA = /Android|iPhone|iPad|iPod/i.test(ua);
+
+      // isPhantomBrowser: inside Phantom mobile in-app browser
+      // Phantom mobile sets window.phantom.solana AND eth?.isPhantom, but only on a mobile UA
+      const isPhantomBrowser = !!(window.phantom?.solana) && isMobileUA && !eth?.isMetaMask;
       const isXverseBrowser  = !!(window as any).XverseProviders?.BitcoinProvider && !eth;
       const isUnisatBrowser  = !!(window as any).unisat && !eth;
       const isOkxBrowser     = !!(window as any).okxwallet && !eth?.isMetaMask;
@@ -664,8 +632,10 @@ export function BuySection() {
           const addr = resp.publicKey.toString();
           setSolWallet(addr, 'Phantom');
           setCurrency('SOL');
-          const w = detectSolanaWallets()[0];
-          if (w) setActiveWallet(w);
+          // Build full wallet list and pick Phantom so sendSol is available
+          const { buildSolWallets } = await import('../components/SolWalletPicker');
+          const w = buildSolWallets().find(x => x.id === 'phantom');
+          if (w) setActiveWallet(w as unknown as DetectedWallet);
         } catch {}
 
       } else if (isXverseBrowser || isUnisatBrowser) {
@@ -890,23 +860,9 @@ export function BuySection() {
       }
 
     } else if (chain === 'sol') {
-      // ── Solana ────────────────────────────────────────────────────────────
-      const injected = detectSolanaWallets();
-      if (injected.length === 1) {
-        try {
-          const addr = await injected[0].connect();
-          setSolWallet(addr, injected[0].name);
-          setActiveWallet(injected[0]);
-        } catch {}
-      } else if (injected.length > 1) {
-        setInjectedWallets(injected); setPickerType('sol'); setShowInjectedPicker(true);
-      } else {
-        // No injected SOL wallet — open Phantom browser
-        const url = encodeURIComponent(window.location.href);
-        const ref = encodeURIComponent(window.location.origin);
-        if (isAndroid()) window.location.href = `intent://browse/${url}?ref=${ref}#Intent;scheme=phantom;package=app.phantom;S.browser_fallback_url=https%3A%2F%2Fphantom.app%2F;end`;
-        else window.location.href = `https://phantom.app/ul/browse/${url}?ref=${ref}`;
-      }
+      // ── Solana — always open the picker, which detects installed wallets
+      // and shows mobile deeplinks. Never hardcode to Phantom alone.
+      setShowSolPicker(true);
 
     } else if (chain === 'btc') {
       // Helper: extract bc1... address from any wallet response format
@@ -979,7 +935,7 @@ export function BuySection() {
           setTxError(e?.message || 'Connection failed'); setTxStatus('error');
         }
       } else if (injected.length > 1) {
-        setInjectedWallets(injected); setPickerType('btc'); setShowInjectedPicker(true);
+        setInjectedBtcWallets(injected); setShowBtcInjectedPicker(true);
       } else {
         setShowBtcPicker(true);
       }
@@ -1003,19 +959,15 @@ export function BuySection() {
     localStorage.removeItem('_kleo_evm_wallet_name');
   };
 
-  const connectInjected = async (wallet: DetectedWallet, type: 'sol' | 'btc') => {
-    setShowInjectedPicker(false);
+  const connectInjected = async (wallet: DetectedWallet) => {
+    setShowBtcInjectedPicker(false);
     try {
       const addr = await wallet.connect();
       if (!addr) return;
-      if (type === 'sol') {
-        setSolWallet(addr, wallet.name);
-      } else {
-        // Persist BTC address so it survives switching back from in-app browser to Chrome
-        localStorage.setItem('_kleo_btc_address', addr);
-        localStorage.setItem('_kleo_btc_wallet_name', wallet.name);
-        setBtcWallet(addr, wallet.name);
-      }
+      // BTC only — persist address across in-app browser navigation
+      localStorage.setItem('_kleo_btc_address', addr);
+      localStorage.setItem('_kleo_btc_wallet_name', wallet.name);
+      setBtcWallet(addr, wallet.name);
       setActiveWallet(wallet);
     } catch {}
   };
@@ -1556,24 +1508,31 @@ export function BuySection() {
       </div>
 
       {/* ── INJECTED WALLET PICKER MODAL (desktop / in-app browser) ── */}
-      {showInjectedPicker && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
-          onClick={() => setShowInjectedPicker(false)}>
+      {/* ── SOL WALLET PICKER ── */}
+      <SolWalletPicker
+        onConnect={(addr, wallet) => {
+          setSolWallet(addr, wallet.name);
+          setActiveWallet(wallet as unknown as DetectedWallet);
+        }}
+      />
+
+      {/* ── BTC INJECTED MULTI-WALLET PICKER (>1 BTC wallet installed) ── */}
+      {showBtcInjectedPicker && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          onClick={() => setShowBtcInjectedPicker(false)}>
           <div className="bg-[#0B0E14] border border-white/10 rounded-2xl p-6 w-[min(92vw,340px)] shadow-2xl"
             onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
-              <h3 className="text-[#F4F6FA] font-bold text-lg">
-                Choose {pickerType === 'sol' ? 'Solana' : 'Bitcoin'} Wallet
-              </h3>
-              <button onClick={() => setShowInjectedPicker(false)} className="text-[#A7B0B7] hover:text-white text-xl">×</button>
+              <h3 className="text-[#F4F6FA] font-bold text-lg">Choose Bitcoin Wallet</h3>
+              <button onClick={() => setShowBtcInjectedPicker(false)} className="text-[#A7B0B7] hover:text-white text-xl">×</button>
             </div>
             <div className="space-y-3">
-              {injectedWallets.map(w => (
-                <button key={w.id} onClick={() => connectInjected(w, pickerType)}
-                  className="w-full flex items-center gap-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#2BFFF1]/30 rounded-xl px-4 py-4 transition-all">
-                  <span className="text-2xl">{w.icon}</span>
-                  <span className={`font-semibold ${w.color}`}>{w.name}</span>
-                  <span className="ml-auto text-[#A7B0B7] text-xs">Detected</span>
+              {injectedBtcWallets.map(w => (
+                <button key={w.id} onClick={() => connectInjected(w)}
+                  className="w-full flex items-center gap-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-orange-400/30 rounded-xl px-4 py-4 transition-all">
+                  <span className="text-2xl">{String(w.icon)}</span>
+                  <span className="font-semibold text-[#F4F6FA]">{w.name}</span>
+                  <span className="ml-auto text-orange-400 text-xs font-semibold">Detected</span>
                 </button>
               ))}
             </div>
