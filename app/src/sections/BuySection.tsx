@@ -420,6 +420,8 @@ export function BuySection() {
   const [txError,       setTxError]      = useState('');
   const [cardUsd,       setCardUsd]      = useState('100');
   const [stripeLoading, setStripeLoading] = useState(false);
+  const [cardError,     setCardError]     = useState('');
+  const [cardSuccess,   setCardSuccess]   = useState<{tokens: number; usd: number} | null>(null);
   const [liveRates,     setLiveRates]    = useState<Record<string,number>>({ ETH: 3200, BNB: 580, SOL: 170, BTC: 65000, USDC: 1, USDT: 1 });
   const [stableChainId, setStableChainId] = useState<string>('bnb'); // selected chain for USDC/USDT
   const [priceLoading,  setPriceLoading] = useState(false);
@@ -497,6 +499,33 @@ export function BuySection() {
       const data          = params.get('data');
       const nonce         = params.get('nonce');
       const errorCode     = params.get('errorCode');
+
+      // ── Handle Stripe checkout return ─────────────────────────────────────
+      const stripeSuccess = params.get('success');
+      const stripeCanceled = params.get('canceled');
+      if (stripeSuccess === 'true') {
+        const returnedTokens = Number(params.get('tokens') || 0);
+        const returnedUsd    = Number(params.get('usd') || 0);
+        const returnedWallet = params.get('wallet') || '';
+        // Clean URL
+        window.history.replaceState({}, '', window.location.pathname);
+        // Record the purchase in Supabase
+        const sessionId = params.get('session_id') || 'stripe-' + Date.now();
+        if (returnedTokens > 0 && returnedUsd > 0) {
+          try {
+            await recordPurchase(sessionId, returnedUsd, returnedTokens, returnedWallet, 'CARD');
+          } catch {}
+          setCardSuccess({ tokens: returnedTokens, usd: returnedUsd });
+          setTab('card');
+        }
+        return;
+      }
+      if (stripeCanceled === 'true') {
+        window.history.replaceState({}, '', window.location.pathname);
+        setCardError('Payment canceled — your card was not charged.');
+        setTab('card');
+        return;
+      }
 
       if (phantomPubKey || errorCode || params.get('errorMessage')) {
         window.history.replaceState({}, '', window.location.pathname);
@@ -1182,7 +1211,7 @@ export function BuySection() {
     const wallet = isBtc ? btcAddr : isEvm ? (address || '') : solAddr;
 
     setStripeLoading(true);
-    setTxError('');
+    setCardError('');
     try {
       const res = await fetch('/api/create-checkout', {
         method: 'POST',
@@ -1198,13 +1227,11 @@ export function BuySection() {
       if (data.url) {
         window.location.href = data.url;
       } else {
-        setTxError(data.error || 'Could not start checkout — please try again.');
-        setTxStatus('error');
+        setCardError(data.error || 'Could not start checkout — please try again.');
       }
     } catch (e: any) {
       console.error('Stripe:', e);
-      setTxError('Network error — please check your connection and try again.');
-      setTxStatus('error');
+      setCardError('Network error — please check your connection and try again.');
     } finally {
       setStripeLoading(false);
     }
@@ -1494,37 +1521,87 @@ export function BuySection() {
         {/* ── CARD TAB ── */}
         {tab === 'card' && (
           <div>
-            <div className="mb-5">
-              <label className="block text-[#A7B0B7] mb-2 flex items-center gap-2">
-                <CreditCard className="w-4 h-4" /> Amount (USD)
-              </label>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#A7B0B7] font-medium">$</span>
-                <input type="number" value={cardUsd} onChange={e => setCardUsd(e.target.value)}
-                  placeholder="100" min="10"
-                  className="input-glass w-full pl-8 pr-5 py-5 text-2xl font-semibold" />
-              </div>
-              {cardUsd && parseFloat(cardUsd) > 0 && (
-                <p className="text-[#2BFFF1] text-sm mt-2 text-center">
-                  ~{tokensFor(parseFloat(cardUsd)).toLocaleString()} KLEO at ${currentStage.priceUsd.toFixed(4)}
+            {/* ── Card success state ── */}
+            {cardSuccess ? (
+              <div className="py-6 text-center">
+                <CheckCircle2 className="w-12 h-12 text-green-400 mx-auto mb-3" />
+                <p className="text-green-400 font-bold text-xl mb-1">Payment Confirmed!</p>
+                <p className="text-[#A7B0B7] text-sm mb-1">
+                  {cardSuccess.tokens.toLocaleString()} KLEO reserved
                 </p>
-              )}
-              <div className="flex gap-2 mt-3">
-                {[50, 100, 250, 500].map(a => (
-                  <button key={a} onClick={() => setCardUsd(String(a))}
-                    className="flex-1 py-2 rounded-lg bg-white/5 border border-white/10 hover:border-[#2BFFF1]/40 text-sm text-[#A7B0B7] transition-colors">
-                    ${a}
-                  </button>
-                ))}
+                <p className="text-[#A7B0B7] text-xs mb-5">
+                  You'll receive your tokens at launch. Check your email for a receipt.
+                </p>
+                <button onClick={() => setCardSuccess(null)}
+                  className="text-[#2BFFF1] text-sm hover:underline">
+                  Buy More
+                </button>
               </div>
-            </div>
-            <button onClick={buyWithCard} disabled={stripeLoading || !cardUsd || parseFloat(cardUsd) < 10}
-              className="neon-button w-full py-5 text-xl font-bold flex items-center justify-center gap-3 disabled:opacity-40 disabled:cursor-not-allowed">
-              {stripeLoading
-                ? <><svg className="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Redirecting...</>
-                : <>Pay with Card <ExternalLink className="w-5 h-5" /></>}
-            </button>
-            <p className="text-center text-[#A7B0B7] text-xs mt-3">Min $10 &middot; Secured by Stripe &middot; KLEO delivered at launch</p>
+            ) : (
+              <>
+                {/* Error banner */}
+                {cardError && (
+                  <div className="mb-4 p-3 rounded-xl border border-red-500/30 bg-red-500/5 flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-red-400 text-sm">{cardError}</p>
+                      <button onClick={() => setCardError('')} className="text-[#2BFFF1] text-xs hover:underline mt-1">Dismiss</button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Wallet address display */}
+                <div className="mb-4 p-3 rounded-xl border border-white/10 bg-white/3">
+                  <p className="text-[#A7B0B7] text-xs mb-1">Delivery wallet</p>
+                  {isBtc && btcAddr ? (
+                    <p className="text-[#F4F6FA] text-xs font-mono truncate">{btcAddr}</p>
+                  ) : isEvm && address ? (
+                    <p className="text-[#F4F6FA] text-xs font-mono truncate">{address}</p>
+                  ) : solAddr ? (
+                    <p className="text-[#F4F6FA] text-xs font-mono truncate">{solAddr}</p>
+                  ) : (
+                    <p className="text-[#A7B0B7]/60 text-xs italic">
+                      No wallet connected — connect one on the Crypto tab to link your KLEO delivery address, or we'll send instructions by email.
+                    </p>
+                  )}
+                </div>
+
+                <div className="mb-5">
+                  <label className="block text-[#A7B0B7] mb-2 flex items-center gap-2">
+                    <CreditCard className="w-4 h-4" /> Amount (USD)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#A7B0B7] font-medium">$</span>
+                    <input type="number" value={cardUsd} onChange={e => { setCardUsd(e.target.value); setCardError(''); }}
+                      placeholder="100" min="10"
+                      className="input-glass w-full pl-8 pr-5 py-5 text-2xl font-semibold" />
+                  </div>
+                  {cardUsd && parseFloat(cardUsd) > 0 && (
+                    <p className="text-[#2BFFF1] text-sm mt-2 text-center">
+                      ~{tokensFor(parseFloat(cardUsd)).toLocaleString()} KLEO at ${currentStage.priceUsd.toFixed(4)}
+                    </p>
+                  )}
+                  {cardUsd && parseFloat(cardUsd) > 0 && parseFloat(cardUsd) < 10 && (
+                    <p className="text-red-400 text-xs mt-1 text-center">Minimum purchase is $10</p>
+                  )}
+                  <div className="flex gap-2 mt-3">
+                    {[50, 100, 250, 500].map(a => (
+                      <button key={a} onClick={() => { setCardUsd(String(a)); setCardError(''); }}
+                        className="flex-1 py-2 rounded-lg bg-white/5 border border-white/10 hover:border-[#2BFFF1]/40 text-sm text-[#A7B0B7] transition-colors">
+                        ${a}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <button onClick={buyWithCard} disabled={stripeLoading || !cardUsd || parseFloat(cardUsd) < 10}
+                  className="neon-button w-full py-5 text-xl font-bold flex items-center justify-center gap-3 disabled:opacity-40 disabled:cursor-not-allowed">
+                  {stripeLoading
+                    ? <><svg className="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Redirecting to Stripe...</>
+                    : <>Pay with Card <ExternalLink className="w-5 h-5" /></>}
+                </button>
+                <p className="text-center text-[#A7B0B7] text-xs mt-3">Min $10 &middot; Secured by Stripe &middot; KLEO delivered at launch</p>
+              </>
+            )}
           </div>
         )}
       </div>
