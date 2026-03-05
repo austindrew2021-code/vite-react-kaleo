@@ -130,9 +130,11 @@ interface WalletState {
   // the RainbowKit modal which routes mobile wallets through WalletConnect relay
   // and shows "go back to browser" instead of opening the dApp in the wallet browser.
   showEvmPicker: boolean;
+  showSolPicker: boolean;
   setSolWallet: (address: string, name: string) => void;
   setBtcWallet: (address: string, name: string) => void;
   setShowEvmPicker: (v: boolean) => void;
+  setShowSolPicker: (v: boolean) => void;
   disconnectSol: () => void;
   disconnectBtc: () => void;
 }
@@ -143,9 +145,11 @@ export const useWalletStore = create<WalletState>()((set) => ({
   solWalletName: '',
   btcWalletName: '',
   showEvmPicker: false,
+  showSolPicker: false,
   setSolWallet: (address, name) => set({ solAddress: address, solWalletName: name }),
   setBtcWallet: (address, name) => set({ btcAddress: address, btcWalletName: name }),
   setShowEvmPicker: (v) => set({ showEvmPicker: v }),
+  setShowSolPicker: (v) => set({ showSolPicker: v }),
   disconnectSol: () => {
     localStorage.removeItem('_kleo_phantom_session');
     localStorage.removeItem('_kleo_phantom_pubkey');
