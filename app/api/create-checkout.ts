@@ -3,8 +3,9 @@
 // the frontend fetch('/api/create-checkout', ...) call.
 import Stripe from 'stripe';
 
+// API version must match stripe package major version (v20 = 2026-01-28.clover)
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2024-12-18.acacia',
+  apiVersion: '2026-01-28.clover' as any,
 });
 
 export default async function handler(req: any, res: any) {
@@ -45,13 +46,12 @@ export default async function handler(req: any, res: any) {
     // ── Stripe unit_amount is in CENTS ──────────────────────────────────
     const unitAmountCents = Math.round(usd * 100);
 
-    const origin = req.headers.origin || req.headers.host
-      ? `https://${req.headers.host}`
-      : 'https://kaleopresale.com';
+    const origin = req.headers.origin
+      || (req.headers.host ? `https://${req.headers.host}` : 'https://kaleopresale.com');
 
     const successUrl =
       `${origin}/?success=true&session_id={CHECKOUT_SESSION_ID}` +
-      `&wallet=${encodeURIComponent(wallet)}&tokens=${tokens}`;
+      `&wallet=${encodeURIComponent(wallet)}&tokens=${tokens}&usd=${usd}`;
 
     const cancelUrl = `${origin}/?canceled=true`;
 
