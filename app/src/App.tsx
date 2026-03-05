@@ -1,4 +1,4 @@
-import { useEffect, useState, Component } from 'react';
+import { useEffect, useState, Component, lazy, Suspense } from 'react';
 import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { WagmiProvider } from 'wagmi';
@@ -15,14 +15,20 @@ import { EvmWalletPicker } from './components/EvmWalletPicker';
 import { HeroSection } from './sections/HeroSection';
 import { PresaleProgress } from './sections/PresaleProgress';
 import { BuySection } from './sections/BuySection';
-import { StatsSection } from './sections/StatsSection';
-import { FeatureSection } from './sections/FeatureSection';
-import { FeaturesGridSection } from './sections/FeaturesGridSection';
-import { StakingCTASection } from './sections/StakingCTASection';
-import { RoadmapSection } from './sections/RoadmapSection';
-import { WhitePaperSection } from './sections/WhitePaperSection';
-import { FAQSection } from './sections/FAQSection';
-import { FooterSection } from './sections/FooterSection';
+
+// ── Lazy-load below-the-fold sections — reduces initial JS parse time ──────
+// Users see Hero + Buy in ~1s; the rest streams in as they scroll.
+const StatsSection       = lazy(() => import('./sections/StatsSection').then(m => ({ default: m.StatsSection })));
+const FeatureSection     = lazy(() => import('./sections/FeatureSection').then(m => ({ default: m.FeatureSection })));
+const FeaturesGridSection= lazy(() => import('./sections/FeaturesGridSection').then(m => ({ default: m.FeaturesGridSection })));
+const StakingCTASection  = lazy(() => import('./sections/StakingCTASection').then(m => ({ default: m.StakingCTASection })));
+const RoadmapSection     = lazy(() => import('./sections/RoadmapSection').then(m => ({ default: m.RoadmapSection })));
+const WhitePaperSection  = lazy(() => import('./sections/WhitePaperSection').then(m => ({ default: m.WhitePaperSection })));
+const FAQSection         = lazy(() => import('./sections/FAQSection').then(m => ({ default: m.FAQSection })));
+const FooterSection      = lazy(() => import('./sections/FooterSection').then(m => ({ default: m.FooterSection })));
+
+// Minimal fallback — invisible spacer so layout doesn't jump
+const SectionFallback = () => <div style={{ minHeight: '200px' }} />;
 
 import '@rainbow-me/rainbowkit/styles.css';
 import './index.css';
@@ -76,27 +82,14 @@ function AppContent() {
   // ── Fetch user token balance from Supabase whenever wallet connects ──
   useEffect(() => {
     if (!isConnected || !address || !supabase) return;
-
-    const fetchBalance = async () => {
-      const { error } = await supabase
-        .from('presale_purchases')
-        .select('tokens')
-        .eq('wallet_address', address.toLowerCase());
-      if (error) { console.error('Supabase fetch error:', error.message, error.code); return; }
-      // const total = data?.reduce((sum, row) => sum + Number(row.tokens || 0), 0) || 0;
-    };
-    fetchBalance();
-
-    const channel = supabase
-      .channel(`presale-${address}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'presale_purchases' }, (payload) => {
-        if (payload.new.wallet_address.toLowerCase() === address.toLowerCase()) {
-          // realtime: token balance updated via supabase fetch
-        }
-      })
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
+    supabase
+      .from('presale_purchases')
+      .select('tokens')
+      .eq('wallet_address', address.toLowerCase())
+      .then(({ error }) => {
+        if (error) console.error('Supabase fetch error:', error.message, error.code);
+        // Token total can be summed here when a balance display is added
+      });
   }, [address, isConnected]);
 
   // ── Handle Stripe redirect back — record purchase to Supabase + update store ──
@@ -166,11 +159,19 @@ function AppContent() {
   }, []);
 
   useEffect(() => {
-    // Only animate sections that don't have their own GSAP animations
-    // (sections with their own useEffect handle their own entrance)
+    let savedScrollY = 0;
     const handleModalChange = () => {
       const modal = document.querySelector('[data-rk] [role="dialog"]');
-      document.body.classList.toggle('modal-open', !!modal);
+      const isOpen = !!modal;
+      if (isOpen) {
+        // Save scroll position before locking
+        savedScrollY = window.scrollY;
+        document.body.classList.add('modal-open');
+      } else {
+        document.body.classList.remove('modal-open');
+        // Restore scroll position after unlock
+        window.scrollTo(0, savedScrollY);
+      }
     };
     const observer = new MutationObserver(handleModalChange);
     observer.observe(document.body, { childList: true, subtree: true });
@@ -178,6 +179,7 @@ function AppContent() {
     return () => {
       ScrollTrigger.getAll().forEach((st) => st.kill());
       observer.disconnect();
+      document.body.classList.remove('modal-open');
     };
   }, []);
 
@@ -216,14 +218,16 @@ function AppContent() {
         <HeroSection />
         <PresaleProgress direction={direction} />
         <BuySection />
-        <StatsSection />
-        <FeatureSection />
-        <FeaturesGridSection />
-        <StakingCTASection />
-        <RoadmapSection />
-        <WhitePaperSection />
-        <FAQSection />
-        <FooterSection />
+        <Suspense fallback={<SectionFallback />}>
+          <StatsSection />
+          <FeatureSection />
+          <FeaturesGridSection />
+          <StakingCTASection />
+          <RoadmapSection />
+          <WhitePaperSection />
+          <FAQSection />
+          <FooterSection />
+        </Suspense>
       </main>
     </div>
   );
