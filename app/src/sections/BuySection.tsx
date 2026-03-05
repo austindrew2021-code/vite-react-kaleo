@@ -1175,17 +1175,39 @@ export function BuySection() {
   const buyWithCard = async () => {
     const usd = parseFloat(cardUsd);
     if (!usd || usd < 10) return;
+
+    // Use whichever wallet is connected — card payment just needs an address
+    // to deliver tokens to. If none connected, we still proceed (user can
+    // provide wallet after payment via the success page / email).
     const wallet = isBtc ? btcAddr : isEvm ? (address || '') : solAddr;
+
     setStripeLoading(true);
+    setTxError('');
     try {
       const res = await fetch('/api/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ usdAmount: usd, tokens: tokensFor(usd), wallet, stage: currentStage.stage }),
+        body: JSON.stringify({
+          usdAmount: usd,
+          tokens: tokensFor(usd),
+          wallet: wallet || '0x0000000000000000000000000000000000000000',
+          stage: currentStage.stage,
+        }),
       });
       const data = await res.json();
-      if (data.url) window.location.href = data.url;
-    } catch (e) { console.error('Stripe:', e); } finally { setStripeLoading(false); }
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        setTxError(data.error || 'Could not start checkout — please try again.');
+        setTxStatus('error');
+      }
+    } catch (e: any) {
+      console.error('Stripe:', e);
+      setTxError('Network error — please check your connection and try again.');
+      setTxStatus('error');
+    } finally {
+      setStripeLoading(false);
+    }
   };
 
   // Map every chain ID to its correct block explorer
