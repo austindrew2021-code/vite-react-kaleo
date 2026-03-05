@@ -6,7 +6,7 @@ import {
   ExternalLink, AlertCircle, CheckCircle2,
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
-import { useAccount, useSendTransaction, useDisconnect, useSwitchChain, useWriteContract, useConnect, useChainId } from 'wagmi';
+import { useAccount, useSendTransaction, useDisconnect, useSwitchChain, useWriteContract, useConnect, useChainId, useConnections } from 'wagmi';
 import { injected } from 'wagmi/connectors';
 import { parseEther } from 'viem';
 import { sepolia, bscTestnet, arbitrumSepolia, baseSepolia, polygonAmoy } from 'wagmi/chains';
@@ -166,6 +166,16 @@ function detectSolanaWallets(): DetectedWallet[] {
   if (window.okxwallet?.solana) list.push({
     id: 'okx-sol', name: 'OKX Wallet', icon: '⭕', color: 'text-gray-300',
     connect: async () => (await window.okxwallet!.solana!.connect()).publicKey.toString(),
+    sendSol: async (to, lamports, conn) => {
+      const { PublicKey, SystemProgram, Transaction } = await import('@solana/web3.js');
+      const pk = window.okxwallet!.solana!.publicKey!;
+      const tx = new Transaction().add(SystemProgram.transfer({
+        fromPubkey: new PublicKey(pk.toString()), toPubkey: new PublicKey(to), lamports,
+      }));
+      const { blockhash } = await (conn as any).getLatestBlockhash();
+      tx.recentBlockhash = blockhash; tx.feePayer = new PublicKey(pk.toString());
+      return (await window.okxwallet!.solana!.signAndSendTransaction(tx)).signature;
+    },
   });
   return list;
 }
@@ -189,8 +199,11 @@ function detectBitcoinWallets(): DetectedWallet[] {
   if (xverseProvider) list.push({
     id: 'xverse', name: 'Xverse', icon: '✦', color: 'text-blue-400',
     connect: async (): Promise<string> => {
-      // Xverse API: request('getAccounts', null) → { status, result: [{ address, purpose }] }
-      const r = await xverseProvider.request('getAccounts', null);
+      // Use proper getAccounts params — null params may skip the payment address on some Xverse versions
+      const r = await xverseProvider.request('getAccounts', {
+        purposes: ['payment', 'ordinals'],
+        message: 'Connect to Kaleo Presale',
+      });
       if (r?.status === 'error') throw new Error(r.error?.message || 'Xverse refused connection');
       const addrs: any[] = r?.result ?? [];
       return addrs.find((a: any) => a.purpose === 'payment')?.address
@@ -209,7 +222,11 @@ function detectBitcoinWallets(): DetectedWallet[] {
       const accs = await window.okxwallet!.bitcoin!.requestAccounts();
       return accs[0]?.address ?? '';
     },
-    sendBtc: async (to, sat) => window.okxwallet!.bitcoin!.sendBitcoin(to, sat),
+    sendBtc: async (to, sat) => {
+      const result = await window.okxwallet!.bitcoin!.sendBitcoin(to, sat);
+      // OKX has returned both plain txid string and {txid:string} object across versions
+      return typeof result === 'string' ? result : (result as any)?.txid ?? String(result);
+    },
   });
   if ((window as any).unisat) list.push({
     id: 'unisat', name: 'Unisat', icon: '🟠', color: 'text-orange-400',
@@ -317,6 +334,14 @@ const STABLE_CHAINS: Record<string, {
       blockExplorer: 'https://sepolia.arbiscan.io',
       usdt: { address: '0x4d7d2eA3E72533e62cA0e7c31A0a82E0bDC0CAb8', decimals: 6 }, // mainnet: 0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9
     },
+    {
+      id: 'base', label: 'Base Sepolia', icon: '🔷',
+      chainId: baseSepolia.id, chainName: 'Base Sepolia', chainHex: '0x14a34',
+      nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+      rpcUrls: ['https://sepolia.base.org'],
+      blockExplorer: 'https://sepolia.basescan.org',
+      usdt: { address: '0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb', decimals: 6 }, // Base Sepolia test USDT (DAI-like) / mainnet: no official USDT on Base — use USDC
+    },
   ],
 };
 
@@ -377,8 +402,14 @@ const BTC_BROWSER_WALLETS = [
     desc: 'BTC · Ordinals · BRC-20',
     openUrl: (url: string) => {
       const encoded = encodeURIComponent(url);
-      window.location.href = `unisat://browser?url=${encoded}`;
-      setTimeout(() => window.open('https://unisat.io', '_blank'), 1500);
+      if (/Android/i.test(navigator.userAgent)) {
+        // Android: Intent URL with Play Store fallback
+        window.location.href = `intent://browser?url=${encoded}#Intent;scheme=unisat;package=io.unisat.app;S.browser_fallback_url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dio.unisat.app;end`;
+      } else {
+        // iOS has no Unisat app — send to download page. Desktop: custom scheme then fallback.
+        window.location.href = `unisat://browser?url=${encoded}`;
+        setTimeout(() => { window.location.href = 'https://unisat.io/download'; }, 1500);
+      }
     },
   },
 
@@ -399,6 +430,7 @@ export function BuySection() {
   // EVM (wagmi)
   const { address, isConnected, connector } = useAccount();
   const { disconnect: evmDisconnect }       = useDisconnect();
+  const evmConnections                       = useConnections(); // track ALL active wagmi connections
   const { sendTransactionAsync }            = useSendTransaction();
   const { writeContractAsync }              = useWriteContract();
   const { switchChainAsync }               = useSwitchChain();
@@ -409,7 +441,11 @@ export function BuySection() {
   // evmInjectedAddr state is no longer used — all reads use wagmi's address directly.
   useEffect(() => {
     if (isConnected && address) {
-      const name = connector?.name || isInEvmBrowser() || localStorage.getItem('_kleo_evm_wallet_name') || 'Wallet';
+      // Prefer the name we saved at connect time (e.g. 'MetaMask') over wagmi's connector.name
+      // which can be 'Magic Eden' if that extension is also installed and uses EIP-6963.
+      const savedName = localStorage.getItem('_kleo_evm_wallet_name');
+      const browserName = isInEvmBrowser();
+      const name = savedName || browserName || connector?.name || 'Wallet';
       setEvmInjectedName(name);
       localStorage.setItem('_kleo_evm_address', address);
       localStorage.setItem('_kleo_evm_wallet_name', name);
@@ -716,23 +752,46 @@ export function BuySection() {
 
   // ── Live prices — refresh every 60s ──────────────────────────────────
   useEffect(() => {
+    // ── Restore cached prices immediately (no loading flash) ─────────────
+    try {
+      const cached = localStorage.getItem('_kleo_price_cache');
+      if (cached) {
+        const { rates, ts } = JSON.parse(cached);
+        // Accept cache up to 10 minutes old — better than showing stale defaults
+        if (Date.now() - ts < 10 * 60_000 && rates) {
+          setLiveRates(p => ({ ...p, ...rates }));
+        }
+      }
+    } catch {}
+
     const fetchPrices = () => {
       const ids = Object.values(COINGECKO_IDS).join(',');
       setPriceLoading(true);
-      fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`)
+      // 2.5s timeout — fail fast so UI is never blocked waiting for CoinGecko free tier
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 2500);
+      fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`, {
+        signal: controller.signal,
+      })
         .then(r => r.json())
         .then(data => {
+          clearTimeout(timer);
           const rates: Record<string, number> = {};
           for (const [sym, id] of Object.entries(COINGECKO_IDS)) {
             if (data[id]?.usd) rates[sym] = data[id].usd;
           }
-          if (Object.keys(rates).length) { setLiveRates(p => ({ ...p, ...rates })); setPriceError(false); }
+          if (Object.keys(rates).length) {
+            setLiveRates(p => ({ ...p, ...rates }));
+            setPriceError(false);
+            // Cache for instant display on next load
+            try { localStorage.setItem('_kleo_price_cache', JSON.stringify({ rates, ts: Date.now() })); } catch {}
+          }
         })
-        .catch(() => setPriceError(true))
+        .catch(() => { clearTimeout(timer); setPriceError(true); })
         .finally(() => setPriceLoading(false));
     };
-    fetchPrices(); // immediate on mount
-    const interval = setInterval(fetchPrices, 60_000); // refresh every 60s
+    fetchPrices();
+    const interval = setInterval(fetchPrices, 60_000);
     return () => clearInterval(interval);
   }, []);
 
@@ -929,9 +988,15 @@ export function BuySection() {
   };
 
   const disconnectEvmInjected = () => {
-    // Must call wagmi's disconnect — clearing only local state leaves wagmi connected
-    // and the sync effect immediately re-sets the address from wagmi's still-live session.
-    evmDisconnect();
+    // Disconnect ALL active wagmi connections in one shot.
+    // With multiInjectedProviderDiscovery + EIP-6963, multiple wallets (e.g. MetaMask +
+    // a Solana wallet like Phantom-EVM) can register as separate connectors simultaneously.
+    // useDisconnect() alone only kills the primary — this kills every connection at once.
+    if (evmConnections.length > 0) {
+      evmConnections.forEach(conn => evmDisconnect({ connector: conn.connector }));
+    } else {
+      evmDisconnect();
+    }
     setEvmInjectedAddr('');
     setEvmInjectedName('');
     localStorage.removeItem('_kleo_evm_address');
@@ -981,7 +1046,7 @@ export function BuySection() {
     if (!activeWallet?.sendSol) throw new Error('Connect a Solana wallet first');
     const { Connection, LAMPORTS_PER_SOL } = await import('@solana/web3.js');
     const lamports = Math.round(parseFloat(amount) * LAMPORTS_PER_SOL);
-    const conn = new Connection('https://api.devnet.solana.com', 'confirmed'); // ⚠️ TESTNET
+    const conn = new Connection('https://api.mainnet-beta.solana.com', 'confirmed');
     return activeWallet.sendSol(PRESALE_SOL_WALLET, lamports, conn);
   };
 
@@ -1171,11 +1236,25 @@ export function BuySection() {
     } catch (e) { console.error('Stripe:', e); } finally { setStripeLoading(false); }
   };
 
+  // Map every chain ID to its correct block explorer
+  const EXPLORER: Record<number, string> = {
+    [sepolia.id]:         'https://sepolia.etherscan.io/tx/',
+    [bscTestnet.id]:      'https://testnet.bscscan.com/tx/',
+    [arbitrumSepolia.id]: 'https://sepolia.arbiscan.io/tx/',
+    [baseSepolia.id]:     'https://sepolia.basescan.org/tx/',
+    [polygonAmoy.id]:     'https://www.oklink.com/amoy/tx/',
+    // mainnet fallbacks (for when users are already on mainnet)
+    1:     'https://etherscan.io/tx/',
+    56:    'https://bscscan.com/tx/',
+    137:   'https://polygonscan.com/tx/',
+    42161: 'https://arbiscan.io/tx/',
+    8453:  'https://basescan.org/tx/',
+  };
+  const evmExplorerBase = EXPLORER[currentChainId ?? 0] ?? 'https://etherscan.io/tx/';
   const explorerUrl = txHash
-    ? isBtc   ? `https://mempool.space/tx/${txHash}`
-    : !isEvm  ? `https://solscan.io/tx/${txHash}`
-    : selected.chainId === bscTestnet.id ? `https://bscscan.com/tx/${txHash}`
-    : `https://etherscan.io/tx/${txHash}`
+    ? isBtc  ? `https://mempool.space/tx/${txHash}`
+    : !isEvm ? `https://solscan.io/tx/${txHash}`
+    : evmExplorerBase + txHash
     : null;
 
   const reset = () => { setTxStatus('idle'); setTxHash(''); setTxError(''); setAmount(''); };
@@ -1569,7 +1648,7 @@ export function BuySection() {
                 <span className="text-purple-400 font-semibold">SOL</span>
                 {usdEst > 0 && <span className="text-[#A7B0B7] text-xs ml-auto">≈ ${usdEst.toFixed(2)}</span>}
               </div>
-              <p className="text-[#A7B0B7] text-xs mt-1">Network: Devnet (testnet)</p>
+              <p className="text-[#A7B0B7] text-xs mt-1">Network: Solana Mainnet</p>
             </div>
             <div className="mb-5">
               <p className="text-[#A7B0B7] text-xs font-semibold uppercase tracking-wider mb-2">Step 3 — Paste transaction signature</p>
