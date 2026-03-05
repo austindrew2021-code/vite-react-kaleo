@@ -167,9 +167,8 @@
 
 body.modal-open {
   overflow: hidden !important;
-  height: 100vh !important;
-  position: fixed !important;
-  width: 100%;
+  /* NOTE: No position:fixed here — it resets scrollY to 0 when modal closes.
+     Scroll position is saved/restored in JS (App.tsx handleModalChange). */
 }
 
 .rk-modal-content {
