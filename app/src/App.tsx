@@ -1,6 +1,6 @@
 import { useEffect, useState, Component, lazy, Suspense } from 'react';
 import type { ReactNode } from 'react';
-import { lockScroll, unlockScroll } from './utils/scrollLock';
+import { lockScroll, forceUnlockScroll } from './utils/scrollLock';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { WagmiProvider } from 'wagmi';
 import { RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit';
@@ -160,24 +160,23 @@ function AppContent() {
   }, []);
 
   useEffect(() => {
-    let isLocked = false;
+    let release: (() => void) | null = null;
     const handleModalChange = () => {
       const modal = document.querySelector('[data-rk] [role="dialog"]');
-      if (modal && !isLocked) {
-        isLocked = true;
-        lockScroll();
-      } else if (!modal && isLocked) {
-        isLocked = false;
-        unlockScroll();
+      if (modal && !release) {
+        release = lockScroll();
+      } else if (!modal && release) {
+        release();
+        release = null;
       }
     };
     const observer = new MutationObserver(handleModalChange);
     observer.observe(document.body, { childList: true, subtree: true });
-
     return () => {
       ScrollTrigger.getAll().forEach((st) => st.kill());
       observer.disconnect();
-      if (isLocked) { isLocked = false; unlockScroll(); }
+      release?.();
+      forceUnlockScroll();
     };
   }, []);
 
