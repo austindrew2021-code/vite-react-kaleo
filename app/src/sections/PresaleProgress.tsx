@@ -52,6 +52,8 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
     : { text: 'Building momentum', color: 'bg-gray-600/20 border-gray-500/30 text-gray-400' };
 
   const [supabaseTokens, setSupabaseTokens] = useState<number>(0);
+  const [supabaseUsd,    setSupabaseUsd]    = useState<number>(0);
+  const [supabaseCount,  setSupabaseCount]  = useState<number>(0);
 
   // ── Fetch global total raised from Supabase on mount ──────────────────
   useEffect(() => {
@@ -87,7 +89,7 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
     const fetchTokens = async () => {
       const { data, error } = await supabase
         .from('presale_purchases')
-        .select('tokens')
+        .select('tokens, usd_amount')
         .eq('wallet_address', activeAddress.toLowerCase());
 
       if (error) {
@@ -95,8 +97,11 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
         return;
       }
 
-      const total = data?.reduce((sum, row) => sum + Number(row.tokens || 0), 0) || 0;
-      setSupabaseTokens(total);
+      const totalTokens = data?.reduce((sum, row) => sum + Number(row.tokens || 0), 0) || 0;
+      const totalUsd    = data?.reduce((sum, row) => sum + Number(row.usd_amount || 0), 0) || 0;
+      setSupabaseTokens(totalTokens);
+      setSupabaseUsd(totalUsd);
+      setSupabaseCount(data?.length || 0);
     };
 
     fetchTokens();
@@ -106,6 +111,8 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'presale_purchases' }, (payload) => {
         if (payload.new.wallet_address.toLowerCase() === activeAddress.toLowerCase()) {
           setSupabaseTokens(prev => prev + Number(payload.new.tokens || 0));
+          setSupabaseUsd(prev => prev + Number(payload.new.usd_amount || 0));
+          setSupabaseCount(prev => prev + 1);
         }
       })
       .subscribe();
@@ -258,7 +265,7 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
                   {supabaseTokens.toLocaleString('en-US', { maximumFractionDigits: 0 })} KLEO
                 </p>
                 <p className="text-[#A7B0B7] text-sm mt-2">
-                  ${purchases.reduce((s,p) => s + (p.usdSpent||0), 0).toLocaleString('en-US',{maximumFractionDigits:0})} USD spent across {purchases.length} purchase{purchases.length !== 1 ? 's' : ''}
+                  ${supabaseUsd.toLocaleString('en-US',{maximumFractionDigits:0})} USD spent across {supabaseCount} purchase{supabaseCount !== 1 ? 's' : ''}
                 </p>
               </div>
 
