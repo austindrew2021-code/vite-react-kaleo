@@ -1504,7 +1504,18 @@ export function BuySection() {
         )}
 
         {/* ── CARD TAB ── */}
-        {tab === 'card' && (
+        {tab === 'card' && (() => {
+          // Determine if any wallet is connected for token delivery
+          const cardWalletAddr = solConnected ? solAddr
+            : evmConnected ? (address || '')
+            : btcConnected ? btcAddr
+            : '';
+          const cardWalletLabel = solConnected ? `SOL: ${solAddr.slice(0,6)}...${solAddr.slice(-4)}`
+            : evmConnected ? `EVM: ${(address||'').slice(0,6)}...${(address||'').slice(-4)}`
+            : btcConnected ? `BTC: ${btcAddr.slice(0,8)}...${btcAddr.slice(-6)}`
+            : '';
+
+          return (
           <div>
             {/* ── Card success state ── */}
             {cardSuccess ? (
@@ -1522,7 +1533,64 @@ export function BuySection() {
                   Buy More
                 </button>
               </div>
+
+            ) : !cardWalletAddr ? (
+              /* ── Step 1: Wallet required ── */
+              <div>
+                <div className="mb-5 p-5 rounded-2xl border border-[#2BFFF1]/20 bg-[#2BFFF1]/5 text-center">
+                  <div className="w-12 h-12 rounded-full bg-[#2BFFF1]/10 border border-[#2BFFF1]/20 flex items-center justify-center mx-auto mb-3">
+                    <svg className="w-6 h-6 text-[#2BFFF1]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18-3a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6m18 0v3M3 6v3" />
+                    </svg>
+                  </div>
+                  <p className="text-[#F4F6FA] font-semibold mb-1">Connect a wallet first</p>
+                  <p className="text-[#A7B0B7] text-sm">
+                    We need your wallet address to deliver your KLEO tokens at launch.
+                  </p>
+                </div>
+
+                <div className="space-y-2 mb-5">
+                  {/* SOL */}
+                  <button onClick={() => { setTab('crypto'); setCurrency('SOL'); setTimeout(connectWallet, 100); }}
+                    className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border border-white/10 bg-white/5 hover:border-[#2BFFF1]/40 hover:bg-[#2BFFF1]/5 transition-all">
+                    <span className="text-2xl">◎</span>
+                    <div className="text-left">
+                      <p className="text-[#F4F6FA] text-sm font-semibold">Solana Wallet</p>
+                      <p className="text-[#A7B0B7] text-xs">Phantom, Solflare, Backpack…</p>
+                    </div>
+                    <svg className="w-4 h-4 text-[#A7B0B7] ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                  </button>
+
+                  {/* EVM */}
+                  <button onClick={() => { setTab('crypto'); setCurrency('ETH'); setTimeout(connectWallet, 100); }}
+                    className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border border-white/10 bg-white/5 hover:border-[#2BFFF1]/40 hover:bg-[#2BFFF1]/5 transition-all">
+                    <span className="text-2xl">⬡</span>
+                    <div className="text-left">
+                      <p className="text-[#F4F6FA] text-sm font-semibold">EVM Wallet</p>
+                      <p className="text-[#A7B0B7] text-xs">MetaMask, Coinbase, WalletConnect…</p>
+                    </div>
+                    <svg className="w-4 h-4 text-[#A7B0B7] ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                  </button>
+
+                  {/* BTC */}
+                  <button onClick={() => { setTab('crypto'); setCurrency('BTC'); setTimeout(connectWallet, 100); }}
+                    className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border border-white/10 bg-white/5 hover:border-[#2BFFF1]/40 hover:bg-[#2BFFF1]/5 transition-all">
+                    <span className="text-2xl">₿</span>
+                    <div className="text-left">
+                      <p className="text-[#F4F6FA] text-sm font-semibold">Bitcoin Wallet</p>
+                      <p className="text-[#A7B0B7] text-xs">Phantom, Xverse, OKX…</p>
+                    </div>
+                    <svg className="w-4 h-4 text-[#A7B0B7] ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                  </button>
+                </div>
+
+                <p className="text-center text-[#A7B0B7]/60 text-xs">
+                  Your wallet address is only used to deliver tokens — we never request funds from it here.
+                </p>
+              </div>
+
             ) : (
+              /* ── Step 2: Amount + Pay ── */
               <>
                 {/* Error banner */}
                 {cardError && (
@@ -1535,20 +1603,13 @@ export function BuySection() {
                   </div>
                 )}
 
-                {/* Wallet address display */}
-                <div className="mb-4 p-3 rounded-xl border border-white/10 bg-white/3">
-                  <p className="text-[#A7B0B7] text-xs mb-1">Delivery wallet</p>
-                  {isBtc && btcAddr ? (
-                    <p className="text-[#F4F6FA] text-xs font-mono truncate">{btcAddr}</p>
-                  ) : isEvm && address ? (
-                    <p className="text-[#F4F6FA] text-xs font-mono truncate">{address}</p>
-                  ) : solAddr ? (
-                    <p className="text-[#F4F6FA] text-xs font-mono truncate">{solAddr}</p>
-                  ) : (
-                    <p className="text-[#A7B0B7]/60 text-xs italic">
-                      No wallet connected — connect one on the Crypto tab to link your KLEO delivery address, or we'll send instructions by email.
-                    </p>
-                  )}
+                {/* Connected wallet — delivery address */}
+                <div className="mb-5 flex items-center gap-3 px-4 py-3 rounded-xl border border-green-500/20 bg-green-500/5">
+                  <CheckCircle2 className="w-4 h-4 text-green-400 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-green-400 text-xs font-semibold mb-0.5">Delivery wallet connected</p>
+                    <p className="text-[#F4F6FA] text-xs font-mono truncate">{cardWalletLabel}</p>
+                  </div>
                 </div>
 
                 <div className="mb-5">
@@ -1588,7 +1649,8 @@ export function BuySection() {
               </>
             )}
           </div>
-        )}
+          );
+        })()}
       </div>
 
       {/* ── INJECTED WALLET PICKER MODAL (desktop / in-app browser) ── */}
