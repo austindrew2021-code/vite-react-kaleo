@@ -483,11 +483,11 @@ export function BuySection() {
     addRaised(usd);
     addPurchase({ usdSpent: usd, kleoReceived: tokens, stage: currentStage.stage, priceUsd: currentStage.priceUsd, txHash: hash, timestamp: Date.now(), cryptoType: method });
     if (supabase) {
-      const { error } = await supabase.from('presale_purchases').insert({
+      const { error } = await supabase.from('presale_purchases').upsert({
         wallet_address: wallet.toLowerCase(), tokens, eth_spent: 0,
         usd_amount: usd, stage: currentStage.stage, price_eth: currentStage.priceUsd,
         tx_hash: hash, payment_method: method.toLowerCase(),
-      });
+      }, { onConflict: 'tx_hash', ignoreDuplicates: true });
       if (error) console.error('Supabase insert:', error.message);
     }
   }, [addRaised, addPurchase, currentStage]);
