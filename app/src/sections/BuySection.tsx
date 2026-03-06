@@ -1005,9 +1005,9 @@ export function BuySection() {
     if (!activeWallet?.sendSol) throw new Error('Connect a Solana wallet first');
     const { Connection, LAMPORTS_PER_SOL } = await import('@solana/web3.js');
     const lamports = Math.round(parseFloat(amount) * LAMPORTS_PER_SOL);
-    // Try multiple RPCs — mainnet-beta 403s under load, Ankr is more reliable
+    // Use devnet RPC for testnet testing — switch to mainnet RPC when going live
     const SOL_RPC = (import.meta as any).env?.VITE_SOLANA_RPC
-      || 'https://rpc.ankr.com/solana';
+      || 'https://api.devnet.solana.com';
     const conn = new Connection(SOL_RPC, 'confirmed');
     return activeWallet.sendSol(PRESALE_SOL_WALLET, lamports, conn);
   };
