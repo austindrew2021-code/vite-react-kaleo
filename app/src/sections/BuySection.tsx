@@ -74,6 +74,9 @@ async function decryptPhantomPayload(phantomPubKey58: string, data58: string, no
 function isInEvmBrowser(): string | null {
   const eth = (window as any).ethereum;
   if (!eth) return null;
+  // Phantom browser injects window.ethereum BUT it is a Solana-primary browser —
+  // treat it as NOT an EVM browser so SOL auto-connect takes priority
+  if (eth.isPhantom || (window as any).phantom?.solana) return null;
   // Check specific wallets first (some also set isMetaMask, so order matters)
   if (eth.isOKExWallet || eth.isOkxWallet)  return 'OKX Wallet';
   if (eth.isBitKeep || eth.isBitget)         return 'Bitget Wallet';
@@ -618,12 +621,14 @@ export function BuySection() {
       const isMobileUA = /Android|iPhone|iPad|iPod/i.test(ua);
 
       // isPhantomBrowser: inside Phantom mobile in-app browser
-      // Phantom mobile sets window.phantom.solana AND eth?.isPhantom, but only on a mobile UA
-      const isPhantomBrowser = !!(window.phantom?.solana) && isMobileUA && !eth?.isMetaMask;
+      // window.phantom.solana is the only reliable signal — Phantom also sets
+      // eth.isMetaMask=true for MetaMask compatibility, so we CANNOT use !eth.isMetaMask
+      const isPhantomBrowser = !!(window as any).phantom?.solana && isMobileUA;
       const isXverseBrowser  = !!(window as any).XverseProviders?.BitcoinProvider && !eth;
       const isUnisatBrowser  = !!(window as any).unisat && !eth;
-      const isOkxBrowser     = !!(window as any).okxwallet && !eth?.isMetaMask;
-      const isMetaMaskBrowser = !!eth?.isMetaMask;
+      const isOkxBrowser     = !!(window as any).okxwallet && !eth?.isMetaMask && !isPhantomBrowser;
+      // Real MetaMask browser: has isMetaMask but is NOT Phantom
+      const isMetaMaskBrowser = !!eth?.isMetaMask && !eth?.isPhantom && !isPhantomBrowser;
       const isEvmBrowser     = !!eth && !isPhantomBrowser;
 
       if (isPhantomBrowser) {
@@ -1000,7 +1005,10 @@ export function BuySection() {
     if (!activeWallet?.sendSol) throw new Error('Connect a Solana wallet first');
     const { Connection, LAMPORTS_PER_SOL } = await import('@solana/web3.js');
     const lamports = Math.round(parseFloat(amount) * LAMPORTS_PER_SOL);
-    const conn = new Connection('https://api.mainnet-beta.solana.com', 'confirmed');
+    // Try multiple RPCs — mainnet-beta 403s under load, Ankr is more reliable
+    const SOL_RPC = (import.meta as any).env?.VITE_SOLANA_RPC
+      || 'https://rpc.ankr.com/solana';
+    const conn = new Connection(SOL_RPC, 'confirmed');
     return activeWallet.sendSol(PRESALE_SOL_WALLET, lamports, conn);
   };
 
@@ -1820,4 +1828,4 @@ export function BuySection() {
       )}
     </section>
   );
-  }
+}
