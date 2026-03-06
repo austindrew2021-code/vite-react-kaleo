@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { lockScroll, unlockScroll } from '../utils/scrollLock';
 import { useWalletStore } from '../store/presaleStore';
 import { useAccount, useDisconnect, useConnections } from 'wagmi';
 import { Menu, X, ExternalLink } from 'lucide-react';
@@ -43,16 +44,11 @@ export function Navigation() {
 
   useEffect(() => {
     if (mobileOpen) {
-      document.body.style.overflow = 'hidden';
-      document.body.style.touchAction = 'none';
+      lockScroll();
     } else {
-      document.body.style.overflow = '';
-      document.body.style.touchAction = '';
+      unlockScroll();
     }
-    return () => {
-      document.body.style.overflow = '';
-      document.body.style.touchAction = '';
-    };
+    return () => { unlockScroll(); };
   }, [mobileOpen]);
 
   useEffect(() => {
