@@ -51,9 +51,13 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
     ? { text: 'Active buying', color: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300' }
     : { text: 'Building momentum', color: 'bg-gray-600/20 border-gray-500/30 text-gray-400' };
 
-  const [supabaseTokens, setSupabaseTokens] = useState<number>(0);
-  const [supabaseUsd,    setSupabaseUsd]    = useState<number>(0);
-  const [supabaseCount,  setSupabaseCount]  = useState<number>(0);
+  const [supabaseTokens,    setSupabaseTokens]    = useState<number>(0);
+  const [supabaseUsd,       setSupabaseUsd]       = useState<number>(0);
+  const [supabaseCount,     setSupabaseCount]     = useState<number>(0);
+  const [supabasePurchases, setSupabasePurchases] = useState<Array<{
+    tokens: number; usd_amount: number; payment_method: string;
+    stage: number; tx_hash: string; created_at?: string;
+  }>>([]);
 
   // ── Fetch global total raised from Supabase on mount ──────────────────
   useEffect(() => {
@@ -72,7 +76,6 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
     const globalChannel = supabase
       .channel('global-raised')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'presale_purchases' }, (_payload) => {
-        // Re-fetch total so we get accurate number (avoid stale closure)
         supabase.from('presale_purchases').select('usd_amount').then(({ data }) => {
           const t = data?.reduce((s, r) => s + Number(r.usd_amount || 0), 0) || 0;
           setTotalRaised(t);
@@ -83,36 +86,37 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
     return () => { supabase.removeChannel(globalChannel); };
   }, []);
 
+  // ── Fetch user purchase history from Supabase (persistent, cross-device) ──
   useEffect(() => {
     if (!anyConnected || !activeAddress || !supabase) return;
 
-    const fetchTokens = async () => {
+    const fetchHistory = async () => {
       const { data, error } = await supabase
         .from('presale_purchases')
-        .select('tokens, usd_amount')
-        .eq('wallet_address', activeAddress.toLowerCase());
+        .select('tokens, usd_amount, payment_method, stage, tx_hash, created_at')
+        .eq('wallet_address', activeAddress.toLowerCase())
+        .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Supabase balance fetch error:', error);
-        return;
-      }
+      if (error) { console.error('Supabase history fetch:', error); return; }
 
-      const totalTokens = data?.reduce((sum, row) => sum + Number(row.tokens || 0), 0) || 0;
-      const totalUsd    = data?.reduce((sum, row) => sum + Number(row.usd_amount || 0), 0) || 0;
+      const totalTokens = data?.reduce((sum, r) => sum + Number(r.tokens || 0), 0) || 0;
+      const totalUsd    = data?.reduce((sum, r) => sum + Number(r.usd_amount || 0), 0) || 0;
       setSupabaseTokens(totalTokens);
       setSupabaseUsd(totalUsd);
       setSupabaseCount(data?.length || 0);
+      setSupabasePurchases(data || []);
     };
 
-    fetchTokens();
+    fetchHistory();
 
     const channel = supabase
       .channel('presale-updates')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'presale_purchases' }, (payload) => {
-        if (payload.new.wallet_address.toLowerCase() === activeAddress.toLowerCase()) {
+        if (payload.new.wallet_address?.toLowerCase() === activeAddress.toLowerCase()) {
           setSupabaseTokens(prev => prev + Number(payload.new.tokens || 0));
           setSupabaseUsd(prev => prev + Number(payload.new.usd_amount || 0));
           setSupabaseCount(prev => prev + 1);
+          setSupabasePurchases(prev => [payload.new as any, ...prev]);
         }
       })
       .subscribe();
@@ -278,25 +282,31 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
               </div>
             </div>
 
-            {purchases.length > 0 && (
+            {supabasePurchases.length > 0 && (
               <div className="mt-10 pt-8 border-t border-white/10">
-                <p className="text-[#A7B0B7] text-base font-medium mb-4">Recent Purchases</p>
-                <div className="space-y-4 max-h-64 overflow-y-auto pr-3">
-                  {purchases.slice(-6).reverse().map((p, i) => (
+                <p className="text-[#A7B0B7] text-base font-medium mb-4">Purchase History</p>
+                <div className="space-y-3 max-h-64 overflow-y-auto pr-3">
+                  {supabasePurchases.slice(0, 10).map((p, i) => (
                     <div
-                      key={i}
+                      key={p.tx_hash || i}
                       className="flex flex-col sm:flex-row sm:items-center justify-between text-sm bg-white/3 rounded-xl p-4 gap-3"
                     >
                       <div className="flex items-center gap-3">
                         <span className="text-[#F4F6FA] font-semibold">
-                          {p.kleoReceived.toLocaleString('en-US', { maximumFractionDigits: 0 })} KLEO
+                          {Number(p.tokens).toLocaleString('en-US', { maximumFractionDigits: 0 })} KLEO
                         </span>
                         <span className="text-[#A7B0B7]">
-                          @ Stage {p.stage} – ${(p.usdSpent||0).toLocaleString('en-US',{maximumFractionDigits:0})} USD
+                          @ Stage {p.stage} – ${Number(p.usd_amount || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })} USD
                         </span>
                       </div>
-
-                      <span className="text-[#A7B0B7] text-xs font-mono">{p.cryptoType || 'card'}</span>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className="text-[#A7B0B7] text-xs font-mono uppercase">{p.payment_method || 'crypto'}</span>
+                        {p.created_at && (
+                          <span className="text-[#A7B0B7]/50 text-xs">
+                            {new Date(p.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
