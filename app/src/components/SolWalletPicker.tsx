@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useWalletStore } from '../store/presaleStore';
-import { lockScroll, unlockScroll } from '../utils/scrollLock';
+import { lockScroll } from '../utils/scrollLock';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -392,10 +392,10 @@ export function SolWalletPicker({ onConnect }: Props) {
     if (!showSolPicker) return;
     const h = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowSolPicker(false); };
     window.addEventListener('keydown', h);
-    lockScroll();
+    const release = lockScroll();
     return () => {
       window.removeEventListener('keydown', h);
-      unlockScroll();
+      release();
     };
   }, [showSolPicker, setShowSolPicker]);
 
@@ -676,4 +676,4 @@ export function SolWalletPicker({ onConnect }: Props) {
       </div>
     </div>
   );
-  }
+}
