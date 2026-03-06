@@ -3,7 +3,7 @@ import { useConnectModal } from '@rainbow-me/rainbowkit';
 import { useConnect } from 'wagmi';
 import { injected } from 'wagmi/connectors';
 import { useWalletStore } from '../store/presaleStore';
-import { lockScroll, unlockScroll } from '../utils/scrollLock';
+import { lockScroll } from '../utils/scrollLock';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PLATFORM DETECTION — four independent signals, any one triggers mobile mode
@@ -307,12 +307,8 @@ export function EvmWalletPicker() {
 
   // Lock body scroll — save/restore position so page doesn't jump
   useEffect(() => {
-    if (showEvmPicker) {
-      lockScroll();
-    } else {
-      unlockScroll();
-    }
-    return () => { unlockScroll(); };
+    if (!showEvmPicker) return;
+    return lockScroll(); // lockScroll returns the release fn, which becomes the cleanup
   }, [showEvmPicker]);
 
   if (!showEvmPicker) return null;
@@ -731,4 +727,4 @@ function PickerFooter() {
       </a>
     </div>
   );
-  }
+}
