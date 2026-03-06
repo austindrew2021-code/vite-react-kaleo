@@ -241,11 +241,25 @@ function AppContent() {
   );
 }
 
+// Detect SOL/BTC wallet browsers at render time — wagmi must not auto-reconnect
+// EVM in these environments (Phantom/Xverse/Unisat are not EVM-primary wallets)
+function isSolBtcBrowser() {
+  try {
+    const eth = (window as any).ethereum;
+    const mob = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    return (
+      (!!(window as any).phantom?.solana && mob) ||
+      (!!(window as any).XverseProviders?.BitcoinProvider && !eth) ||
+      (!!(window as any).unisat && !eth)
+    );
+  } catch { return false; }
+}
+
 // ── Root — sets up providers, then renders AppContent inside them ──
 function App() {
   return (
     <ErrorBoundary>
-      <WagmiProvider config={config}>
+      <WagmiProvider config={config} reconnectOnMount={!isSolBtcBrowser()}>
         <QueryClientProvider client={queryClient}>
           <RainbowKitProvider
             theme={darkTheme({
