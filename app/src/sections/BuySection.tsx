@@ -662,7 +662,9 @@ export function BuySection() {
         }
 
       } else if (isMetaMaskBrowser || isEvmBrowser) {
-        // Auto-connect on load like Phantom Solana browser pattern.
+        // Auto-connect on load — use silent eth_accounts FIRST (no popup if already approved).
+        // Only call connectAsync (which shows approval dialog) if no accounts are available yet.
+        // This prevents the approval popup firing again when Stripe redirects back to the page.
         const walletName = isInEvmBrowser() || 'Wallet';
         const savedCurrency = localStorage.getItem('_kleo_active_currency');
         if (savedCurrency && CURRENCIES.find(c => c.id === savedCurrency)) {
@@ -671,25 +673,27 @@ export function BuySection() {
           setCurrency('BNB');
         }
         try {
-          const result = await connectAsync({ connector: injected() });
-          const acct = result.accounts[0];
-          if (acct) {
-            setEvmInjectedAddr(acct);
+          // eth_accounts is always silent — no popup, returns already-approved accounts
+          const existing = await eth.request({ method: 'eth_accounts' });
+          if (existing && existing[0]) {
+            setEvmInjectedAddr(existing[0]);
             setEvmInjectedName(walletName);
-            localStorage.setItem('_kleo_evm_address', acct);
+            localStorage.setItem('_kleo_evm_address', existing[0]);
             localStorage.setItem('_kleo_evm_wallet_name', walletName);
-          }
-        } catch {
-          try {
-            const existing = await eth.request({ method: 'eth_accounts' });
-            if (existing[0]) {
-              setEvmInjectedAddr(existing[0]);
+            // Sync wagmi state silently in background
+            try { await connectAsync({ connector: injected() }); } catch {}
+          } else {
+            // First visit — connectAsync prompts once for approval (expected)
+            const result = await connectAsync({ connector: injected() });
+            const acct = result.accounts[0];
+            if (acct) {
+              setEvmInjectedAddr(acct);
               setEvmInjectedName(walletName);
-              localStorage.setItem('_kleo_evm_address', existing[0]);
+              localStorage.setItem('_kleo_evm_address', acct);
               localStorage.setItem('_kleo_evm_wallet_name', walletName);
             }
-          } catch {}
-        }
+          }
+        } catch {}
 
       } else if (isOkxBrowser) {
         const savedCurrency = localStorage.getItem('_kleo_active_currency') || 'BNB';
