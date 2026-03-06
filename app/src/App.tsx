@@ -1,5 +1,6 @@
 import { useEffect, useState, Component, lazy, Suspense } from 'react';
 import type { ReactNode } from 'react';
+import { lockScroll, unlockScroll } from './utils/scrollLock';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { WagmiProvider } from 'wagmi';
 import { RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit';
@@ -159,18 +160,15 @@ function AppContent() {
   }, []);
 
   useEffect(() => {
-    let savedScrollY = 0;
+    let isLocked = false;
     const handleModalChange = () => {
       const modal = document.querySelector('[data-rk] [role="dialog"]');
-      const isOpen = !!modal;
-      if (isOpen) {
-        // Save scroll position before locking
-        savedScrollY = window.scrollY;
-        document.body.classList.add('modal-open');
-      } else {
-        document.body.classList.remove('modal-open');
-        // Restore scroll position after unlock
-        window.scrollTo(0, savedScrollY);
+      if (modal && !isLocked) {
+        isLocked = true;
+        lockScroll();
+      } else if (!modal && isLocked) {
+        isLocked = false;
+        unlockScroll();
       }
     };
     const observer = new MutationObserver(handleModalChange);
@@ -179,7 +177,7 @@ function AppContent() {
     return () => {
       ScrollTrigger.getAll().forEach((st) => st.kill());
       observer.disconnect();
-      document.body.classList.remove('modal-open');
+      if (isLocked) { isLocked = false; unlockScroll(); }
     };
   }, []);
 
