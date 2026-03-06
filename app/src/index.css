@@ -43,7 +43,7 @@
   html {
     scroll-behavior: smooth;
     font-size: 16px;
-    overflow-x: hidden;
+    overflow: hidden clip; /* clip prevents scrollbar flash without affecting scrollY */
     -webkit-overflow-scrolling: touch;
   }
 
@@ -162,14 +162,9 @@
 }
 
 /* ==========================================================================
-   Modal Scroll Lock & Reinforced Visibility Fixes
+   Modal Scroll Lock — handled in JS via src/utils/scrollLock.ts
+   which uses position:fixed + top offset technique to prevent scroll jumps.
    ========================================================================== */
-
-body.modal-open {
-  overflow: hidden !important;
-  /* NOTE: No position:fixed here — it resets scrollY to 0 when modal closes.
-     Scroll position is saved/restored in JS (App.tsx handleModalChange). */
-}
 
 .rk-modal-content {
   position: fixed !important;
