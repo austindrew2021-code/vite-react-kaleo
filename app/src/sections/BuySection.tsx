@@ -450,6 +450,31 @@ export function BuySection() {
     reset();
   };
 
+  // ── Cross-chain exclusivity helpers ───────────────────────────────────
+  // Only one chain type should be connected at a time. Connecting SOL/BTC
+  // drops any EVM session, and connecting EVM drops SOL/BTC.
+  const dropEvmConnection = () => {
+    if (evmConnections.length > 0) {
+      evmConnections.forEach(conn => evmDisconnect({ connector: conn.connector }));
+    } else if (isConnected) {
+      evmDisconnect();
+    }
+    setEvmInjectedAddr('');
+    setEvmInjectedName('');
+    localStorage.removeItem('_kleo_evm_address');
+    localStorage.removeItem('_kleo_evm_wallet_name');
+  };
+
+  const dropSolBtcConnections = () => {
+    if (solAddress) { disconnectSol(); setActiveWallet(null); }
+    if (btcAddress) {
+      localStorage.removeItem('_kleo_btc_address');
+      localStorage.removeItem('_kleo_btc_wallet_name');
+      disconnectBtc();
+      setActiveWallet(null);
+    }
+  };
+
   // EVM injected state (used when inside a wallet browser, supplements wagmi)
   // evmInjectedAddr removed — wagmi's address is single source of truth. Setter kept for legacy mount paths.
   const [, setEvmInjectedAddr]  = useState<string>('');
@@ -632,26 +657,27 @@ export function BuySection() {
       const isEvmBrowser     = !!eth && !isPhantomBrowser;
 
       if (isPhantomBrowser) {
-        // ── Phantom browser: auto-connect SOL, set SOL tab ─────────────────
+        // ── Phantom browser: auto-connect SOL only, drop any EVM session ──
         const phantom = window.phantom!.solana!;
         try {
           const resp = await phantom.connect();
           const addr = resp.publicKey.toString();
+          dropEvmConnection();
           setSolWallet(addr, 'Phantom');
           setCurrency('SOL');
-          // Build full wallet list and pick Phantom so sendSol is available
           const { buildSolWallets } = await import('../components/SolWalletPicker');
           const w = buildSolWallets().find(x => x.id === 'phantom');
           if (w) setActiveWallet(w as unknown as DetectedWallet);
         } catch {}
 
       } else if (isXverseBrowser || isUnisatBrowser) {
-        // ── Xverse / Unisat browser: auto-connect BTC, set BTC tab ─────────
+        // ── Xverse / Unisat browser: auto-connect BTC only, drop any EVM ──
         const btcWallets = detectBitcoinWallets();
         if (btcWallets.length > 0) {
           try {
             const addr = await btcWallets[0].connect();
             if (addr) {
+              dropEvmConnection();
               localStorage.setItem('_kleo_btc_address', addr);
               localStorage.setItem('_kleo_btc_wallet_name', btcWallets[0].name);
               setBtcWallet(addr, btcWallets[0].name);
@@ -676,17 +702,17 @@ export function BuySection() {
           // eth_accounts is always silent — no popup, returns already-approved accounts
           const existing = await eth.request({ method: 'eth_accounts' });
           if (existing && existing[0]) {
+            dropSolBtcConnections();
             setEvmInjectedAddr(existing[0]);
             setEvmInjectedName(walletName);
             localStorage.setItem('_kleo_evm_address', existing[0]);
             localStorage.setItem('_kleo_evm_wallet_name', walletName);
-            // Sync wagmi state silently in background
             try { await connectAsync({ connector: injected() }); } catch {}
           } else {
-            // First visit — connectAsync prompts once for approval (expected)
             const result = await connectAsync({ connector: injected() });
             const acct = result.accounts[0];
             if (acct) {
+              dropSolBtcConnections();
               setEvmInjectedAddr(acct);
               setEvmInjectedName(walletName);
               localStorage.setItem('_kleo_evm_address', acct);
@@ -849,6 +875,7 @@ export function BuySection() {
           });
           const acct = result.accounts[0];
           if (acct) {
+            dropSolBtcConnections();
             setEvmInjectedAddr(acct);
             setEvmInjectedName(walletBrowserName);
             localStorage.setItem('_kleo_evm_address', acct);
@@ -937,6 +964,7 @@ export function BuySection() {
             localStorage.removeItem('_kleo_btc_connecting');
             localStorage.setItem('_kleo_btc_address', addr);
             localStorage.setItem('_kleo_btc_wallet_name', injected[0].name);
+            dropEvmConnection();
             setBtcWallet(addr, injected[0].name);
             setActiveWallet(injected[0]);
             setTxStatus('idle'); setTxError('');
@@ -975,7 +1003,7 @@ export function BuySection() {
     try {
       const addr = await wallet.connect();
       if (!addr) return;
-      // BTC only — persist address across in-app browser navigation
+      dropEvmConnection();
       localStorage.setItem('_kleo_btc_address', addr);
       localStorage.setItem('_kleo_btc_wallet_name', wallet.name);
       setBtcWallet(addr, wallet.name);
@@ -1657,6 +1685,7 @@ export function BuySection() {
       {/* ── SOL WALLET PICKER ── */}
       <SolWalletPicker
         onConnect={(addr, wallet) => {
+          dropEvmConnection();
           setSolWallet(addr, wallet.name);
           setActiveWallet(wallet as unknown as DetectedWallet);
         }}
