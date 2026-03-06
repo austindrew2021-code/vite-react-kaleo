@@ -103,7 +103,19 @@ function AppContent() {
       const sessionId = params.get('session_id') || 'stripe';
       const tokens = tokensParam ? parseFloat(tokensParam) : 0;
 
-      if (tokens > 0) {
+      // ── Guard against double-processing (MetaMask browser reloads page after
+      //    wallet approval, which re-runs this effect with the same URL) ──────
+      const processedKey = `_kleo_stripe_processed_${sessionId}`;
+      const alreadyProcessed = localStorage.getItem(processedKey);
+
+      // Always clean URL immediately so subsequent reloads don't see ?success=true
+      window.history.replaceState({}, '', '/');
+
+      if (!alreadyProcessed && tokens > 0) {
+        localStorage.setItem(processedKey, '1');
+        // Clear this guard after 10 minutes so it doesn't accumulate forever
+        setTimeout(() => localStorage.removeItem(processedKey), 10 * 60 * 1000);
+
         const usdParam = params.get('usd') || '0';
         const usdSpent = parseFloat(usdParam) || 0;
         const stage = getCurrentStage(totalRaised);
@@ -140,7 +152,6 @@ function AppContent() {
       }
 
       setStripeSuccess(tokens > 0 ? tokens.toLocaleString() : 'Your');
-      window.history.replaceState({}, '', '/');
     }
 
     if (params.get('canceled') === 'true') {
