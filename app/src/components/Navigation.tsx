@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { lockScroll, unlockScroll } from '../utils/scrollLock';
+import { lockScroll } from '../utils/scrollLock';
 import { useWalletStore } from '../store/presaleStore';
 import { useAccount, useDisconnect, useConnections } from 'wagmi';
 import { Menu, X, ExternalLink } from 'lucide-react';
@@ -43,12 +43,8 @@ export function Navigation() {
   }, []);
 
   useEffect(() => {
-    if (mobileOpen) {
-      lockScroll();
-    } else {
-      unlockScroll();
-    }
-    return () => { unlockScroll(); };
+    if (!mobileOpen) return;
+    return lockScroll();
   }, [mobileOpen]);
 
   useEffect(() => {
