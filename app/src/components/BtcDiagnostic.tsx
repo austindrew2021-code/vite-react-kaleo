@@ -95,7 +95,7 @@ function detectInjectedBtc(): DetectedWallet[] {
       connect: async () => {
         const res = await request('getAccounts', {
           purposes: [AddressPurpose.Payment, AddressPurpose.Ordinals],
-          message: 'Connect to Kaleo presale',
+          message: 'Connect to Xenia Presale',
         });
         if (res.status === 'error') throw new Error(res.error?.message || 'Xverse refused connection');
         const accounts = res.result ?? [];
