@@ -1,62 +1,75 @@
 import { useEffect } from 'react';
 import { gsap } from 'gsap';
-import { CheckCircle2, Circle, Rocket, Code, Globe, Shield, Zap, TrendingUp, Users, Award } from 'lucide-react';
+import { CheckCircle2, Circle, Rocket, DollarSign, Coins, Globe, Shield, Zap, TrendingUp, Users, Award } from 'lucide-react';
 
 const phases = [
   {
-    title: 'Foundation',
-    date: 'Q1 2026',
+    title: 'Presale & Fundraising',
+    date: 'Q2–Q3 2026 — Active Now',
     status: 'active' as const,
-    icon: Rocket,
+    icon: DollarSign,
     items: [
-      { text: 'Smart contract development & audit', done: true },
-      { text: 'Token presale launch on Sepolia testnet', done: true },
-      { text: 'Website & dApp deployment', done: true },
+      { text: 'Website & presale dApp launched', done: true },
+      { text: 'Multi-chain payment support (SOL, ETH, BNB, BTC, USDC, USDT, Card)', done: true },
       { text: 'Community building (Twitter, Discord, Telegram)', done: false },
-      { text: 'Initial marketing campaign & influencer partnerships', done: false },
-      { text: 'DEX listing (Uniswap / QuickSwap)', done: false },
+      { text: 'Marketing campaign & influencer partnerships', done: false },
+      { text: 'All 12 presale stages filled — funding goal reached', done: false },
+    ],
+  },
+  {
+    title: 'Token Launch on Solana',
+    date: 'TBA — Following Presale Completion',
+    status: 'upcoming' as const,
+    icon: Coins,
+    items: [
+      { text: 'Presale funds secured & treasury established', done: false },
+      { text: 'XEN token deployed on Solana via Pump.fun', done: false },
+      { text: 'Liquidity pool seeded on Raydium & Jupiter', done: false },
+      { text: 'DEX listing at $0.05/XEN', done: false },
+      { text: 'Token airdrop to all presale participants', done: false },
+      { text: 'Staking rewards & governance voting go live', done: false },
     ],
   },
   {
     title: 'Platform Build',
-    date: 'Q2 2026',
+    date: 'TBA — Post Launch',
     status: 'upcoming' as const,
-    icon: Code,
+    icon: Rocket,
     items: [
+      { text: 'Smart contract development & third-party audit', done: false },
       { text: 'Leverage trading dashboard (up to 100x)', done: false },
       { text: 'Pump.fun memecoin integration API', done: false },
       { text: 'Advanced order types (limit, stop-loss, take-profit)', done: false },
       { text: 'Risk management & liquidation engine', done: false },
       { text: 'Weekly trading contest system launch', done: false },
-      { text: 'Mobile-responsive trading UI', done: false },
     ],
   },
   {
     title: 'Growth & Expansion',
-    date: 'Q3 2026',
+    date: 'TBA — Growth Phase',
     status: 'upcoming' as const,
     icon: Globe,
     items: [
-      { text: 'Cross-chain support (Polygon, Arbitrum, Base)', done: false },
-      { text: 'Mobile app beta (iOS & Android)', done: false },
-      { text: 'CEX listing applications (Tier 2)', done: false },
-      { text: 'Staking rewards program launch', done: false },
+      { text: 'Mobile app (iOS & Android)', done: false },
+      { text: 'CEX listing applications (Tier 2+)', done: false },
+      { text: 'Cross-chain expansion (Arbitrum, Base)', done: false },
       { text: 'Partnership integrations with DEX aggregators', done: false },
-      { text: 'Governance voting for KLEO holders', done: false },
+      { text: 'API access for algorithmic traders', done: false },
+      { text: 'Multi-language support & global expansion', done: false },
     ],
   },
   {
     title: 'Ecosystem Maturity',
-    date: 'Q4 2026',
+    date: 'TBA — Ecosystem Phase',
     status: 'upcoming' as const,
     icon: Shield,
     items: [
       { text: 'Tier 1 CEX listings', done: false },
       { text: 'Institutional-grade trading features', done: false },
-      { text: 'API access for algorithmic traders', done: false },
       { text: 'Yield farming vaults with auto-compounding', done: false },
       { text: 'Community-governed treasury management', done: false },
-      { text: 'Multi-language support & global expansion', done: false },
+      { text: 'Trailing stops, OCO & conditional order types', done: false },
+      { text: 'Ecosystem grants program', done: false },
     ],
   },
 ];
@@ -94,10 +107,10 @@ export function RoadmapSection() {
             Development Roadmap
           </div>
           <h2 className="text-5xl md:text-6xl font-bold text-[#F4F6FA] mb-4 text-balance">
-            Building the future of <span className="text-[#2BFFF1]">memecoin leverage</span>
+            From presale to <span className="text-[#2BFFF1]">full platform</span>
           </h2>
           <p className="text-[#A7B0B7] text-lg max-w-2xl mx-auto leading-relaxed">
-            Our roadmap outlines key milestones from presale through full platform maturity.
+            First we raise. Then we build. Token launch timing will be announced once the presale is complete and the platform is ready — no rushed dates, just a proper launch.
           </p>
         </div>
 
@@ -126,7 +139,7 @@ export function RoadmapSection() {
                       }`} />
                     </div>
                     <div className="flex-1">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 flex-wrap">
                         <h3 className="text-xl md:text-2xl font-bold text-[#F4F6FA]">
                           {phase.title}
                         </h3>
