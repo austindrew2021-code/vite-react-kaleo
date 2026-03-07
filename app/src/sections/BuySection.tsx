@@ -1248,7 +1248,7 @@ export function BuySection() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          amount: Math.round(usd * 100), // API expects cents (Stripe unit_amount)
+          usdAmount: usd,
           tokens: tokensFor(usd),
           wallet: wallet || '0x0000000000000000000000000000000000000000',
           stage: currentStage.stage,
