@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 // ── Listing price at public launch ──────────────────────────────────────
-export const LISTING_PRICE_USD = 0.05; // USD per KLEO at launch
+export const LISTING_PRICE_USD = 0.05; // USD per XEN at launch
 
 // ── Hard cap & total presale tokens ─────────────────────────────────────
 export const HARD_CAP_USD = 2_368_000;
@@ -110,7 +110,7 @@ export const usePresaleStore = create<PresaleState>()(
       resetTx: () => set({ txStatus: 'idle', txError: null }),
     }),
     {
-      name: 'kaleo-presale-v2',
+      name: 'xenia-presale-v1',
       partialize: (state) => ({
         totalRaised: state.totalRaised,
         purchases: state.purchases,
