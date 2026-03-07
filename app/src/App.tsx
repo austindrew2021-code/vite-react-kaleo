@@ -103,17 +103,13 @@ function AppContent() {
       const sessionId = params.get('session_id') || 'stripe';
       const tokens = tokensParam ? parseFloat(tokensParam) : 0;
 
-      // ── Guard against double-processing (MetaMask browser reloads page after
-      //    wallet approval, which re-runs this effect with the same URL) ──────
       const processedKey = `_kleo_stripe_processed_${sessionId}`;
       const alreadyProcessed = localStorage.getItem(processedKey);
 
-      // Always clean URL immediately so subsequent reloads don't see ?success=true
       window.history.replaceState({}, '', '/');
 
       if (!alreadyProcessed && tokens > 0) {
         localStorage.setItem(processedKey, '1');
-        // Clear this guard after 10 minutes so it doesn't accumulate forever
         setTimeout(() => localStorage.removeItem(processedKey), 10 * 60 * 1000);
 
         const usdParam = params.get('usd') || '0';
@@ -131,38 +127,21 @@ function AppContent() {
           cryptoType: 'card',
         });
 
-        // Always write to Supabase — never gate on walletParam being truthy.
-        // If no wallet was connected at payment time, use 'unassigned' so the
-        // row is never lost. Users can claim it later via the session_id.
-        if (supabase) {
-          const rawWallet = walletParam || 'unassigned';
-          // Only lowercase EVM (0x...) addresses — SOL/BTC are case-sensitive base58
-          const normalizedWallet = rawWallet.startsWith('0x')
-            ? rawWallet.toLowerCase()
-            : rawWallet;
-
-          // usdSpent may be 0 if the success URL was built by an older API version
-          // that didn't include &usd=. Fall back to tokens * stage price.
-          const finalUsd = usdSpent > 0 ? usdSpent : tokens * stage.priceUsd;
-
+        if (supabase && walletParam) {
           supabase
             .from('presale_purchases')
             .insert({
-              wallet_address: normalizedWallet,
+              wallet_address: walletParam.toLowerCase(),
               tokens,
               eth_spent: 0,
-              usd_amount: finalUsd,
+              usd_amount: usdSpent,
               stage: stage.stage,
               price_eth: stage.priceUsd,
               tx_hash: sessionId,
               payment_method: 'card',
             })
             .then(({ error }) => {
-              if (error) {
-                // 23505 = unique_violation — duplicate session, harmless. Ignore.
-                if (error.code === '23505') return;
-                console.error('Supabase card insert failed:', error.message, error.code, error.details);
-              }
+              if (error) console.error('Supabase card insert failed:', error.message, error.code);
             });
         }
       }
