@@ -116,7 +116,7 @@ export function HeroSection() {
                 href="#buy"
                 className="hero-cta neon-button px-10 py-5 text-lg font-semibold flex items-center justify-center gap-3 hover:gap-4 transition-all w-full sm:w-auto shadow-lg shadow-[#2BFFF1]/20"
               >
-                Buy Kaleo Now
+                Buy XEN Now
                 <ArrowRight className="w-6 h-6" />
               </a>
               <a
