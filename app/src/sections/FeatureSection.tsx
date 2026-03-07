@@ -157,7 +157,7 @@ export function FeatureSection() {
             </h2>
 
             <p className="text-[#A7B0B7] text-[clamp(14px,1.2vw,16px)] mb-8 leading-relaxed max-w-[420px]">
-              Connect your wallet and secure your KLEO allocation now. Presale holders gain governance voting rights and priority access to platform features at launch.
+              Connect your wallet and secure your XEN allocation now. Presale holders gain governance voting rights and priority access to platform features at launch.
             </p>
 
             {/* Feature Bullets */}
