@@ -22,7 +22,7 @@ const supabase = _sbUrl && _sbKey ? createClient(_sbUrl, _sbKey) : null;
 
 // ── Receiving wallet addresses ────────────────────────────────────────────
 // ⚠️ TESTNET — swap back to mainnet address before going live
-const PRESALE_ETH_WALLET = '0x0722Ef1DCfa7849B3BF0DB375793bFAcc52b8e39' as `0x${string}`; // same address works on Sepolia + BSC testnet
+const PRESALE_ETH_WALLET = '0x0722Ef1DCfa7849B3BF0DB375793bFAcc52b8e39' as `0x${string}`; // mainnet ETH presale wallet
 const PRESALE_SOL_WALLET = 'HAEC8fjg9Wpg1wpL8j5EQFRmrq4dj8BqYQVKgZZdKmRM'; // ⚠️ TESTNET: same address, just switch Phantom to Devnet
 const PRESALE_BTC_WALLET = 'bc1q3rdjpm36lcy30amzfkaqpvvm5xu8n8y665ajlx';
 
@@ -158,7 +158,7 @@ function detectBitcoinWallets(): DetectedWallet[] {
       // Use proper getAccounts params — null params may skip the payment address on some Xverse versions
       const r = await xverseProvider.request('getAccounts', {
         purposes: ['payment', 'ordinals'],
-        message: 'Connect to Kaleo Presale',
+        message: 'Connect to Xenia Presale',
       });
       if (r?.status === 'error') throw new Error(r.error?.message || 'Xverse refused connection');
       const addrs: any[] = r?.result ?? [];
@@ -241,7 +241,7 @@ const STABLE_CHAINS: Record<string, {
       usdc: { address: '0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582', decimals: 6 }, // mainnet: 0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359
     },
     {
-      id: 'arbitrum', label: 'Arbitrum Sepolia', icon: '🔵',
+      id: 'arbitrum', label: 'Arbitrum', icon: '🔵',
       chainId: arbitrumSepolia.id, chainName: 'Arbitrum Sepolia', chainHex: '0x66eee',
       nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
       rpcUrls: ['https://sepolia-rollup.arbitrum.io/rpc'],
@@ -249,7 +249,7 @@ const STABLE_CHAINS: Record<string, {
       usdc: { address: '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d', decimals: 6 }, // mainnet: 0xaf88d065e77c8cC2239327C5EDb3A432268e5831
     },
     {
-      id: 'base', label: 'Base Sepolia', icon: '🔷',
+      id: 'base', label: 'Base', icon: '🔷',
       chainId: baseSepolia.id, chainName: 'Base Sepolia', chainHex: '0x14a34',
       nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
       rpcUrls: ['https://sepolia.base.org'],
@@ -283,7 +283,7 @@ const STABLE_CHAINS: Record<string, {
       usdt: { address: '0xAcDe43b9E5F72A4F554D4346E69e8e7Ac8BE9dc8', decimals: 6 }, // mainnet: 0xc2132D05D31c914a87C6611C10748AEb04B58e8F
     },
     {
-      id: 'arbitrum', label: 'Arbitrum Sepolia', icon: '🔵',
+      id: 'arbitrum', label: 'Arbitrum', icon: '🔵',
       chainId: arbitrumSepolia.id, chainName: 'Arbitrum Sepolia', chainHex: '0x66eee',
       nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
       rpcUrls: ['https://sepolia-rollup.arbitrum.io/rpc'],
@@ -291,12 +291,12 @@ const STABLE_CHAINS: Record<string, {
       usdt: { address: '0x4d7d2eA3E72533e62cA0e7c31A0a82E0bDC0CAb8', decimals: 6 }, // mainnet: 0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9
     },
     {
-      id: 'base', label: 'Base Sepolia', icon: '🔷',
+      id: 'base', label: 'Base', icon: '🔷',
       chainId: baseSepolia.id, chainName: 'Base Sepolia', chainHex: '0x14a34',
       nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
       rpcUrls: ['https://sepolia.base.org'],
       blockExplorer: 'https://sepolia.basescan.org',
-      usdt: { address: '0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb', decimals: 6 }, // Base Sepolia test USDT (DAI-like) / mainnet: no official USDT on Base — use USDC
+      usdt: { address: '0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb', decimals: 6 }, // Base mainnet: no official USDT — use USDC instead
     },
   ],
 };
@@ -506,7 +506,7 @@ export function BuySection() {
     hash: string, usd: number, tokens: number, wallet: string, method: string
   ) => {
     addRaised(usd);
-    addPurchase({ usdSpent: usd, kleoReceived: tokens, stage: currentStage.stage, priceUsd: currentStage.priceUsd, txHash: hash, timestamp: Date.now(), cryptoType: method });
+    addPurchase({ usdSpent: usd, xenReceived: tokens, stage: currentStage.stage, priceUsd: currentStage.priceUsd, txHash: hash, timestamp: Date.now(), cryptoType: method });
     if (supabase) {
       const { error } = await supabase.from('presale_purchases').upsert({
         wallet_address: wallet.toLowerCase(), tokens, eth_spent: 0,
@@ -1016,9 +1016,9 @@ export function BuySection() {
   const sendSolViaSolanaPay = () => {
     const n = parseFloat(amount);
     if (!n || n <= 0) return;
-    const label   = encodeURIComponent('Kaleo Presale');
-    const message = encodeURIComponent(`Buy KLEO tokens — Stage ${currentStage.stage}`);
-    const memo    = encodeURIComponent(`kleo-s${currentStage.stage}-${solAddr.slice(0,8)}`);
+    const label   = encodeURIComponent('Xenia Presale');
+    const message = encodeURIComponent(`Buy XEN tokens — Stage ${currentStage.stage}`);
+    const memo    = encodeURIComponent(`xen-s${currentStage.stage}-${solAddr.slice(0,8)}`);
     // SPL-compliant Solana Pay URI — Phantom, Solflare, Backpack all handle this natively
     const solanaPayUri = `solana:${PRESALE_SOL_WALLET}?amount=${n}&label=${label}&message=${message}&memo=${memo}`;
 
@@ -1037,9 +1037,9 @@ export function BuySection() {
     if (!activeWallet?.sendSol) throw new Error('Connect a Solana wallet first');
     const { Connection, LAMPORTS_PER_SOL } = await import('@solana/web3.js');
     const lamports = Math.round(parseFloat(amount) * LAMPORTS_PER_SOL);
-    // Use devnet RPC for testnet testing — switch to mainnet RPC when going live
+    // Mainnet RPC — override via VITE_SOLANA_RPC env var for custom endpoint
     const SOL_RPC = (import.meta as any).env?.VITE_SOLANA_RPC
-      || 'https://api.devnet.solana.com';
+      || 'https://api.mainnet-beta.solana.com';
     const conn = new Connection(SOL_RPC, 'confirmed');
     return activeWallet.sendSol(PRESALE_SOL_WALLET, lamports, conn);
   };
@@ -1294,10 +1294,10 @@ export function BuySection() {
         <div className="text-center mb-6">
           <div className="flex items-center justify-center gap-3 mb-2">
             <TrendingUp className="w-7 h-7 text-[#2BFFF1]" />
-            <h2 className="text-4xl font-bold text-[#F4F6FA]">Buy Kaleo</h2>
+            <h2 className="text-4xl font-bold text-[#F4F6FA]">Buy Xenia</h2>
           </div>
           <p className="text-[#2BFFF1] text-xl font-semibold">
-            Stage {currentStage.stage} &mdash; ${currentStage.priceUsd.toFixed(4)} / KLEO
+            Stage {currentStage.stage} &mdash; ${currentStage.priceUsd.toFixed(4)} / XEN
           </p>
           <p className="text-[#A7B0B7] text-sm mt-1">
             {currentStage.discount}% off listing (${LISTING_PRICE_USD})
@@ -1442,7 +1442,7 @@ export function BuySection() {
               <div className="mb-5 p-5 rounded-xl border border-green-500/30 bg-green-500/5 text-center">
                 <CheckCircle2 className="w-10 h-10 text-green-400 mx-auto mb-3" />
                 <p className="text-green-400 font-bold text-lg mb-1">Transaction Confirmed!</p>
-                <p className="text-[#A7B0B7] text-sm mb-3">{tokensEst.toLocaleString()} KLEO reserved at Stage {currentStage.stage}</p>
+                <p className="text-[#A7B0B7] text-sm mb-3">{tokensEst.toLocaleString()} XEN reserved at Stage {currentStage.stage}</p>
                 {explorerUrl && (
                   <a href={explorerUrl} target="_blank" rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 text-[#2BFFF1] text-sm hover:underline mb-3">
@@ -1502,7 +1502,7 @@ export function BuySection() {
                     <div className="mt-3 p-4 rounded-xl bg-[#2BFFF1]/10 border border-[#2BFFF1]/20 text-center">
                       <p className="text-[#A7B0B7] text-xs mb-1">You will receive approximately</p>
                       <p className="text-[#2BFFF1] text-2xl font-bold">
-                        {tokensEst.toLocaleString()} <span className="text-base font-normal">KLEO</span>
+                        {tokensEst.toLocaleString()} <span className="text-base font-normal">XEN</span>
                       </p>
                       <p className="text-[#A7B0B7] text-xs mt-1">
                         {(currency === 'USDC' || currency === 'USDT')
@@ -1521,7 +1521,7 @@ export function BuySection() {
                     ? <><svg className="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Processing...</>
                     : usdEst > 0 && usdEst < 10
                       ? <>Min. $10 required</>
-                      : <>Buy KLEO with {selected.symbol} <ArrowRight className="w-5 h-5" /></>}
+                      : <>Buy XEN with {selected.symbol} <ArrowRight className="w-5 h-5" /></>}
                 </button>
               </>
             )}
@@ -1551,7 +1551,7 @@ export function BuySection() {
                 <CheckCircle2 className="w-12 h-12 text-green-400 mx-auto mb-3" />
                 <p className="text-green-400 font-bold text-xl mb-1">Payment Confirmed!</p>
                 <p className="text-[#A7B0B7] text-sm mb-1">
-                  {cardSuccess.tokens.toLocaleString()} KLEO reserved
+                  {cardSuccess.tokens.toLocaleString()} XEN reserved
                 </p>
                 <p className="text-[#A7B0B7] text-xs mb-5">
                   You'll receive your tokens at launch. Check your email for a receipt.
@@ -1573,7 +1573,7 @@ export function BuySection() {
                   </div>
                   <p className="text-[#F4F6FA] font-semibold mb-1">Connect a wallet first</p>
                   <p className="text-[#A7B0B7] text-sm">
-                    We need your wallet address to deliver your KLEO tokens at launch.
+                    We need your wallet address to deliver your XEN tokens at launch.
                   </p>
                 </div>
 
@@ -1652,7 +1652,7 @@ export function BuySection() {
                   </div>
                   {cardUsd && parseFloat(cardUsd) > 0 && (
                     <p className="text-[#2BFFF1] text-sm mt-2 text-center">
-                      ~{tokensFor(parseFloat(cardUsd)).toLocaleString()} KLEO at ${currentStage.priceUsd.toFixed(4)}
+                      ~{tokensFor(parseFloat(cardUsd)).toLocaleString()} XEN at ${currentStage.priceUsd.toFixed(4)}
                     </p>
                   )}
                   {cardUsd && parseFloat(cardUsd) > 0 && parseFloat(cardUsd) < 10 && (
@@ -1673,7 +1673,7 @@ export function BuySection() {
                     ? <><svg className="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Redirecting to Stripe...</>
                     : <>Pay with Card <ExternalLink className="w-5 h-5" /></>}
                 </button>
-                <p className="text-center text-[#A7B0B7] text-xs mt-3">Min $10 &middot; Secured by Stripe &middot; KLEO delivered at launch</p>
+                <p className="text-center text-[#A7B0B7] text-xs mt-3">Min $10 &middot; Secured by Stripe &middot; XEN delivered at launch</p>
               </>
             )}
           </div>
@@ -1812,7 +1812,7 @@ export function BuySection() {
               {manualBtcSubmitting ? 'Recording...' : 'Confirm Payment'}
             </button>
             <p className="text-[#A7B0B7] text-xs text-center mt-4">
-              Your KLEO tokens will be reserved once we verify the transaction on-chain.
+              Your XEN tokens will be reserved once we verify the transaction on-chain.
             </p>
           </div>
         </div>
@@ -1863,7 +1863,7 @@ export function BuySection() {
               {manualBtcSubmitting ? 'Recording...' : 'Confirm Payment'}
             </button>
             <p className="text-[#A7B0B7] text-xs text-center mt-4">
-              Your KLEO tokens will be reserved once we verify the transaction on-chain.
+              Your XEN tokens will be reserved once we verify the transaction on-chain.
             </p>
           </div>
         </div>
@@ -1916,7 +1916,7 @@ export function BuySection() {
               {manualBtcSubmitting ? 'Recording...' : 'Confirm Payment'}
             </button>
             <p className="text-[#A7B0B7] text-xs text-center mt-4">
-              Your KLEO tokens will be reserved once we verify the transaction on-chain.
+              Your XEN tokens will be reserved once we verify the transaction on-chain.
             </p>
           </div>
         </div>
