@@ -104,7 +104,7 @@ export function Navigation() {
             <span className="text-[#05060B] font-black text-lg tracking-tighter">K</span>
           </div>
           <span className="text-[#F4F6FA] font-bold text-xl tracking-tight group-hover:text-[#2BFFF1] transition-colors">
-            Kaleo
+            Xenia
           </span>
         </a>
 
