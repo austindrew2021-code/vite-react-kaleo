@@ -13,16 +13,16 @@ const faqCategories = [
     category: 'General',
     questions: [
       {
-        q: 'What is Kaleo?',
-        a: 'Kaleo is a decentralized leverage trading platform built specifically for memecoins. It integrates directly with Pump.fun to let you trade any memecoin with up to 100x leverage. All trading fees are pooled into weekly trading contests, making Kaleo the first community-rewarding leverage platform in the memecoin space.',
+        q: 'What is Xenia?',
+        a: 'Xenia is a decentralized leverage trading platform built specifically for memecoins on Solana. It integrates directly with Pump.fun to let you trade any memecoin with up to 100x leverage. All trading fees are pooled into weekly trading contests, making Xenia the first community-rewarding leverage platform in the memecoin space.',
       },
       {
-        q: 'What blockchain does Kaleo use?',
-        a: 'Kaleo is currently in its testnet phase on Ethereum Sepolia. The mainnet launch will be on Polygon for low gas fees and fast transaction finality. Cross-chain expansion to Arbitrum and Base is planned for Q3 2026.',
+        q: 'What blockchain does Xenia use?',
+        a: 'Xenia launches natively on Solana via Pump.fun, chosen for its ultra-low fees, sub-second finality, and the largest memecoin ecosystem in crypto. The XEN token will be listed on Solana DEXs at launch, with cross-chain expansion planned in later phases.',
       },
       {
-        q: 'Is Kaleo safe to use?',
-        a: 'Security is our top priority. Smart contracts will undergo a full audit before mainnet launch, all protocol funds are managed by a 3-of-5 multi-signature wallet, and an insurance fund (5% of all fees) protects against extreme market events. We also plan to open-source our core contracts for community review.',
+        q: 'Is Xenia safe to use?',
+        a: 'Security is our top priority. Smart contracts will undergo a full third-party audit before the platform goes live. All protocol funds are managed by a multi-signature wallet, and an insurance fund (5% of all trading fees) protects against extreme market events. Core contracts will be open-sourced for community review.',
       },
     ],
   },
@@ -31,19 +31,23 @@ const faqCategories = [
     questions: [
       {
         q: 'How does the presale work?',
-        a: 'The presale runs through 12 stages with increasing prices. Stage 1 starts at 0.000035 ETH/KLEO (83% discount vs listing) and Stage 12 ends at 0.000200 ETH/KLEO (5% discount). Each stage has a fixed ETH target and token allocation. When a stage fills, the price automatically moves to the next stage. Currently on testnet, you can practice with Sepolia ETH from a faucet.',
+        a: 'The presale runs across 12 stages with prices increasing at each stage. Stage 1 starts at $0.0010/XEN (98% discount vs listing at $0.05) and Stage 12 ends at $0.0200/XEN. Each stage has a fixed USD target and token allocation. When a stage fills, the price moves automatically to the next. All purchases use real funds — SOL, ETH, BNB, BTC, USDC, USDT, or card.',
       },
       {
-        q: 'What is the KLEO token used for?',
-        a: 'KLEO is the native utility token of the Kaleo ecosystem. It provides governance voting rights, fee discount tiers for leverage trading, staking rewards, access to exclusive trading features, and entry into premium trading contests with larger prize pools.',
+        q: 'What is the XEN token used for?',
+        a: 'XEN is the native utility token of the Xenia ecosystem. It provides governance voting rights, fee discount tiers for leverage trading, staking rewards, access to exclusive platform features, and entry into premium weekly trading contests with larger prize pools.',
       },
       {
         q: 'What are the tokenomics?',
-        a: 'Total supply is 1,000,000,000 KLEO. Allocation: 40% Presale, 20% Liquidity & Market Making, 15% Ecosystem & Rewards, 15% Community Airdrops, 10% Team & Advisors (vested over 24 months with 6-month cliff). Listing price will be 0.000210 ETH/KLEO.',
+        a: 'Total supply is 1,000,000,000 XEN. Allocation: 22.45% Presale, 20% Liquidity & Market Making, 15% Ecosystem & Rewards, 15% Community Airdrops, 10% Team & Advisors (vested over 24 months with 6-month cliff). Listing price will be $0.05/XEN on Solana DEXs.',
       },
       {
         q: 'Is there a vesting period for team tokens?',
-        a: 'Yes, team and advisor tokens (10% of supply) are fully locked for 6 months after launch, then vest linearly over 24 months. This ensures the team is committed to long-term project success and prevents any early sell pressure.',
+        a: 'Yes, team and advisor tokens (10% of supply) are fully locked for 6 months after launch, then vest linearly over 24 months. This ensures the team is committed to long-term project success and prevents early sell pressure.',
+      },
+      {
+        q: 'When will XEN be listed?',
+        a: 'The token launch date is TBA. Our focus right now is completing the presale and securing the funds needed to build and launch properly. Once the presale is complete and the platform is ready, we will announce the exact launch date across all our channels. Buy during the presale to lock in your allocation before the listing price of $0.05/XEN.',
       },
     ],
   },
@@ -51,20 +55,20 @@ const faqCategories = [
     category: 'Trading & Platform',
     questions: [
       {
-        q: 'How does leverage trading work on Kaleo?',
-        a: 'Kaleo uses a peer-to-pool model. You deposit collateral (KLEO or ETH), select your desired leverage (up to 100x), and open a long or short position on any Pump.fun memecoin. The platform uses isolated margin, meaning each position has its own margin and liquidation price. This limits your maximum loss to the collateral for that specific trade.',
+        q: 'How does leverage trading work on Xenia?',
+        a: 'Xenia uses a peer-to-pool model. You deposit collateral (XEN or SOL), select your desired leverage (up to 100x), and open a long or short position on any Pump.fun memecoin. The platform uses isolated margin, meaning each position has its own margin and liquidation price, limiting your maximum loss to the collateral for that specific trade.',
       },
       {
         q: 'What is liquidation protection?',
-        a: 'Unlike most platforms that liquidate your entire position at once, Kaleo implements tiered liquidation. When your margin ratio drops below 10%, the engine closes 25% of your position at a time. This gives you multiple chances to add margin or for the market to recover, significantly reducing the chance of total loss.',
+        a: 'Unlike most platforms that liquidate your entire position at once, Xenia implements tiered liquidation. When your margin ratio drops below 10%, the engine closes 25% of your position at a time. This gives you multiple chances to add margin or for the market to recover, significantly reducing the chance of total loss.',
       },
       {
         q: 'How do the weekly trading contests work?',
-        a: '100% of all trading fees (opening, closing, liquidation) are pooled weekly. Every Monday-Sunday UTC cycle, traders are ranked by realized PnL percentage. The top 50 traders split the entire fee pool: 1st place gets 20%, 2nd gets 12%, 3rd gets 8%, and places 4-50 share the remaining 60%. Everyone has an equal chance regardless of account size.',
+        a: '100% of all trading fees (opening, closing, liquidation) are pooled weekly. Every Monday–Sunday UTC cycle, traders are ranked by realized PnL percentage. The top 50 traders split the entire fee pool: 1st place gets 20%, 2nd gets 12%, 3rd gets 8%, and places 4–50 share the remaining 60%. Everyone has an equal chance regardless of account size.',
       },
       {
         q: 'What order types are supported?',
-        a: 'At launch, Kaleo will support market orders, limit orders, stop-loss, and take-profit. Advanced features like trailing stops, OCO (one-cancels-other), and conditional orders are planned for Q3 2026.',
+        a: 'At launch, Xenia will support market orders, limit orders, stop-loss, and take-profit. Advanced features like trailing stops, OCO (one-cancels-other), and conditional orders are planned for later phases.',
       },
     ],
   },
@@ -72,16 +76,20 @@ const faqCategories = [
     category: 'Getting Started',
     questions: [
       {
-        q: 'How do I buy KLEO on the testnet?',
-        a: 'Connect a Web3 wallet (MetaMask, WalletConnect, etc.), switch to the Sepolia test network, get free Sepolia ETH from a faucet (like sepoliafaucet.com), then use the Buy section on this page to send test ETH and receive KLEO tokens. This is a practice run -- no real funds are needed.',
+        q: 'How do I buy XEN in the presale?',
+        a: 'Connect any supported wallet (Phantom for SOL, MetaMask or Trust Wallet for ETH/BNB, Xverse for BTC, or any EVM-compatible wallet), enter the amount you want to invest, and confirm the transaction. You can also pay by card via Stripe. Your XEN tokens are recorded immediately and delivered to your wallet at mainnet launch.',
       },
       {
         q: 'Which wallets are supported?',
-        a: 'Kaleo supports all major Web3 wallets through RainbowKit, including MetaMask, WalletConnect-compatible wallets, Coinbase Wallet, Rainbow, Trust Wallet, and many more. Simply click "Connect Wallet" to see the full list of supported options.',
+        a: 'For SOL: Phantom, Solflare, Backpack, OKX, and more. For ETH/BNB/USDC/USDT: MetaMask, Coinbase Wallet, Trust Wallet, OKX, Rabby, and 20+ others via WalletConnect. For BTC: Phantom, Xverse, OKX, and Unisat. You can also pay by card without any wallet.',
       },
       {
-        q: 'How do I get Sepolia test ETH?',
-        a: 'You can get free Sepolia ETH from several faucets: Alchemy Sepolia Faucet (sepoliafaucet.com), Google Cloud Web3 Faucet, or Chainstack Sepolia Faucet. Simply paste your wallet address and receive test ETH within seconds. You need a small amount (0.01 ETH+) to practice buying KLEO.',
+        q: 'What happens to my tokens after the presale?',
+        a: 'Your purchase is recorded against your wallet address. Once the presale goal is reached and XEN launches on Solana, tokens are distributed directly to the wallet address you connected during purchase. Card buyers receive an email receipt and can track their allocation on this page at any time.',
+      },
+      {
+        q: 'Is there a minimum purchase?',
+        a: 'The minimum purchase is $10 USD equivalent for all payment methods. There is no maximum. Prices only increase as stages fill, so earlier participants always get the best rates.',
       },
     ],
   },
@@ -104,7 +112,6 @@ export function FAQSection() {
         }
       }
     );
-
     gsap.fromTo('.faq-item',
       { opacity: 0, y: 20 },
       {
@@ -134,7 +141,7 @@ export function FAQSection() {
             Frequently Asked <span className="text-[#2BFFF1]">Questions</span>
           </h2>
           <p className="text-[#A7B0B7] text-lg max-w-2xl mx-auto leading-relaxed">
-            Everything you need to know about Kaleo, the presale, leverage trading, and how to get started.
+            Everything you need to know about Xenia, the presale, and how to get started.
           </p>
         </div>
 
