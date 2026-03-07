@@ -508,12 +508,17 @@ export function BuySection() {
     addRaised(usd);
     addPurchase({ usdSpent: usd, xenReceived: tokens, stage: currentStage.stage, priceUsd: currentStage.priceUsd, txHash: hash, timestamp: Date.now(), cryptoType: method });
     if (supabase) {
-      const { error } = await supabase.from('presale_purchases').upsert({
-        wallet_address: wallet.toLowerCase(), tokens, eth_spent: 0,
+      // wallet_address: SOL/BTC addresses are case-sensitive base58 — only lowercase EVM
+      const normalizedWallet = wallet.startsWith('0x') ? wallet.toLowerCase() : wallet;
+      const { error } = await supabase.from('presale_purchases').insert({
+        wallet_address: normalizedWallet, tokens, eth_spent: 0,
         usd_amount: usd, stage: currentStage.stage, price_eth: currentStage.priceUsd,
         tx_hash: hash, payment_method: method.toLowerCase(),
-      }, { onConflict: 'tx_hash', ignoreDuplicates: true });
-      if (error) console.error('Supabase insert:', error.message);
+      });
+      if (error) {
+        if (error.code === '23505') return; // duplicate tx_hash — already recorded, ignore
+        console.error('Supabase insert:', error.message, error.code, error.details);
+      }
     }
   }, [addRaised, addPurchase, currentStage]);
 
