@@ -688,9 +688,7 @@ export function BuySection() {
         }
 
       } else if (isMetaMaskBrowser || isEvmBrowser) {
-        // Auto-connect on load — use silent eth_accounts FIRST (no popup if already approved).
-        // Only call connectAsync (which shows approval dialog) if no accounts are available yet.
-        // This prevents the approval popup firing again when Stripe redirects back to the page.
+        // Restore last used currency
         const walletName = isInEvmBrowser() || 'Wallet';
         const savedCurrency = localStorage.getItem('_kleo_active_currency');
         if (savedCurrency && CURRENCIES.find(c => c.id === savedCurrency)) {
@@ -698,8 +696,18 @@ export function BuySection() {
         } else {
           setCurrency('BNB');
         }
+
+        // ── Guard: wagmi reconnectOnMount may have already connected before this
+        // useEffect runs. Calling connectAsync again throws ConnectorAlreadyConnectedError
+        // and leaves isConnected in an inconsistent state. Skip it — the sync useEffect
+        // (~line 398) will set evmInjectedName from wagmi state automatically.
+        if (isConnected && address) {
+          setEvmInjectedName(localStorage.getItem('_kleo_evm_wallet_name') || walletName);
+          return;
+        }
+
         try {
-          // eth_accounts is always silent — no popup, returns already-approved accounts
+          // eth_accounts is silent — returns already-approved accounts with no popup
           const existing = await eth.request({ method: 'eth_accounts' });
           if (existing && existing[0]) {
             dropSolBtcConnections();
@@ -709,6 +717,7 @@ export function BuySection() {
             localStorage.setItem('_kleo_evm_wallet_name', walletName);
             try { await connectAsync({ connector: injected() }); } catch {}
           } else {
+            // First visit — connectAsync shows approval popup once (expected)
             const result = await connectAsync({ connector: injected() });
             const acct = result.accounts[0];
             if (acct) {
@@ -725,6 +734,10 @@ export function BuySection() {
         const savedCurrency = localStorage.getItem('_kleo_active_currency') || 'BNB';
         setCurrency(savedCurrency);
         if (eth) {
+          if (isConnected && address) {
+            setEvmInjectedName('OKX Wallet');
+            return;
+          }
           try {
             const result = await connectAsync({ connector: injected() });
             const acct = result.accounts[0];
