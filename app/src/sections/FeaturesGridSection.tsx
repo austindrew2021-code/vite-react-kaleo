@@ -44,7 +44,7 @@ export function FeaturesGridSection() {
     },
     {
       title: 'Community Driven',
-      description: 'Kaleo holders govern the platform, vote on new features, and decide on contest parameters and fee distributions.',
+      description: 'Xenia holders govern the platform, vote on new features, and decide on contest parameters and fee distributions.',
       link: 'Join Community',
       linkHref: '#',
       icon: Users,
