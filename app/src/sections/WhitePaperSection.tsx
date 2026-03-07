@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { gsap } from 'gsap';
 import { FileText, ExternalLink, Shield, Coins, TrendingUp, Users } from 'lucide-react';
 
-const WHITEPAPER_URL = 'https://telegra.ph/Kaleo-AI-Powered-Leverage-Trading-Platform-Whitepaper-02-21';
+const WHITEPAPER_URL = '#';
 
 const highlights = [
   { icon: TrendingUp, label: 'Leverage Mechanism', desc: 'Up to 100x on any Pump.fun memecoin' },
@@ -80,12 +80,12 @@ export function WhitePaperSection() {
 
             {/* Title */}
             <h2 className="text-[clamp(28px,3.5vw,40px)] font-bold text-[#F4F6FA] mb-4 text-balance">
-              Kaleo <span className="text-[#2BFFF1]">Whitepaper</span>
+              Xenia <span className="text-[#2BFFF1]">Whitepaper</span>
             </h2>
 
             {/* Description */}
             <p className="text-[#A7B0B7] text-base max-w-xl mx-auto leading-relaxed mb-8">
-              Read our comprehensive whitepaper covering the Kaleo platform architecture,
+              Read our comprehensive whitepaper covering the Xenia platform architecture,
               tokenomics, leverage trading mechanism, security model, and governance framework.
             </p>
 
