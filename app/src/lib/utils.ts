@@ -16,8 +16,8 @@ export function formatEth(value: number | string, decimals = 4): string {
 
 export function formatToken(value: number | string, decimals = 2): string {
   const num = typeof value === 'string' ? parseFloat(value) : value;
-  if (isNaN(num) || num === 0) return '0 KLEO';
-  return num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: decimals }) + ' KLEO';
+  if (isNaN(num) || num === 0) return '0 XEN';
+  return num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: decimals }) + ' XEN';
 }
 
 export function shortenAddress(address: string | undefined | null, chars = 4): string {
