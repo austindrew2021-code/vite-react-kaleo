@@ -101,7 +101,7 @@ export function StakingCTASection() {
           </h2>
 
           <p className="cta-element text-[#A7B0B7] text-[clamp(14px,1.2vw,16px)] mb-8 leading-relaxed max-w-[480px] mx-auto">
-            Secure your KLEO allocation at the lowest price. Presale investors receive governance voting rights and priority access when the platform launches.
+            Secure your XEN allocation at the lowest price. Presale investors receive governance voting rights and priority access when the platform launches.
           </p>
 
           <div className="cta-element flex flex-wrap justify-center gap-3 mb-10">
@@ -120,7 +120,7 @@ export function StakingCTASection() {
             >
               {isConnected ? (
                 <a href="#buy" className="flex items-center gap-3">
-                  Buy Kaleo
+                  Buy Xenia
                   <ArrowRight className="w-6 h-6" />
                 </a>
               ) : (
