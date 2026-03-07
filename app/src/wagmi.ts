@@ -60,9 +60,9 @@ import {
 
 
 const projectId = import.meta.env.VITE_WALLET_CONNECT_PROJECT_ID || '69b686259ac98fa35d4188e56796ca47';
-const APP_NAME  = 'Kaleo Presale';
-const APP_ICON  = 'https://kaleo-presale.vercel.app/logo.png';
-const APP_URL   = 'https://kaleo-presale.vercel.app';
+const APP_NAME  = 'Xenia Presale';
+const APP_ICON  = 'https://xenia-presale.vercel.app/logo.png';
+const APP_URL   = 'https://xenia-presale.vercel.app';
 
 // ── Wallet compatibility ───────────────────────────────────────────────────
 // magicEdenWallet + backpackWallet REMOVED — Solana-native wallets that inject
@@ -123,13 +123,13 @@ const connectors = connectorsForWallets(
     appName:        APP_NAME,
     projectId,
     appIcon:        APP_ICON,
-    appDescription: 'Kaleo Token Presale â buy KLEO at the earliest stage price',
+    appDescription: 'Xenia Token Presale — buy XEN at the earliest stage price',
     appUrl:         APP_URL,
   }
 );
 
 // Chain order = default WalletConnect chain on first connect.
-// Testnet mode: swap to mainnet before launch (see STABLE_CHAINS comments).
+// Chain order = default WalletConnect chain on first connect.
 export const config = createConfig({
   connectors,
   chains: [
