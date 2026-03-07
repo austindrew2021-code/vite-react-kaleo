@@ -204,7 +204,7 @@ function AppContent() {
           <div className="flex-1">
             <p className="text-[#F4F6FA] font-bold text-base mb-1">Payment Successful!</p>
             <p className="text-[#A7B0B7] text-sm leading-relaxed">
-              {stripeSuccess} KLEO tokens reserved for your wallet. They will be credited at mainnet launch.
+              {stripeSuccess} XEN tokens reserved for your wallet. They will be credited at launch.
             </p>
           </div>
           <button onClick={() => setStripeSuccess(null)} className="text-[#A7B0B7] hover:text-white text-xl leading-none shrink-0 mt-0.5">×</button>
