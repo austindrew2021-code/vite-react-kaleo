@@ -130,7 +130,7 @@ function AppContent() {
         if (supabase && walletParam) {
           supabase
             .from('presale_purchases')
-            .insert({
+            .upsert({
               wallet_address: walletParam.toLowerCase(),
               tokens,
               eth_spent: 0,
@@ -139,7 +139,7 @@ function AppContent() {
               price_eth: stage.priceUsd,
               tx_hash: sessionId,
               payment_method: 'card',
-            })
+            }, { onConflict: 'tx_hash', ignoreDuplicates: true })
             .then(({ error }) => {
               if (error) console.error('Supabase card insert failed:', error.message, error.code);
             });
