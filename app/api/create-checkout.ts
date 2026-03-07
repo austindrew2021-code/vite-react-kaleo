@@ -1,13 +1,11 @@
+// api/create-checkout.ts
+// Vercel serverless function — must be named create-checkout.ts to match
+// the frontend fetch('/api/create-checkout', ...) call.
 import Stripe from 'stripe';
 
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-
-if (!stripeSecretKey) {
-  console.error('Missing STRIPE_SECRET_KEY environment variable');
-}
-
-const stripe = new Stripe(stripeSecretKey || '', {
-  apiVersion: '2026-01-28.clover',
+// API version must match stripe package major version (v20 = 2026-01-28.clover)
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+  apiVersion: '2026-01-28.clover' as any,
 });
 
 export default async function handler(req: any, res: any) {
@@ -17,35 +15,47 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    const { amount, tokens, wallet, stage } = req.body;
+    // Frontend sends: { usdAmount, tokens, wallet, stage }
+    const { usdAmount, tokens, wallet, stage } = req.body;
 
-    // Validate required fields
-    if (!amount || !tokens) {
+    // ── Validation ──────────────────────────────────────────────────────
+    if (!usdAmount || !tokens || !wallet) {
       return res.status(400).json({
         error: 'Missing required fields',
-        required: ['amount', 'tokens'],
-        received: { amount, tokens, wallet },
+        required: ['usdAmount', 'tokens', 'wallet'],
       });
     }
 
-    // amount is in cents (e.g. $10.00 = 1000)
-    const unitAmount = Math.round(Number(amount));
-    if (isNaN(unitAmount) || unitAmount < 1000) {  // minimum $10
-      return res.status(400).json({ error: 'Amount must be at least $10 (1000 cents)' });
+    const usd = Number(usdAmount);
+    if (isNaN(usd) || usd < 10) {
+      return res.status(400).json({ error: 'Minimum purchase is $10' });
     }
 
-    const tokenCount = Number(tokens);
-    if (isNaN(tokenCount) || tokenCount <= 0) {
+    if (typeof tokens !== 'number' || tokens <= 0) {
       return res.status(400).json({ error: 'Tokens must be a positive number' });
     }
 
-    // wallet is optional — some users may not have connected yet.
-    // Accept EVM (0x...), Solana (base58, 32-44 chars), BTC (bc1..., 1..., 3...)
-    // or the zero-address placeholder. Just store whatever was sent.
-    const walletAddr = typeof wallet === 'string' ? wallet.trim() : '';
+    // Accept EVM (0x...), Solana (base58, 32–44 chars), or BTC (bc1... / 1... / 3...)
+    const isEvmWallet  = typeof wallet === 'string' && /^0x[0-9a-fA-F]{40}$/.test(wallet);
+    const isSolWallet  = typeof wallet === 'string' && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(wallet);
+    const isBtcWallet  = typeof wallet === 'string' && /^(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,62}$/.test(wallet);
+    if (!isEvmWallet && !isSolWallet && !isBtcWallet) {
+      return res.status(400).json({ error: 'Invalid wallet address — provide an EVM, Solana, or Bitcoin address' });
+    }
 
-    const usdDisplay = (unitAmount / 100).toFixed(2);
+    // ── Stripe unit_amount is in CENTS ──────────────────────────────────
+    const unitAmountCents = Math.round(usd * 100);
 
+    const origin = req.headers.origin
+      || (req.headers.host ? `https://${req.headers.host}` : 'https://kaleopresale.com');
+
+    const successUrl =
+      `${origin}/?success=true&session_id={CHECKOUT_SESSION_ID}` +
+      `&wallet=${encodeURIComponent(wallet)}&tokens=${tokens}&usd=${usd}`;
+
+    const cancelUrl = `${origin}/?canceled=true`;
+
+    // ── Create Stripe Checkout Session ──────────────────────────────────
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card'],
@@ -54,33 +64,35 @@ export default async function handler(req: any, res: any) {
           price_data: {
             currency: 'usd',
             product_data: {
-              name: `Xenia Presale Tokens — Stage ${stage || 'Current'}`,
-              description: `${Number(tokenCount).toLocaleString()} XEN tokens at $${usdDisplay}`,
+              name: `Xenia (XEN) Presale — Stage ${stage || 'Current'}`,
+              description: `${Number(tokens).toLocaleString()} XEN tokens · delivered at launch`,
+              images: [`${origin}/logo.png`],
             },
-            unit_amount: unitAmount,
+            // unit_amount is CENTS — $1 = 100
+            unit_amount: unitAmountCents,
           },
           quantity: 1,
         },
       ],
-      success_url: `${req.headers.origin}/?success=true&session_id={CHECKOUT_SESSION_ID}&wallet=${encodeURIComponent(walletAddr)}&tokens=${tokenCount}&usd=${usdDisplay}`,
-      cancel_url: `${req.headers.origin}/?canceled=true`,
+      success_url: successUrl,
+      cancel_url:  cancelUrl,
       metadata: {
-        wallet: walletAddr,
-        tokens: tokenCount.toString(),
-        usd: usdDisplay,
-        stage: stage ? stage.toString() : 'unknown',
+        wallet,
+        tokens:   tokens.toString(),
+        usdAmount: usd.toString(),
+        stage:    stage ? stage.toString() : 'unknown',
       },
     });
 
-    return res.status(200).json({ sessionId: session.id, url: session.url });
+    // ── Return the Checkout URL so frontend can redirect ────────────────
+    // session.url is the hosted Stripe Checkout page URL
+    return res.status(200).json({ url: session.url, sessionId: session.id });
 
   } catch (err: any) {
-    console.error('Stripe checkout session creation failed:', err);
-    const status = err.statusCode || 500;
-    return res.status(status).json({
+    console.error('Stripe checkout error:', err);
+    return res.status(err.statusCode || 500).json({
       error: err.message || 'Failed to create checkout session',
-      code: err.code || 'internal_error',
-      type: err.type || 'unknown',
+      code:  err.code   || 'internal_error',
     });
   }
 }
