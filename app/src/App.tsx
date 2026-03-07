@@ -131,12 +131,20 @@ function AppContent() {
           cryptoType: 'card',
         });
 
-        // Insert to Supabase with correct column names
-        if (supabase && walletParam) {
+        // Always write to Supabase — never gate on walletParam being truthy.
+        // If no wallet was connected at payment time, use 'unassigned' so the
+        // row is never lost. Users can claim it later via the session_id.
+        if (supabase) {
+          const rawWallet = walletParam || 'unassigned';
+          // Only lowercase EVM (0x...) addresses — SOL/BTC are case-sensitive base58
+          const normalizedWallet = rawWallet.startsWith('0x')
+            ? rawWallet.toLowerCase()
+            : rawWallet;
+
           supabase
             .from('presale_purchases')
             .upsert({
-              wallet_address: walletParam.toLowerCase(),
+              wallet_address: normalizedWallet,
               tokens,
               eth_spent: 0,
               usd_amount: usdSpent,
