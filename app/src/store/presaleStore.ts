@@ -53,7 +53,7 @@ export function getOverallProgress(totalRaisedUsd: number): number {
 
 export interface PurchaseRecord {
   usdSpent: number;
-  kleoReceived: number;
+  xenReceived: number;
   stage: number;
   priceUsd: number;
   txHash: string;
