@@ -141,20 +141,28 @@ function AppContent() {
             ? rawWallet.toLowerCase()
             : rawWallet;
 
+          // usdSpent may be 0 if the success URL was built by an older API version
+          // that didn't include &usd=. Fall back to tokens * stage price.
+          const finalUsd = usdSpent > 0 ? usdSpent : tokens * stage.priceUsd;
+
           supabase
             .from('presale_purchases')
-            .upsert({
+            .insert({
               wallet_address: normalizedWallet,
               tokens,
               eth_spent: 0,
-              usd_amount: usdSpent,
+              usd_amount: finalUsd,
               stage: stage.stage,
               price_eth: stage.priceUsd,
               tx_hash: sessionId,
               payment_method: 'card',
-            }, { onConflict: 'tx_hash', ignoreDuplicates: true })
+            })
             .then(({ error }) => {
-              if (error) console.error('Supabase card insert failed:', error.message, error.code);
+              if (error) {
+                // 23505 = unique_violation — duplicate session, harmless. Ignore.
+                if (error.code === '23505') return;
+                console.error('Supabase card insert failed:', error.message, error.code, error.details);
+              }
             });
         }
       }
