@@ -169,7 +169,7 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
               </div>
 
               <p className="text-[#F4F6FA] text-4xl sm:text-5xl font-bold">
-                ${currentStage.priceUsd.toFixed(4)} <span className="text-[#A7B0B7] text-2xl font-normal">USD/KLEO</span>
+                ${currentStage.priceUsd.toFixed(4)} <span className="text-[#A7B0B7] text-2xl font-normal">USD/XEN</span>
               </p>
               <p className="text-[#A7B0B7] text-base mt-2">
                 {currentStage.discount}% discount vs listing (${LISTING_PRICE_USD})
@@ -266,7 +266,7 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
               <div className="text-center sm:text-left">
                 <p className="text-[#A7B0B7] text-base mb-2">Your Presale Allocation</p>
                 <p className="text-[#2BFFF1] text-4xl font-bold">
-                  {supabaseTokens.toLocaleString('en-US', { maximumFractionDigits: 0 })} KLEO
+                  {supabaseTokens.toLocaleString('en-US', { maximumFractionDigits: 0 })} XEN
                 </p>
                 <p className="text-[#A7B0B7] text-sm mt-2">
                   ${supabaseUsd.toLocaleString('en-US',{maximumFractionDigits:0})} USD spent across {supabaseCount} purchase{supabaseCount !== 1 ? 's' : ''}
@@ -274,7 +274,7 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
               </div>
 
               <div className="text-center sm:text-right">
-                <p className="text-[#A7B0B7] text-base mb-2">KLEO at Launch</p>
+                <p className="text-[#A7B0B7] text-base mb-2">XEN at Launch</p>
                 <p className="text-[#F4F6FA] text-2xl font-bold text-[#2BFFF1]">
                   Solana / Pump.fun
                 </p>
@@ -293,7 +293,7 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
                     >
                       <div className="flex items-center gap-3">
                         <span className="text-[#F4F6FA] font-semibold">
-                          {Number(p.tokens).toLocaleString('en-US', { maximumFractionDigits: 0 })} KLEO
+                          {Number(p.tokens).toLocaleString('en-US', { maximumFractionDigits: 0 })} XEN
                         </span>
                         <span className="text-[#A7B0B7]">
                           @ Stage {p.stage} – ${Number(p.usd_amount || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })} USD
