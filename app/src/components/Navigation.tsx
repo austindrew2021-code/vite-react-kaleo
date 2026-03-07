@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { lockScroll } from '../utils/scrollLock';
 import { useWalletStore } from '../store/presaleStore';
-import { useAccount, useDisconnect, useConnections } from 'wagmi';
+import { useAccount, useDisconnect, useConnections, useConnect } from 'wagmi';
+import { injected } from 'wagmi/connectors';
 import { Menu, X, ExternalLink } from 'lucide-react';
 import { gsap } from 'gsap';
 import { Link } from 'react-scroll'; // for smooth internal scrolling
@@ -22,6 +23,7 @@ export function Navigation() {
   const { solAddress, btcAddress, solWalletName, btcWalletName, disconnectSol, disconnectBtc, setShowEvmPicker } = useWalletStore();
   const { address: evmAddress, isConnected: evmConnected, connector: evmConnector } = useAccount();
   const { disconnect: evmDisconnect } = useDisconnect();
+  const { connectAsync } = useConnect();
   const evmConnections = useConnections();
 
   // Kill ALL active wagmi connections at once — prevents the "two disconnects" bug
@@ -73,19 +75,22 @@ export function Navigation() {
   };
 
   const handleConnectWallet = async () => {
-    const eth = (window as any).ethereum;
-    if (evmConnected) return; // already connected — pill shows in nav
+    if (evmConnected) return; // pill already showing
 
+    const eth = (window as any).ethereum;
     if (eth) {
-      // Already inside a wallet browser — connect directly via injected provider
+      // Already inside a wallet browser or extension — connect via wagmi so the
+      // pill actually appears. Raw eth.request('eth_requestAccounts') bypasses wagmi
+      // and the nav never updates. connectAsync handles both the approval prompt and
+      // the wagmi state sync in one call.
       try {
-        await eth.request({ method: 'eth_requestAccounts' });
-      } catch { /* user dismissed */ }
+        await connectAsync({ connector: injected() });
+      } catch {
+        // ConnectorAlreadyConnectedError = wagmi's reconnectOnMount already got it,
+        // isConnected will be true shortly — no action needed.
+      }
     } else {
-      // External browser — open the global EVM picker (deeplink into wallet browser)
-      // This is the same picker used by the buy card, ensuring consistent UX.
-      // Never opens RainbowKit modal directly — that shows WalletConnect relay which
-      // tells mobile users "go back to browser" instead of opening the dApp inside the wallet.
+      // No injected provider — show deeplink picker so user can open their wallet app.
       setShowEvmPicker(true);
     }
   };
