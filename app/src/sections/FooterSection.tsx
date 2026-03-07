@@ -3,16 +3,16 @@ import { gsap } from 'gsap';
 import { ArrowRight, ExternalLink, Mail, Twitter, MessageCircle, Send } from 'lucide-react';
 
 const productLinks = [
-  { label: 'Buy KLEO', href: '#buy' },
+  { label: 'Buy XEN', href: '#buy' },
   { label: 'Features', href: '#features' },
   { label: 'Roadmap', href: '#roadmap' },
   { label: 'Staking', href: '#staking' },
 ];
 
 const resourceLinks = [
-  { label: 'Whitepaper', href: 'https://telegra.ph/Kaleo-AI-Powered-Leverage-Trading-Platform-Whitepaper-02-21' },
+  { label: 'Whitepaper', href: '#' },
   { label: 'FAQ', href: '#faq' },
-  { label: 'Tokenomics', href: 'https://telegra.ph/Kaleo-AI-Powered-Leverage-Trading-Platform-Whitepaper-02-21' },
+  { label: 'Tokenomics', href: '#' },
   { label: 'Smart Contracts', href: '#', external: true },
 ];
 
@@ -90,11 +90,11 @@ export function FooterSection() {
                 href="#buy"
                 className="neon-button px-6 py-3 text-sm md:text-base font-semibold flex items-center gap-2 hover:gap-3 transition-all"
               >
-                Buy Kaleo
+                Buy Xenia
                 <ArrowRight className="w-4 h-4 md:w-5 md:h-5" />
               </a>
               <a
-                href="https://telegra.ph/Kaleo-AI-Powered-Leverage-Trading-Platform-Whitepaper-02-21"
+                href="#"
                 className="px-6 py-3 rounded-xl bg-white/5 border border-white/10 text-[#A7B0B7] text-sm md:text-base font-medium hover:border-[#2BFFF1]/50 hover:text-[#2BFFF1] transition-colors flex items-center gap-2"
               >
                 Read Whitepaper
@@ -112,17 +112,17 @@ export function FooterSection() {
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#2BFFF1] to-[#00D4FF] flex items-center justify-center shadow-lg shadow-[#2BFFF1]/20">
                 <span className="text-[#05060B] font-black text-xl tracking-tighter">K</span>
               </div>
-              <span className="text-[#F4F6FA] font-bold text-xl">Kaleo</span>
+              <span className="text-[#F4F6FA] font-bold text-xl">Xenia</span>
             </div>
             <p className="text-[#A7B0B7] text-sm leading-relaxed mb-6 max-w-[280px]">
               The first leverage trading platform for Pump.fun memecoins. Trade with up to 100x leverage.
             </p>
             <a
-              href="mailto:hello@kaleo.xyz"
+              href="mailto:hello@xenia.xyz"
               className="text-[#A7B0B7] hover:text-[#2BFFF1] transition-colors text-sm flex items-center gap-2"
             >
               <Mail className="w-4 h-4" />
-              hello@kaleo.xyz
+              hello@xenia.xyz
             </a>
           </div>
 
@@ -198,7 +198,7 @@ export function FooterSection() {
         {/* Bottom bar */}
         <div className="border-t border-white/[0.06] pt-8">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-[#A7B0B7]">
-            <p>© 2026 Kaleo. All rights reserved.</p>
+            <p>© 2026 Xenia. All rights reserved.</p>
             <div className="flex items-center gap-6">
               <a href="#" className="hover:text-[#2BFFF1] transition-colors">Privacy Policy</a>
               <a href="#" className="hover:text-[#2BFFF1] transition-colors">Terms of Service</a>
