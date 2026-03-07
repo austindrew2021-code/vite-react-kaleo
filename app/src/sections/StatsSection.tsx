@@ -113,7 +113,7 @@ export function StatsSection() {
   const statItems = [
     { icon: Users, label: 'Buyers', value: totalBuyers.toLocaleString() },
     { icon: TrendingUp, label: 'Current Stage', value: `${currentStage.stage}/12` },
-    { icon: Zap, label: 'Price/KLEO', value: `$${currentStage.priceUsd.toFixed(4)}`, highlight: true },
+    { icon: Zap, label: 'Price/XEN', value: `$${currentStage.priceUsd.toFixed(4)}`, highlight: true },
     { icon: Trophy, label: 'Discount', value: `${currentStage.discount}%`, highlight: true },
   ];
 
@@ -192,7 +192,7 @@ export function StatsSection() {
               href="#buy"
               className="neon-button px-8 py-4 text-base font-semibold flex items-center justify-center gap-2 hover:gap-3 transition-all w-full sm:w-auto"
             >
-              Buy Kaleo
+              Buy Xenia
               <ArrowRight className="w-5 h-5" />
             </a>
             <a
