@@ -1,11 +1,9 @@
-// api/create-checkout-session.ts
 import Stripe from 'stripe';
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 
 if (!stripeSecretKey) {
   console.error('Missing STRIPE_SECRET_KEY environment variable');
-  // In production Vercel will catch this and return 500 automatically
 }
 
 const stripe = new Stripe(stripeSecretKey || '', {
@@ -13,7 +11,6 @@ const stripe = new Stripe(stripeSecretKey || '', {
 });
 
 export default async function handler(req: any, res: any) {
-  // Only allow POST
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'Method not allowed' });
@@ -22,28 +19,33 @@ export default async function handler(req: any, res: any) {
   try {
     const { amount, tokens, wallet, stage } = req.body;
 
-    // Basic input validation
-    if (!amount || !tokens || !wallet) {
+    // Validate required fields
+    if (!amount || !tokens) {
       return res.status(400).json({
         error: 'Missing required fields',
-        required: ['amount', 'tokens', 'wallet']
+        required: ['amount', 'tokens'],
+        received: { amount, tokens, wallet },
       });
     }
 
+    // amount is in cents (e.g. $10.00 = 1000)
     const unitAmount = Math.round(Number(amount));
-    if (isNaN(unitAmount) || unitAmount <= 0) {
-      return res.status(400).json({ error: 'Amount must be a positive number' });
+    if (isNaN(unitAmount) || unitAmount < 1000) {  // minimum $10
+      return res.status(400).json({ error: 'Amount must be at least $10 (1000 cents)' });
     }
 
-    if (typeof tokens !== 'number' || tokens <= 0) {
+    const tokenCount = Number(tokens);
+    if (isNaN(tokenCount) || tokenCount <= 0) {
       return res.status(400).json({ error: 'Tokens must be a positive number' });
     }
 
-    if (typeof wallet !== 'string' || !wallet.startsWith('0x') || wallet.length !== 42) {
-      return res.status(400).json({ error: 'Invalid wallet address format' });
-    }
+    // wallet is optional — some users may not have connected yet.
+    // Accept EVM (0x...), Solana (base58, 32-44 chars), BTC (bc1..., 1..., 3...)
+    // or the zero-address placeholder. Just store whatever was sent.
+    const walletAddr = typeof wallet === 'string' ? wallet.trim() : '';
 
-    // Create Stripe Checkout Session
+    const usdDisplay = (unitAmount / 100).toFixed(2);
+
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card'],
@@ -52,33 +54,31 @@ export default async function handler(req: any, res: any) {
           price_data: {
             currency: 'usd',
             product_data: {
-              name: `Xenia Presale Tokens - Stage ${stage || 'Current'}`,
-              description: `${tokens.toLocaleString()} XEN tokens`,
+              name: `Xenia Presale Tokens — Stage ${stage || 'Current'}`,
+              description: `${Number(tokenCount).toLocaleString()} XEN tokens at $${usdDisplay}`,
             },
             unit_amount: unitAmount,
           },
           quantity: 1,
         },
       ],
-      success_url: `${req.headers.origin}/?success=true&session_id={CHECKOUT_SESSION_ID}&wallet=${encodeURIComponent(wallet)}&tokens=${tokens}`,
+      success_url: `${req.headers.origin}/?success=true&session_id={CHECKOUT_SESSION_ID}&wallet=${encodeURIComponent(walletAddr)}&tokens=${tokenCount}&usd=${usdDisplay}`,
       cancel_url: `${req.headers.origin}/?canceled=true`,
       metadata: {
-        wallet,
-        tokens: tokens.toString(),
+        wallet: walletAddr,
+        tokens: tokenCount.toString(),
+        usd: usdDisplay,
         stage: stage ? stage.toString() : 'unknown',
       },
     });
 
-    // Return session ID and URL to frontend
     return res.status(200).json({ sessionId: session.id, url: session.url });
+
   } catch (err: any) {
     console.error('Stripe checkout session creation failed:', err);
-
     const status = err.statusCode || 500;
-    const message = err.message || 'Failed to create checkout session';
-
     return res.status(status).json({
-      error: message,
+      error: err.message || 'Failed to create checkout session',
       code: err.code || 'internal_error',
       type: err.type || 'unknown',
     });
