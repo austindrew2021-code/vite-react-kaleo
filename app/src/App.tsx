@@ -123,7 +123,7 @@ function AppContent() {
         addRaised(usdSpent);
         addPurchase({
           usdSpent,
-          kleoReceived: tokens,
+          xenReceived: tokens,
           stage: stage.stage,
           priceUsd: stage.priceUsd,
           txHash: sessionId,
