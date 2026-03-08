@@ -109,13 +109,35 @@ function AppContent() {
       // Always clean URL immediately so subsequent reloads don't see ?success=true
       window.history.replaceState({}, '', '/');
 
+      const usdParam = params.get('usd') || '0';
+      const usdSpent = parseFloat(usdParam) || 0;
+      const stage = getCurrentStage(totalRaised);
+
+      // Always attempt Supabase insert on every load — onConflict deduplicates.
+      // The mobile wallet browser hard-reloads the page after Stripe redirects,
+      // which kills any in-flight async insert. We must retry on every reload.
+      if (supabase && walletParam && tokens > 0) {
+        supabase
+          .from('presale_purchases')
+          .upsert({
+            wallet_address: walletParam.toLowerCase(),
+            tokens,
+            eth_spent: 0,
+            usd_amount: usdSpent,
+            stage: stage.stage,
+            price_eth: stage.priceUsd,
+            tx_hash: sessionId,
+            payment_method: 'card',
+          }, { onConflict: 'tx_hash', ignoreDuplicates: true })
+          .then(({ error }) => {
+            if (error) console.error('Supabase card insert failed:', error.message, error.code);
+          });
+      }
+
+      // Only update local store once — guard against double-counting on reload
       if (!alreadyProcessed && tokens > 0) {
         localStorage.setItem(processedKey, '1');
         setTimeout(() => localStorage.removeItem(processedKey), 10 * 60 * 1000);
-
-        const usdParam = params.get('usd') || '0';
-        const usdSpent = parseFloat(usdParam) || 0;
-        const stage = getCurrentStage(totalRaised);
 
         addRaised(usdSpent);
         addPurchase({
@@ -127,27 +149,11 @@ function AppContent() {
           timestamp: Date.now(),
           cryptoType: 'card',
         });
-
-        if (supabase && walletParam) {
-          supabase
-            .from('presale_purchases')
-            .upsert({
-              wallet_address: walletParam.toLowerCase(),
-              tokens,
-              eth_spent: 0,
-              usd_amount: usdSpent,
-              stage: stage.stage,
-              price_eth: stage.priceUsd,
-              tx_hash: sessionId,
-              payment_method: 'card',
-            }, { onConflict: 'tx_hash', ignoreDuplicates: true })
-            .then(({ error }) => {
-              if (error) console.error('Supabase card insert failed:', error.message, error.code);
-            });
-        }
       }
 
-      setStripeSuccess(tokens > 0 ? tokens.toLocaleString() : 'Your');
+      if (!alreadyProcessed && tokens > 0) {
+        setStripeSuccess(tokens > 0 ? tokens.toLocaleString() : 'Your');
+      }
     }
 
     if (params.get('canceled') === 'true') {
