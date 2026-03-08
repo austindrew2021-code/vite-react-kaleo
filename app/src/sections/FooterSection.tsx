@@ -10,9 +10,9 @@ const productLinks = [
 ];
 
 const resourceLinks = [
-  { label: 'Whitepaper', href: '#' },
+  { label: 'Whitepaper', href: '/whitepaper' },
   { label: 'FAQ', href: '#faq' },
-  { label: 'Tokenomics', href: '#' },
+  { label: 'Tokenomics', href: '/whitepaper#tokenomics' },
   { label: 'Smart Contracts', href: '#', external: true },
 ];
 
@@ -200,9 +200,9 @@ export function FooterSection() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-[#A7B0B7]">
             <p>© 2026 Xenia. All rights reserved.</p>
             <div className="flex items-center gap-6">
-              <a href="#" className="hover:text-[#2BFFF1] transition-colors">Privacy Policy</a>
-              <a href="#" className="hover:text-[#2BFFF1] transition-colors">Terms of Service</a>
-              <a href="#" className="hover:text-[#2BFFF1] transition-colors">Cookie Policy</a>
+              <a href="/privacy" className="hover:text-[#2BFFF1] transition-colors">Privacy Policy</a>
+              <a href="/terms" className="hover:text-[#2BFFF1] transition-colors">Terms of Service</a>
+              <a href="/cookies" className="hover:text-[#2BFFF1] transition-colors">Cookie Policy</a>
             </div>
           </div>
         </div>
