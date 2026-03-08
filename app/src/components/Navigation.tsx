@@ -13,7 +13,7 @@ const navLinks = [
   { label: 'Buy', href: 'buy', isExternal: false },
   { label: 'Features', href: 'features', isExternal: false },
   { label: 'Roadmap', href: 'roadmap', isExternal: false },
-  { label: 'Whitepaper', href: WHITEPAPER_URL, isExternal: false },
+  { label: 'Whitepaper', href: WHITEPAPER_URL, isExternal: false, isPage: true },
   { label: 'FAQ', href: 'faq', isExternal: false },
 ];
 
@@ -127,6 +127,15 @@ export function Navigation() {
                 {link.label}
                 <ExternalLink className="w-3.5 h-3.5 opacity-60" />
               </a>
+            ) : link.isPage ? (
+              <a
+                key={link.label}
+                href={link.href}
+                className="text-[#A7B0B7] hover:text-[#2BFFF1] transition-colors font-medium text-sm cursor-pointer"
+                onClick={handleLinkClick}
+              >
+                {link.label}
+              </a>
             ) : (
               <Link
                 key={link.label}
@@ -233,6 +242,15 @@ export function Navigation() {
                 >
                   {link.label}
                   <ExternalLink className="w-6 h-6 opacity-70" />
+                </a>
+              ) : link.isPage ? (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  onClick={handleLinkClick}
+                  className="mobile-link text-[#F4F6FA] text-4xl font-bold hover:text-[#2BFFF1] transition-colors"
+                >
+                  {link.label}
                 </a>
               ) : (
                 <Link
