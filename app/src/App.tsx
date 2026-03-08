@@ -103,7 +103,6 @@ function AppContent() {
       const sessionId = params.get('session_id') || 'stripe';
       const tokens = tokensParam ? parseFloat(tokensParam) : 0;
 
-      // ── Guard against double-processing ──
       const processedKey = `_kleo_stripe_processed_${sessionId}`;
       const alreadyProcessed = localStorage.getItem(processedKey);
 
@@ -112,7 +111,6 @@ function AppContent() {
 
       if (!alreadyProcessed && tokens > 0) {
         localStorage.setItem(processedKey, '1');
-        // Clear this guard after 10 minutes so it doesn't accumulate forever
         setTimeout(() => localStorage.removeItem(processedKey), 10 * 60 * 1000);
 
         const usdParam = params.get('usd') || '0';
@@ -130,7 +128,6 @@ function AppContent() {
           cryptoType: 'card',
         });
 
-        // Insert to Supabase with correct column names
         if (supabase && walletParam) {
           supabase
             .from('presale_purchases')
