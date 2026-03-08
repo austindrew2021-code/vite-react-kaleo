@@ -103,17 +103,16 @@ function AppContent() {
       const sessionId = params.get('session_id') || 'stripe';
       const tokens = tokensParam ? parseFloat(tokensParam) : 0;
 
-      console.log('[Stripe] Success redirect detected', { tokensParam, walletParam, sessionId, tokens, supabaseReady: !!supabase });
-
+      // ── Guard against double-processing ──
       const processedKey = `_kleo_stripe_processed_${sessionId}`;
       const alreadyProcessed = localStorage.getItem(processedKey);
 
-      console.log('[Stripe] Already processed?', alreadyProcessed, '| processedKey:', processedKey);
-
+      // Always clean URL immediately so subsequent reloads don't see ?success=true
       window.history.replaceState({}, '', '/');
 
       if (!alreadyProcessed && tokens > 0) {
         localStorage.setItem(processedKey, '1');
+        // Clear this guard after 10 minutes so it doesn't accumulate forever
         setTimeout(() => localStorage.removeItem(processedKey), 10 * 60 * 1000);
 
         const usdParam = params.get('usd') || '0';
@@ -131,18 +130,12 @@ function AppContent() {
           cryptoType: 'card',
         });
 
-        // Determine wallet: use walletParam from URL, fallback to zero address
-        const walletForInsert = walletParam || '0x0000000000000000000000000000000000000000';
-        // Only lowercase EVM addresses; SOL/BTC are case-sensitive
-        const normalizedWallet = walletForInsert.startsWith('0x')
-          ? walletForInsert.toLowerCase()
-          : walletForInsert;
-
-        if (supabase) {
+        // Insert to Supabase with correct column names
+        if (supabase && walletParam) {
           supabase
             .from('presale_purchases')
-            .insert({
-              wallet_address: normalizedWallet,
+            .upsert({
+              wallet_address: walletParam.toLowerCase(),
               tokens,
               eth_spent: 0,
               usd_amount: usdSpent,
@@ -150,22 +143,10 @@ function AppContent() {
               price_eth: stage.priceUsd,
               tx_hash: sessionId,
               payment_method: 'card',
-            })
-            .then(({ error, data }) => {
-              if (error) {
-                if (error.code === '23505') {
-                  console.log('Card purchase already logged (duplicate):', sessionId);
-                  return;
-                }
-                // Show error visibly so we can debug
-                alert("Supabase insert failed: " + error.message + " (code: " + error.code + ")");
-                console.error('Supabase card insert failed:', error);
-              } else {
-                console.log('Card purchase logged to Supabase ✓', data);
-              }
+            }, { onConflict: 'tx_hash', ignoreDuplicates: true })
+            .then(({ error }) => {
+              if (error) console.error('Supabase card insert failed:', error.message, error.code);
             });
-        } else {
-          alert('Supabase not initialized — check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY env vars');
         }
       }
 
