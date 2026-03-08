@@ -103,8 +103,12 @@ function AppContent() {
       const sessionId = params.get('session_id') || 'stripe';
       const tokens = tokensParam ? parseFloat(tokensParam) : 0;
 
+      console.log('[Stripe] Success redirect detected', { tokensParam, walletParam, sessionId, tokens, supabaseReady: !!supabase });
+
       const processedKey = `_kleo_stripe_processed_${sessionId}`;
       const alreadyProcessed = localStorage.getItem(processedKey);
+
+      console.log('[Stripe] Already processed?', alreadyProcessed, '| processedKey:', processedKey);
 
       window.history.replaceState({}, '', '/');
 
@@ -127,11 +131,18 @@ function AppContent() {
           cryptoType: 'card',
         });
 
-        if (supabase && walletParam) {
+        // Determine wallet: use walletParam from URL, fallback to zero address
+        const walletForInsert = walletParam || '0x0000000000000000000000000000000000000000';
+        // Only lowercase EVM addresses; SOL/BTC are case-sensitive
+        const normalizedWallet = walletForInsert.startsWith('0x')
+          ? walletForInsert.toLowerCase()
+          : walletForInsert;
+
+        if (supabase) {
           supabase
             .from('presale_purchases')
-            .upsert({
-              wallet_address: walletParam.toLowerCase(),
+            .insert({
+              wallet_address: normalizedWallet,
               tokens,
               eth_spent: 0,
               usd_amount: usdSpent,
@@ -139,10 +150,22 @@ function AppContent() {
               price_eth: stage.priceUsd,
               tx_hash: sessionId,
               payment_method: 'card',
-            }, { onConflict: 'tx_hash', ignoreDuplicates: true })
-            .then(({ error }) => {
-              if (error) console.error('Supabase card insert failed:', error.message, error.code);
+            })
+            .then(({ error, data }) => {
+              if (error) {
+                if (error.code === '23505') {
+                  console.log('Card purchase already logged (duplicate):', sessionId);
+                  return;
+                }
+                // Show error visibly so we can debug
+                alert("Supabase insert failed: " + error.message + " (code: " + error.code + ")");
+                console.error('Supabase card insert failed:', error);
+              } else {
+                console.log('Card purchase logged to Supabase ✓', data);
+              }
             });
+        } else {
+          alert('Supabase not initialized — check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY env vars');
         }
       }
 
