@@ -47,7 +47,7 @@ export default async function handler(req: any, res: any) {
     const unitAmountCents = Math.round(usd * 100);
 
     const origin = req.headers.origin
-      || (req.headers.host ? `https://${req.headers.host}` : 'https://kaleopresale.com');
+      || (req.headers.host ? `https://${req.headers.host}` : 'https://xeniachain.xyz');
 
     const successUrl =
       `${origin}/?success=true&session_id={CHECKOUT_SESSION_ID}` +
