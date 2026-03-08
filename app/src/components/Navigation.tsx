@@ -268,15 +268,15 @@ export function Navigation() {
             ))}
 
             <div className="mt-12 flex items-center gap-8 text-lg">
-              <a href="#" className="text-[#A7B0B7] hover:text-[#2BFFF1] transition-colors">
+              <a href="https://x.com/XeniaChain" target="_blank" rel="noopener noreferrer" className="text-[#A7B0B7] hover:text-[#2BFFF1] transition-colors">
                 Twitter
               </a>
               <span className="text-white/15">|</span>
-              <a href="#" className="text-[#A7B0B7] hover:text-[#2BFFF1] transition-colors">
+              <a href="https://discord.gg/CDMjY4UN8" target="_blank" rel="noopener noreferrer" className="text-[#A7B0B7] hover:text-[#2BFFF1] transition-colors">
                 Discord
               </a>
               <span className="text-white/15">|</span>
-              <a href="#" className="text-[#A7B0B7] hover:text-[#2BFFF1] transition-colors">
+              <a href="https://t.me/heimdall_odintools_bot?start=verify_-1003779764198" target="_blank" rel="noopener noreferrer" className="text-[#A7B0B7] hover:text-[#2BFFF1] transition-colors">
                 Telegram
               </a>
             </div>
