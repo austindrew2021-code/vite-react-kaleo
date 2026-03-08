@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Xenia ($XEN) — Official Whitepaper v1.0</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: Georgia, 'Times New Roman', serif; background: #fff; color: #1a1a1a; line-height: 1.8; }
+  .container { max-width: 800px; margin: 0 auto; padding: 60px 40px; }
+
+  /* Cover */
+  .cover { text-align: center; padding: 80px 0 60px; border-bottom: 2px solid #00C9BB; margin-bottom: 60px; }
+  .cover-logo { font-family: Arial, sans-serif; font-size: 72px; font-weight: 900; color: #00C9BB; letter-spacing: 8px; margin-bottom: 8px; }
+  .cover-symbol { font-family: Arial, sans-serif; font-size: 28px; color: #888; margin-bottom: 16px; }
+  .cover-tagline { font-size: 20px; color: #555; font-style: italic; margin-bottom: 40px; }
+  .cover-badge { display: inline-block; border: 2px solid #00C9BB; padding: 10px 28px; font-family: Arial, sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 2px; color: #333; margin-bottom: 32px; }
+  .cover-meta { font-family: Arial, sans-serif; font-size: 14px; color: #999; }
+  .cover-disclaimer { margin-top: 24px; font-size: 12px; color: #CC3333; font-family: Arial, sans-serif; font-weight: 700; }
+
+  /* TOC */
+  .toc { background: #f8f9fa; border-left: 4px solid #00C9BB; padding: 32px 40px; margin-bottom: 60px; }
+  .toc h2 { font-family: Arial, sans-serif; font-size: 18px; font-weight: 700; color: #00C9BB; margin-bottom: 20px; letter-spacing: 1px; }
+  .toc ol { padding-left: 20px; }
+  .toc li { font-family: Arial, sans-serif; font-size: 14px; color: #444; padding: 4px 0; }
+  .toc li a { color: #444; text-decoration: none; }
+  .toc li a:hover { color: #00C9BB; }
+
+  /* Sections */
+  .section { margin-bottom: 60px; padding-bottom: 40px; border-bottom: 1px solid #eee; }
+  .section:last-child { border-bottom: none; }
+  h1 { font-family: Arial, sans-serif; font-size: 28px; font-weight: 800; color: #0D0F14; margin-bottom: 24px; padding-bottom: 12px; border-bottom: 3px solid #00C9BB; }
+  h2 { font-family: Arial, sans-serif; font-size: 20px; font-weight: 700; color: #1E2530; margin: 32px 0 12px; }
+  h3 { font-family: Arial, sans-serif; font-size: 16px; font-weight: 700; color: #333; margin: 24px 0 8px; }
+  p { margin-bottom: 16px; font-size: 16px; color: #333; }
+  ul { margin: 12px 0 20px 24px; }
+  li { font-size: 15px; color: #333; margin-bottom: 8px; line-height: 1.7; }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; margin: 24px 0 32px; font-family: Arial, sans-serif; font-size: 14px; }
+  thead tr { background: #1E2530; color: #fff; }
+  thead th { padding: 12px 14px; text-align: left; font-weight: 700; }
+  tbody tr:nth-child(even) { background: #f8f9fa; }
+  tbody td { padding: 11px 14px; border-bottom: 1px solid #e5e7eb; color: #333; }
+  .highlight-row td { background: #e8faf9; font-weight: 700; }
+
+  /* Key stat boxes */
+  .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin: 24px 0 32px; }
+  .stat-box { background: #f0fffe; border: 1px solid #00C9BB; border-radius: 8px; padding: 20px; text-align: center; }
+  .stat-value { font-family: Arial, sans-serif; font-size: 22px; font-weight: 800; color: #00C9BB; }
+  .stat-label { font-family: Arial, sans-serif; font-size: 12px; color: #888; margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
+
+  /* Disclaimer box */
+  .disclaimer-box { background: #fff8f8; border: 1px solid #ffcccc; border-radius: 6px; padding: 24px; margin-bottom: 32px; }
+  .disclaimer-box p { font-size: 14px; color: #666; }
+
+  /* Phase boxes */
+  .phase { background: #f8f9fa; border-left: 4px solid #00C9BB; padding: 20px 24px; margin: 20px 0; border-radius: 0 6px 6px 0; }
+  .phase-title { font-family: Arial, sans-serif; font-size: 15px; font-weight: 700; color: #0D0F14; margin-bottom: 12px; }
+  .phase ul { margin: 0 0 0 20px; }
+  .phase li { font-size: 14px; }
+
+  /* Footer */
+  .footer { text-align: center; padding: 48px 0 32px; border-top: 2px solid #00C9BB; margin-top: 60px; }
+  .footer-logo { font-family: Arial, sans-serif; font-size: 28px; font-weight: 900; color: #00C9BB; letter-spacing: 4px; margin-bottom: 8px; }
+  .footer-meta { font-family: Arial, sans-serif; font-size: 13px; color: #999; }
+
+  @media (max-width: 600px) {
+    .container { padding: 32px 20px; }
+    .stat-grid { grid-template-columns: 1fr; }
+    .cover-logo { font-size: 48px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- COVER -->
+  <div class="cover">
+    <div class="cover-logo">XENIA</div>
+    <div class="cover-symbol">$XEN Token</div>
+    <div class="cover-tagline">Memecoin Leverage Trading on Solana</div>
+    <div class="cover-badge">WHITEPAPER &nbsp;|&nbsp; VERSION 1.0 &nbsp;|&nbsp; 2026</div>
+    <div class="cover-meta">xenia.xyz &nbsp;|&nbsp; hello@xenia.xyz</div>
+    <div class="cover-disclaimer">⚠ FOR INFORMATIONAL PURPOSES ONLY — NOT FINANCIAL ADVICE</div>
+  </div>
+
+  <!-- DISCLAIMER -->
+  <div class="section">
+    <h1 id="disclaimer">Disclaimer</h1>
+    <div class="disclaimer-box">
+      <p>This whitepaper has been prepared by Xenia for informational purposes only. Nothing in this document constitutes financial, investment, legal, or tax advice. Purchasing $XEN tokens involves substantial risk, including the possible loss of all funds contributed. Cryptocurrency markets are highly volatile and largely unregulated.</p>
+      <p>Participation in the Xenia presale is restricted in certain jurisdictions. By participating, you represent that you are not a citizen or resident of any jurisdiction where participation in token sales is prohibited, including without limitation the United States of America.</p>
+      <p>This whitepaper does not constitute a prospectus, offering document, or solicitation of investment. $XEN tokens are utility tokens intended for use within the Xenia platform and are not securities under any applicable law. The roadmap and timelines described are forward-looking and subject to change.</p>
+    </div>
+  </div>
+
+  <!-- TABLE OF CONTENTS -->
+  <div class="toc">
+    <h2>TABLE OF CONTENTS</h2>
+    <ol>
+      <li><a href="#executive-summary">Executive Summary</a></li>
+      <li><a href="#introduction">Introduction &amp; Problem Statement</a></li>
+      <li><a href="#solution">The Xenia Solution</a></li>
+      <li><a href="#architecture">Platform Architecture</a></li>
+      <li><a href="#technology">Technology Stack</a></li>
+      <li><a href="#tokenomics">Tokenomics</a></li>
+      <li><a href="#presale">Presale Structure</a></li>
+      <li><a href="#funds">Use of Funds</a></li>
+      <li><a href="#roadmap">Roadmap</a></li>
+      <li><a href="#security">Security &amp; Audits</a></li>
+      <li><a href="#risks">Risk Factors</a></li>
+      <li><a href="#legal">Legal &amp; Compliance</a></li>
+    </ol>
+  </div>
+
+  <!-- 1. EXECUTIVE SUMMARY -->
+  <div class="section" id="executive-summary">
+    <h1>1. Executive Summary</h1>
+    <p>Xenia is a next-generation leverage trading platform purpose-built for Solana memecoins. By combining institutional-grade trading mechanics with the culture-driven energy of the memecoin market, Xenia creates an entirely new category of DeFi — where speculation meets strategy at Solana speed.</p>
+    <p>The memecoin market has emerged as one of the most active and liquid segments of the cryptocurrency ecosystem, generating billions of dollars in daily volume. Yet traders remain underserved: existing leverage platforms were designed for blue-chip assets and struggle with the speed, volatility, and volume dynamics that define memecoin trading. Xenia is built from the ground up to solve this.</p>
+    <p>$XEN is the native utility and governance token of the Xenia ecosystem. With a total supply of 1,000,000,000 tokens and a presale price range from $0.001 to $0.02 across 12 stages — against a projected listing price of $0.05 — $XEN presents early participants with significant upside potential.</p>
+    <div class="stat-grid">
+      <div class="stat-box">
+        <div class="stat-value">1,000,000,000</div>
+        <div class="stat-label">Total Supply (XEN)</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value">$0.001</div>
+        <div class="stat-label">Stage 1 Entry Price</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value">$0.05</div>
+        <div class="stat-label">Target Listing Price</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. INTRODUCTION -->
+  <div class="section" id="introduction">
+    <h1>2. Introduction &amp; Problem Statement</h1>
+    <h2>2.1 The Memecoin Market Opportunity</h2>
+    <p>The memecoin sector has fundamentally transformed how participants engage with cryptocurrency. What began as a novelty has evolved into a multi-hundred-billion-dollar market, with platforms like Pump.fun facilitating the creation and trading of thousands of new tokens daily on the Solana blockchain.</p>
+    <p>Solana's architecture — sub-second finality, sub-cent transaction fees, and throughput of over 65,000 transactions per second — has made it the dominant chain for memecoin activity. In 2025 and 2026, Solana-based memecoin trading volume has consistently outpaced all other chains combined.</p>
+
+    <h2>2.2 The Problem</h2>
+    <p>Despite the explosive growth in memecoin trading, the tooling available to traders remains severely limited:</p>
+    <ul>
+      <li>Existing leverage platforms (dYdX, GMX, Drift) are optimized for blue-chip assets — not the highly volatile, rapidly rotating memecoin market.</li>
+      <li>Centralized exchanges that support memecoin leverage impose excessive KYC requirements, custody risk, and withdrawal delays incompatible with memecoin speed.</li>
+      <li>Liquidity fragmentation forces traders to monitor multiple DEXs simultaneously, missing opportunities and suffering price impact.</li>
+      <li>Risk management tools designed for traditional assets fail to account for the unique volatility profiles of memecoins.</li>
+      <li>The absence of a professional-grade memecoin leverage platform leaves billions of dollars of potential trading volume untapped.</li>
+    </ul>
+
+    <h2>2.3 Market Size</h2>
+    <p>Daily memecoin trading volume on Solana regularly exceeds $2 billion. Even capturing a fraction of this as leveraged volume represents a significant revenue opportunity. The global cryptocurrency derivatives market exceeded $3 trillion in monthly volume in 2025, with the memecoin segment among the fastest-growing sub-categories.</p>
+  </div>
+
+  <!-- 3. SOLUTION -->
+  <div class="section" id="solution">
+    <h1>3. The Xenia Solution</h1>
+    <p>Xenia is a Solana-native leverage trading platform designed specifically for the memecoin market. Our platform enables traders to go long or short on memecoin assets with leverage, execute complex strategies, and manage risk — all with the speed and low cost that only Solana provides.</p>
+
+    <h2>3.1 Core Platform Features</h2>
+    <h3>Memecoin Leverage Trading</h3>
+    <p>Traders can open leveraged long or short positions on a curated and community-governed list of Solana memecoins. Xenia supports up to 10x leverage with real-time liquidation protection mechanisms.</p>
+
+    <h3>Deep Liquidity Aggregation</h3>
+    <p>Xenia aggregates liquidity from across Solana DEXs — including Raydium, Orca, Jupiter, and Pump.fun — to ensure minimal price impact and tight spreads even for large positions.</p>
+
+    <h3>Advanced Order Types</h3>
+    <p>Beyond simple market orders, Xenia supports limit orders, stop-losses, take-profit triggers, and trailing stops — giving traders the professional risk management toolkit they need.</p>
+
+    <h3>Real-Time Analytics</h3>
+    <p>An integrated analytics dashboard surfaces on-chain data, social signals, wallet activity, and volume metrics to help traders identify opportunities before the crowd.</p>
+
+    <h3>Non-Custodial Architecture</h3>
+    <p>All positions are managed through Solana smart contracts. Xenia never takes custody of user funds. Deposits and withdrawals are fully on-chain and permissionless.</p>
+
+    <h2>3.2 The $XEN Token Utility</h2>
+    <ul>
+      <li><strong>Trading fee discounts</strong> — $XEN holders receive tiered discounts based on their holdings.</li>
+      <li><strong>Governance</strong> — $XEN holders vote on platform upgrades, new token listings, and treasury allocations.</li>
+      <li><strong>Staking rewards</strong> — Stakers earn a share of protocol revenue distributed in USDC.</li>
+      <li><strong>Access</strong> — Premium features and higher leverage tiers require a minimum $XEN balance.</li>
+      <li><strong>Liquidity mining</strong> — Liquidity providers earn $XEN rewards for contributing to the protocol.</li>
+    </ul>
+  </div>
+
+  <!-- 4. ARCHITECTURE -->
+  <div class="section" id="architecture">
+    <h1>4. Platform Architecture</h1>
+    <h2>4.1 Smart Contract Layer</h2>
+    <p>Xenia's core trading logic is implemented as Solana programs written in Rust using the Anchor framework. The contracts manage position accounting, liquidation logic, fee collection, and oracle price feeds. All contracts will be fully open-sourced and audited prior to mainnet launch.</p>
+
+    <h2>4.2 Oracle Infrastructure</h2>
+    <p>Accurate, manipulation-resistant price feeds are critical for a leverage platform. Xenia uses a hybrid oracle approach combining Pyth Network's high-frequency price feeds for established assets with a proprietary time-weighted average price (TWAP) system for newer memecoins, sourced from on-chain DEX activity.</p>
+
+    <h2>4.3 Liquidation Engine</h2>
+    <p>The Xenia liquidation engine monitors all open positions in real-time. When a position's margin ratio falls below the maintenance threshold, the engine automatically liquidates a portion of the position to restore the ratio — minimizing liquidation penalties compared to full-position liquidation models. A liquidation insurance fund, funded by a portion of trading fees, protects against socialized losses in extreme market conditions.</p>
+
+    <h2>4.4 Risk Management</h2>
+    <p>Platform-level risk controls include: maximum open interest caps per asset, dynamic funding rates that incentivize balanced long/short exposure, circuit breakers triggered by abnormal price movements, and concentration limits preventing any single trader from dominating open interest.</p>
+  </div>
+
+  <!-- 5. TECHNOLOGY -->
+  <div class="section" id="technology">
+    <h1>5. Technology Stack</h1>
+    <table>
+      <thead><tr><th>Component</th><th>Technology</th></tr></thead>
+      <tbody>
+        <tr><td>Blockchain</td><td>Solana Mainnet</td></tr>
+        <tr><td>Smart Contracts</td><td>Rust / Anchor Framework</td></tr>
+        <tr><td>Price Oracles</td><td>Pyth Network + Proprietary TWAP</td></tr>
+        <tr><td>Liquidity</td><td>Jupiter Aggregator, Raydium, Orca</td></tr>
+        <tr><td>Frontend</td><td>React, TypeScript, Vite</td></tr>
+        <tr><td>Wallet Support</td><td>Phantom, Backpack, Solflare, MetaMask, OKX, Trust, and 10+ others</td></tr>
+        <tr><td>Data Indexing</td><td>Custom Solana event indexer + PostgreSQL</td></tr>
+        <tr><td>Infrastructure</td><td>Helius RPC, Vercel Edge Network</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 6. TOKENOMICS -->
+  <div class="section" id="tokenomics">
+    <h1>6. Tokenomics</h1>
+
+    <h2>6.1 Token Overview</h2>
+    <table>
+      <thead><tr><th>Parameter</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td>Token Name</td><td>Xenia</td></tr>
+        <tr><td>Token Symbol</td><td>$XEN</td></tr>
+        <tr><td>Blockchain</td><td>Solana (SPL Token)</td></tr>
+        <tr><td>Total Supply</td><td>1,000,000,000 XEN — Fixed supply, no minting</td></tr>
+        <tr><td>Presale Supply</td><td>400,000,000 XEN (40% of total)</td></tr>
+        <tr><td>Presale Price Range</td><td>$0.001 – $0.020 (12 progressive stages)</td></tr>
+        <tr><td>Listing Price</td><td>$0.05 (target)</td></tr>
+        <tr><td>Token Standard</td><td>SPL (Solana Program Library)</td></tr>
+        <tr><td>Decimals</td><td>9</td></tr>
+      </tbody>
+    </table>
+
+    <h2>6.2 Token Distribution</h2>
+    <table>
+      <thead><tr><th>Allocation</th><th>Tokens</th><th>% Supply</th><th>Vesting</th></tr></thead>
+      <tbody>
+        <tr><td>Presale (12 Stages)</td><td>400,000,000</td><td>40%</td><td>Unlock at TGE</td></tr>
+        <tr><td>Liquidity &amp; Exchange Listings</td><td>200,000,000</td><td>20%</td><td>Locked 6 months</td></tr>
+        <tr><td>Ecosystem &amp; Platform Rewards</td><td>150,000,000</td><td>15%</td><td>36-month linear vest</td></tr>
+        <tr><td>Team &amp; Advisors</td><td>150,000,000</td><td>15%</td><td>12-month cliff, 24-month vest</td></tr>
+        <tr><td>Marketing &amp; Partnerships</td><td>100,000,000</td><td>10%</td><td>6-month linear vest</td></tr>
+        <tr class="highlight-row"><td>TOTAL</td><td>1,000,000,000</td><td>100%</td><td>—</td></tr>
+      </tbody>
+    </table>
+
+    <h2>6.3 Vesting Schedule</h2>
+    <p>Vesting is enforced on-chain via Solana smart contracts with no ability for the team to override or accelerate, protecting presale participants against post-launch sell pressure.</p>
+    <ul>
+      <li><strong>Presale participants</strong> receive their full token allocation unlocked at TGE. No lock-up applies.</li>
+      <li><strong>Liquidity</strong> is locked for 6 months post-TGE to ensure stable market conditions at launch.</li>
+      <li><strong>Team &amp; advisors</strong> vest over 36 months with a 12-month cliff — no team tokens are released for the first year after TGE.</li>
+      <li><strong>Ecosystem rewards</strong> are distributed gradually over 36 months to sustain long-term platform participation incentives.</li>
+    </ul>
+
+    <h2>6.4 Fee Model &amp; Revenue Distribution</h2>
+    <p>The base trading fee is 0.10% per trade, with $XEN holders receiving tiered discounts. Protocol revenue is distributed as follows:</p>
+    <ul>
+      <li><strong>40%</strong> — Distributed to $XEN stakers in USDC, proportional to staked balance</li>
+      <li><strong>30%</strong> — Platform development and operational expenses</li>
+      <li><strong>20%</strong> — Liquidation insurance fund</li>
+      <li><strong>10%</strong> — $XEN buyback and burn (deflationary)</li>
+    </ul>
+  </div>
+
+  <!-- 7. PRESALE -->
+  <div class="section" id="presale">
+    <h1>7. Presale Structure</h1>
+
+    <h2>7.1 Overview</h2>
+    <p>The Xenia presale is structured across 12 progressive stages, with each stage priced higher than the previous. This structure rewards early participants and creates natural price discovery ahead of exchange listing. The presale accepts SOL, ETH, BNB, BTC, USDC, USDT, and credit/debit card.</p>
+
+    <h2>7.2 Presale Stages</h2>
+    <table>
+      <thead><tr><th>Stage</th><th>Price per XEN</th><th>Return to Listing*</th></tr></thead>
+      <tbody>
+        <tr><td>Stage 1</td><td>$0.0010</td><td>4,900%</td></tr>
+        <tr><td>Stage 2</td><td>$0.0015</td><td>3,233%</td></tr>
+        <tr><td>Stage 3</td><td>$0.0020</td><td>2,400%</td></tr>
+        <tr><td>Stage 4</td><td>$0.0030</td><td>1,567%</td></tr>
+        <tr><td>Stage 5</td><td>$0.0040</td><td>1,150%</td></tr>
+        <tr><td>Stage 6</td><td>$0.0055</td><td>809%</td></tr>
+        <tr><td>Stage 7</td><td>$0.0070</td><td>614%</td></tr>
+        <tr><td>Stage 8</td><td>$0.0090</td><td>456%</td></tr>
+        <tr><td>Stage 9</td><td>$0.0110</td><td>355%</td></tr>
+        <tr><td>Stage 10</td><td>$0.0140</td><td>257%</td></tr>
+        <tr><td>Stage 11</td><td>$0.0170</td><td>194%</td></tr>
+        <tr><td>Stage 12</td><td>$0.0200</td><td>150%</td></tr>
+        <tr class="highlight-row"><td>Listing</td><td>$0.0500</td><td>Target price</td></tr>
+      </tbody>
+    </table>
+    <p style="font-size:13px;color:#888;">*Percentage increase from stage price to $0.05 target listing price. Not a guarantee of return.</p>
+
+    <h2>7.3 Accepted Payment Methods</h2>
+    <table>
+      <thead><tr><th>Method</th><th>Network</th></tr></thead>
+      <tbody>
+        <tr><td>SOL</td><td>Solana</td></tr>
+        <tr><td>ETH</td><td>Ethereum Mainnet</td></tr>
+        <tr><td>BNB</td><td>BNB Chain</td></tr>
+        <tr><td>BTC</td><td>Bitcoin</td></tr>
+        <tr><td>USDC / USDT</td><td>Multi-chain</td></tr>
+        <tr><td>Credit / Debit Card</td><td>Powered by Stripe</td></tr>
+      </tbody>
+    </table>
+
+    <h2>7.4 Participation Details</h2>
+    <ul>
+      <li>Minimum purchase: $10 USD equivalent</li>
+      <li>No maximum purchase limit</li>
+      <li>All purchases are final and non-refundable</li>
+      <li>Tokens delivered to wallet address provided at time of purchase, at or after TGE</li>
+      <li>Presale available at <strong>xenia.xyz</strong></li>
+    </ul>
+  </div>
+
+  <!-- 8. USE OF FUNDS -->
+  <div class="section" id="funds">
+    <h1>8. Use of Funds</h1>
+    <p>Funds raised during the Xenia presale will be deployed to build and launch the platform as follows:</p>
+    <table>
+      <thead><tr><th>Category</th><th>% of Raise</th></tr></thead>
+      <tbody>
+        <tr><td>Protocol Development (smart contracts, backend, infrastructure)</td><td>40%</td></tr>
+        <tr><td>Liquidity Provision (initial DEX liquidity at launch)</td><td>25%</td></tr>
+        <tr><td>Marketing, Community Growth &amp; Partnerships</td><td>15%</td></tr>
+        <tr><td>Security Audits (top-tier smart contract audit firms)</td><td>10%</td></tr>
+        <tr><td>Legal, Compliance &amp; Corporate Structure</td><td>5%</td></tr>
+        <tr><td>Operations &amp; Working Capital Reserve</td><td>5%</td></tr>
+      </tbody>
+    </table>
+    <p>A treasury dashboard will allow the community to track on-chain movements of presale funds in real-time post-launch.</p>
+  </div>
+
+  <!-- 9. ROADMAP -->
+  <div class="section" id="roadmap">
+    <h1>9. Roadmap</h1>
+    <p>Dates beyond Phase 1 are targets subject to change based on development progress, market conditions, and community governance decisions.</p>
+
+    <div class="phase">
+      <div class="phase-title">Phase 1 — Presale &amp; Fundraising &nbsp;|&nbsp; Q2–Q3 2026 &nbsp;🟢 Active Now</div>
+      <ul>
+        <li>Public presale launch across 12 progressive stages</li>
+        <li>Multi-chain payment acceptance (SOL, ETH, BNB, BTC, USDC, USDT, card)</li>
+        <li>Community building across X, Telegram, and Discord</li>
+        <li>Strategic partnerships and advisory relationships</li>
+        <li>Legal structure and compliance framework establishment</li>
+      </ul>
+    </div>
+
+    <div class="phase">
+      <div class="phase-title">Phase 2 — Token Launch on Solana &nbsp;|&nbsp; TBA — Following Presale Completion</div>
+      <ul>
+        <li>Token Generation Event (TGE) — $XEN minted and distributed to presale participants</li>
+        <li>Initial DEX listing on Raydium and Jupiter at $0.05 target price</li>
+        <li>Liquidity pool establishment and lock</li>
+        <li>CoinGecko and CoinMarketCap listings</li>
+        <li>Staking program activation for $XEN holders</li>
+      </ul>
+    </div>
+
+    <div class="phase">
+      <div class="phase-title">Phase 3 — Platform Build &nbsp;|&nbsp; TBA — Post Token Launch</div>
+      <ul>
+        <li>Smart contract development and internal testing</li>
+        <li>Third-party security audit engagement</li>
+        <li>Closed beta launch for whitelist participants</li>
+        <li>Oracle integration and liquidation engine deployment</li>
+        <li>Mobile-responsive trading interface launch</li>
+      </ul>
+    </div>
+
+    <div class="phase">
+      <div class="phase-title">Phase 4 — Growth &amp; Expansion &nbsp;|&nbsp; TBA — Growth Phase</div>
+      <ul>
+        <li>Mainnet platform launch — full leverage trading enabled</li>
+        <li>Governance module activation — $XEN holders vote on listings and parameters</li>
+        <li>Centralized exchange listing outreach</li>
+        <li>Liquidity mining program for liquidity providers</li>
+        <li>Integration with leading Solana DeFi protocols</li>
+      </ul>
+    </div>
+
+    <div class="phase">
+      <div class="phase-title">Phase 5 — Ecosystem Maturity &nbsp;|&nbsp; TBA — Ecosystem Phase</div>
+      <ul>
+        <li>Cross-chain bridge for multi-chain $XEN utility</li>
+        <li>Institutional API access for professional trading firms</li>
+        <li>Expanded token listing — community-governed memecoin additions</li>
+        <li>Advanced analytics and social trading features</li>
+        <li>Grant program for ecosystem builders and integrations</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 10. SECURITY -->
+  <div class="section" id="security">
+    <h1>10. Security &amp; Audits</h1>
+    <h2>10.1 Smart Contract Audits</h2>
+    <p>Prior to any mainnet deployment, all Xenia smart contracts will undergo comprehensive security audits by two or more independent, industry-recognized audit firms. Audit reports will be published in full and made publicly available. All critical or high-severity findings will be resolved before launch.</p>
+
+    <h2>10.2 Bug Bounty Program</h2>
+    <p>Following formal audits, Xenia will launch a public bug bounty program. White-hat researchers who identify and responsibly disclose vulnerabilities will be eligible for rewards commensurate with the severity of their finding.</p>
+
+    <h2>10.3 Presale Security</h2>
+    <ul>
+      <li>Multi-signature wallet requirements for fund movements above threshold amounts</li>
+      <li>Time-locked contracts preventing immediate withdrawal of raised funds</li>
+      <li>All presale transactions are verifiable on-chain</li>
+      <li>Wallet addresses are published publicly and verifiable by any participant</li>
+    </ul>
+  </div>
+
+  <!-- 11. RISKS -->
+  <div class="section" id="risks">
+    <h1>11. Risk Factors</h1>
+    <p>Participants should carefully consider the following risk factors. This list is not exhaustive.</p>
+
+    <h2>Market Risk</h2>
+    <p>Cryptocurrency markets are highly volatile. The value of $XEN may decline significantly after listing. There is no guarantee the token will trade at or above the presale price at any point.</p>
+
+    <h2>Technology Risk</h2>
+    <p>Smart contract bugs, oracle manipulation, and infrastructure failures can result in loss of funds. While Xenia will undergo audits, no audit guarantees the absence of all vulnerabilities.</p>
+
+    <h2>Regulatory Risk</h2>
+    <p>The regulatory environment for DeFi is evolving rapidly. Changes in law or enforcement could adversely affect Xenia's operations or the utility of $XEN tokens.</p>
+
+    <h2>Liquidity Risk</h2>
+    <p>There is no guarantee that a liquid secondary market for $XEN will exist following listing. Low liquidity could make it difficult to buy or sell tokens at a desired price.</p>
+
+    <h2>Development Risk</h2>
+    <p>Platform development may take longer than anticipated or require changes to the original design. Roadmap timelines are estimates and subject to change.</p>
+
+    <h2>Competition Risk</h2>
+    <p>The DeFi space is highly competitive. Other teams may develop similar products with greater resources or earlier market entry.</p>
+  </div>
+
+  <!-- 12. LEGAL -->
+  <div class="section" id="legal">
+    <h1>12. Legal &amp; Compliance</h1>
+    <h2>12.1 Token Classification</h2>
+    <p>Xenia intends $XEN to function as a utility token providing access to platform features, fee discounts, governance rights, and staking rewards. $XEN is not intended to constitute a security, investment product, or regulated financial instrument. Participants are responsible for understanding and complying with laws in their own jurisdiction.</p>
+
+    <h2>12.2 Restricted Jurisdictions</h2>
+    <p>Participation in the Xenia presale is not available to residents or citizens of the United States of America, or any jurisdiction where such participation is prohibited by applicable law.</p>
+
+    <h2>12.3 KYC/AML</h2>
+    <p>Xenia reserves the right to implement KYC and AML procedures at any time, including as required by applicable law or as a condition of exchange listings.</p>
+
+    <h2>12.4 Contact</h2>
+    <p><strong>Email:</strong> hello@xenia.xyz<br>
+    <strong>Website:</strong> xenia.xyz</p>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <div class="footer-logo">XENIA</div>
+    <div class="footer-meta">Memecoin Leverage Trading on Solana &nbsp;|&nbsp; $XEN Presale Live &nbsp;|&nbsp; xenia.xyz</div>
+    <div class="footer-meta" style="margin-top:8px;">© 2026 Xenia. All rights reserved. This document is for informational purposes only and does not constitute financial advice.</div>
+  </div>
+
+</div>
+</body>
+  </html>
