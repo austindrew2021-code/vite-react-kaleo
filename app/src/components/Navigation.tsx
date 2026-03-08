@@ -106,7 +106,7 @@ export function Navigation() {
       >
         <a href="#" className="flex items-center gap-2.5 shrink-0 group" onClick={handleLinkClick}>
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#2BFFF1] to-[#00D4FF] flex items-center justify-center shadow-lg shadow-[#2BFFF1]/20 transition-transform group-hover:scale-105">
-            <span className="text-[#05060B] font-black text-lg tracking-tighter">K</span>
+            <span className="text-[#05060B] font-black text-lg tracking-tighter">X</span>
           </div>
           <span className="text-[#F4F6FA] font-bold text-xl tracking-tight group-hover:text-[#2BFFF1] transition-colors">
             Xenia
