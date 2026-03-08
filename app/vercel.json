@@ -4,6 +4,9 @@
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/whitepaper", "destination": "/whitepaper.html" },
+    { "source": "/privacy", "destination": "/privacy.html" },
+    { "source": "/terms", "destination": "/terms.html" },
+    { "source": "/cookies", "destination": "/cookies.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
