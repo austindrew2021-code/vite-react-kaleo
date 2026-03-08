@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { gsap } from 'gsap';
 import { FileText, ExternalLink, Shield, Coins, TrendingUp, Users } from 'lucide-react';
 
-const WHITEPAPER_URL = '#';
+const WHITEPAPER_URL = '/whitepaper';
 
 const highlights = [
   { icon: TrendingUp, label: 'Leverage Mechanism', desc: 'Up to 100x on any Pump.fun memecoin' },
@@ -108,8 +108,6 @@ export function WhitePaperSection() {
             {/* CTA Button */}
             <a
               href={WHITEPAPER_URL}
-              target="_blank"
-              rel="noopener noreferrer"
               className="wp-cta neon-button inline-flex items-center gap-2.5 px-8 py-4 text-base font-semibold hover:gap-3.5 transition-all shadow-lg shadow-cyan-500/20"
             >
               Read Full Whitepaper
