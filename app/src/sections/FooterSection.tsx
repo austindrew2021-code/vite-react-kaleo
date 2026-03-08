@@ -17,9 +17,9 @@ const resourceLinks = [
 ];
 
 const communityLinks = [
-  { label: 'Twitter / X', href: '#', icon: Twitter },
-  { label: 'Discord', href: '#', icon: MessageCircle },
-  { label: 'Telegram', href: '#', icon: Send },
+  { label: 'Twitter / X', href: 'https://x.com/XeniaChain', icon: Twitter },
+  { label: 'Discord', href: 'https://discord.gg/CDMjY4UN8', icon: MessageCircle },
+  { label: 'Telegram', href: 'https://t.me/heimdall_odintools_bot?start=verify_-1003779764198', icon: Send },
 ];
 
 export function FooterSection() {
@@ -118,11 +118,11 @@ export function FooterSection() {
               The first leverage trading platform for Pump.fun memecoins. Trade with up to 100x leverage.
             </p>
             <a
-              href="mailto:hello@xenia.xyz"
+              href="mailto:hello@xeniachain.xyz"
               className="text-[#A7B0B7] hover:text-[#2BFFF1] transition-colors text-sm flex items-center gap-2"
             >
               <Mail className="w-4 h-4" />
-              hello@xenia.xyz
+              hello@xeniachain.xyz
             </a>
           </div>
 
