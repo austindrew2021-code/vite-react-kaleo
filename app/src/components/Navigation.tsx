@@ -7,13 +7,13 @@ import { Menu, X, ExternalLink } from 'lucide-react';
 import { gsap } from 'gsap';
 import { Link } from 'react-scroll'; // for smooth internal scrolling
 
-const WHITEPAPER_URL = 'https://docs.google.com/document/d/e/2PACX-1vExampleWhitepaperLink/pub';
+const WHITEPAPER_URL = '/whitepaper';
 
 const navLinks = [
   { label: 'Buy', href: 'buy', isExternal: false },
   { label: 'Features', href: 'features', isExternal: false },
   { label: 'Roadmap', href: 'roadmap', isExternal: false },
-  { label: 'Whitepaper', href: WHITEPAPER_URL, isExternal: true },
+  { label: 'Whitepaper', href: WHITEPAPER_URL, isExternal: false },
   { label: 'FAQ', href: 'faq', isExternal: false },
 ];
 
