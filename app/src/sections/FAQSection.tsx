@@ -39,11 +39,11 @@ const faqCategories = [
       },
       {
         q: 'What are the tokenomics?',
-        a: 'Total supply is 1,000,000,000 XEN. Allocation: 22.45% Presale, 20% Liquidity & Market Making, 15% Ecosystem & Rewards, 15% Community Airdrops, 10% Team & Advisors (vested over 24 months with 6-month cliff). Listing price will be $0.05/XEN on Solana DEXs.',
+        a: 'Total supply is 1,000,000,000 XEN. Allocation: 22.5% Presale (225M tokens), 20% Liquidity & Exchange Listings (200M), 15% Ecosystem & Platform Rewards (150M), 15% Team & Advisors (150M, 12-month cliff then 24-month vest), 10% Marketing & Partnerships (100M), 17.5% reserved for Community & Future Growth. Listing price: $0.05/XEN on Solana DEXs.',
       },
       {
         q: 'Is there a vesting period for team tokens?',
-        a: 'Yes, team and advisor tokens (10% of supply) are fully locked for 6 months after launch, then vest linearly over 24 months. This ensures the team is committed to long-term project success and prevents early sell pressure.',
+        a: 'Yes, team and advisor tokens are subject to a 12-month lock-up cliff after the Token Generation Event, followed by a 24-month linear vest enforced on-chain. No team tokens are released in the first year. This ensures the team is committed to long-term project success and prevents early sell pressure.',
       },
       {
         q: 'When will XEN be listed?',
