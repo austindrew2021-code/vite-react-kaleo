@@ -62,28 +62,38 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
   // ── Fetch global total raised from Supabase on mount ──────────────────
   useEffect(() => {
     if (!supabase) return;
-    const fetchGlobalTotal = async () => {
+    const fetchAndMergeTotal = async () => {
       const { data, error } = await supabase
         .from('presale_purchases')
         .select('usd_amount');
       if (error) { console.error('Global total fetch:', error); return; }
-      const total = data?.reduce((sum, row) => sum + Number(row.usd_amount || 0), 0) || 0;
-      setTotalRaised(total);
+      const dbTotal = data?.reduce((sum, row) => sum + Number(row.usd_amount || 0), 0) || 0;
+      // Always take the higher of DB total vs local Zustand total.
+      // This prevents a race where a just-inserted purchase hasn't propagated yet
+      // and the DB fetch would overwrite the optimistic local increment.
+      const { totalRaised: localTotal } = usePresaleStore.getState();
+      setTotalRaised(Math.max(dbTotal, localTotal));
     };
-    fetchGlobalTotal();
+    fetchAndMergeTotal();
 
-    // Subscribe to new purchases and update total in real-time
+    // Poll every 30s as backup for real-time subscription gaps
+    const pollInterval = setInterval(fetchAndMergeTotal, 30_000);
+
+    // Real-time: listen for INSERT and UPDATE (upsert can fire either)
     const globalChannel = supabase
       .channel('global-raised')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'presale_purchases' }, (_payload) => {
-        supabase.from('presale_purchases').select('usd_amount').then(({ data }) => {
-          const t = data?.reduce((s, r) => s + Number(r.usd_amount || 0), 0) || 0;
-          setTotalRaised(t);
-        });
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'presale_purchases' }, () => {
+        fetchAndMergeTotal();
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'presale_purchases' }, () => {
+        fetchAndMergeTotal();
       })
       .subscribe();
 
-    return () => { supabase.removeChannel(globalChannel); };
+    return () => {
+      clearInterval(pollInterval);
+      supabase.removeChannel(globalChannel);
+    };
   }, []);
 
   // ── Fetch user purchase history from Supabase (persistent, cross-device) ──
@@ -91,11 +101,19 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
     if (!anyConnected || !activeAddress || !supabase) return;
 
     const fetchHistory = async () => {
-      const { data, error } = await supabase
+      // SOL/BTC addresses are stored as-is (base58, case-sensitive).
+      // EVM addresses are stored lowercased. Query for both variants.
+      const addrLower = activeAddress.toLowerCase();
+      const isEvm = activeAddress.startsWith('0x');
+      const query = supabase
         .from('presale_purchases')
         .select('tokens, usd_amount, payment_method, stage, tx_hash, created_at')
-        .eq('wallet_address', activeAddress.toLowerCase())
         .order('created_at', { ascending: false });
+
+      // For EVM use lowercase; for SOL/BTC query exact address
+      const { data, error } = isEvm
+        ? await query.eq('wallet_address', addrLower)
+        : await query.or(`wallet_address.eq.${activeAddress},wallet_address.eq.${addrLower}`);
 
       if (error) { console.error('Supabase history fetch:', error); return; }
 
