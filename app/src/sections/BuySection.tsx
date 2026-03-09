@@ -607,6 +607,7 @@ export function BuySection() {
 
     // 3. Insert to Supabase — upsert on tx_hash so retries are safe
     if (supabase) {
+      // EVM: lowercase. SOL/BTC: keep original case (base58 is case-sensitive).
       const normalizedWallet = wallet.startsWith('0x') ? wallet.toLowerCase() : wallet;
       const row = {
         wallet_address: normalizedWallet, tokens, eth_spent: 0,
