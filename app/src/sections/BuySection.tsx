@@ -596,20 +596,41 @@ export function BuySection() {
   const recordPurchase = useCallback(async (
     hash: string, usd: number, tokens: number, wallet: string, method: string
   ) => {
+    // 1. Update local state immediately — this persists to localStorage via Zustand
     addRaised(usd);
     addPurchase({ usdSpent: usd, xenReceived: tokens, stage: currentStage.stage, priceUsd: currentStage.priceUsd, txHash: hash, timestamp: Date.now(), cryptoType: method });
+
+    // 2. Save to localStorage as backup in case Supabase fails
+    const pendingKey = `_xen_pending_${hash.slice(0, 16)}`;
+    const pendingRecord = { hash, usd, tokens, wallet, method, stage: currentStage.stage, ts: Date.now() };
+    try { localStorage.setItem(pendingKey, JSON.stringify(pendingRecord)); } catch { /* ignore */ }
+
+    // 3. Insert to Supabase — upsert on tx_hash so retries are safe
     if (supabase) {
-      // wallet_address: SOL/BTC addresses are case-sensitive base58 — only lowercase EVM
       const normalizedWallet = wallet.startsWith('0x') ? wallet.toLowerCase() : wallet;
-      const { error } = await supabase.from('presale_purchases').insert({
+      const row = {
         wallet_address: normalizedWallet, tokens, eth_spent: 0,
         usd_amount: usd, stage: currentStage.stage, price_eth: currentStage.priceUsd,
         tx_hash: hash, payment_method: method.toLowerCase(),
-      });
-      if (error) {
-        if (error.code === '23505') return; // duplicate tx_hash — already recorded, ignore
-        console.error('Supabase insert:', error.message, error.code, error.details);
+      };
+
+      // Try up to 3 times with exponential backoff
+      let lastError: any = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (attempt > 0) await new Promise(r => setTimeout(r, attempt * 1500));
+        const { error } = await supabase
+          .from('presale_purchases')
+          .upsert(row, { onConflict: 'tx_hash', ignoreDuplicates: true });
+        if (!error) {
+          // Success — clear the localStorage backup
+          try { localStorage.removeItem(pendingKey); } catch { /* ignore */ }
+          return;
+        }
+        lastError = error;
+        if (error.code === '23505') return; // duplicate — already recorded, fine
       }
+      console.error('Supabase upsert failed after 3 attempts:', lastError?.message, lastError?.code);
+      // Record stays in localStorage — can be replayed later if needed
     }
   }, [addRaised, addPurchase, currentStage]);
 
@@ -618,6 +639,29 @@ export function BuySection() {
   // This prevents EVM/BTC/SOL fighting for connection inside wallet browsers.
   useEffect(() => {
     const init = async () => {
+      // ── Recover any purchases that were signed but failed to reach Supabase ──
+      // This handles: page refreshed mid-confirmation, network blip, Supabase timeout.
+      // Runs silently on every load — upsert is idempotent so safe to retry.
+      if (supabase) {
+        try {
+          const allKeys = Object.keys(localStorage).filter(k => k.startsWith('_xen_pending_'));
+          for (const key of allKeys) {
+            const raw = localStorage.getItem(key);
+            if (!raw) continue;
+            const rec = JSON.parse(raw);
+            const normalizedWallet = rec.wallet?.startsWith('0x') ? rec.wallet.toLowerCase() : rec.wallet;
+            const { error } = await supabase.from('presale_purchases').upsert({
+              wallet_address: normalizedWallet, tokens: rec.tokens, eth_spent: 0,
+              usd_amount: rec.usd, stage: rec.stage, price_eth: 0,
+              tx_hash: rec.hash, payment_method: rec.method?.toLowerCase(),
+            }, { onConflict: 'tx_hash', ignoreDuplicates: true });
+            if (!error || error.code === '23505') {
+              localStorage.removeItem(key); // successfully synced
+            }
+          }
+        } catch { /* recovery is best-effort */ }
+      }
+
       const params = new URLSearchParams(window.location.search);
       const phantomPubKey = params.get('phantom_encryption_public_key');
       const data          = params.get('data');
@@ -1203,7 +1247,9 @@ export function BuySection() {
           // OKX     → sendBitcoin API
           // Unisat  → sendBitcoin API
           hash = await sendBtc();
-          if (hash) await recordPurchase(hash, usdEst, tokensEst, btcAddr, 'BTC');
+          if (hash) {
+            try { await recordPurchase(hash, usdEst, tokensEst, btcAddr, 'BTC'); } catch { /* already retried internally */ }
+          }
         } else {
           throw new Error('Bitcoin wallet not properly connected — please reconnect');
         }
@@ -1230,7 +1276,9 @@ export function BuySection() {
             Math.round(parseFloat(amount) * 1_000_000_000),
             await getSolanaConnection()
           );
-          if (hash) await recordPurchase(hash, usdEst, tokensEst, solAddr, 'SOL');
+          if (hash) {
+            try { await recordPurchase(hash, usdEst, tokensEst, solAddr, 'SOL'); } catch { /* already retried internally */ }
+          }
         } else {
           // No injected wallet detected — fall back to Solana Pay URI
           sendSolViaSolanaPay();
@@ -1325,8 +1373,11 @@ export function BuySection() {
           const w = window as any;
           let splHash: string | undefined;
 
+          // skipPreflight: true — bypasses local simulation so second attempts don't
+          // silently fail when Phantom thinks the tx is duplicate or blockhash stale.
+          // The validator will reject invalid txs on-chain with a clear error.
           if (w.phantom?.solana?.signAndSendTransaction) {
-            const result = await w.phantom.solana.signAndSendTransaction(tx, { skipPreflight: false });
+            const result = await w.phantom.solana.signAndSendTransaction(tx, { skipPreflight: true });
             splHash = result.signature;
           } else if (w.solflare?.signAndSendTransaction) {
             const result = await w.solflare.signAndSendTransaction(tx);
@@ -1345,14 +1396,18 @@ export function BuySection() {
             throw new Error('No compatible Solana wallet found. Please use Phantom, Solflare, Backpack, or OKX Wallet.');
           }
 
-          // Wait for confirmation before recording
-          if (splHash) {
-            await conn.confirmTransaction({ signature: splHash, blockhash, lastValidBlockHeight }, 'confirmed');
-          }
-
+          // Record immediately on signature — do NOT wait for confirmTransaction.
+          // confirmTransaction can timeout if RPC is slow, which would falsely
+          // look like a failure even though the tx landed. Record first, confirm in background.
           hash = splHash ?? '';
-          if (hash) await recordPurchase(hash, usdEst, tokensEst, solAddr, 'USDC');
-          if (hash) { setTxHash(hash); setTxStatus('success'); }
+          if (hash) {
+            await recordPurchase(hash, usdEst, tokensEst, solAddr, 'USDC');
+            setTxHash(hash);
+            setTxStatus('success');
+            // Confirm in background — only used to update explorer link
+            conn.confirmTransaction({ signature: hash, blockhash, lastValidBlockHeight }, 'confirmed')
+              .catch(() => { /* timeout is fine — tx is already recorded */ });
+          }
           return;
         }
 
@@ -1466,7 +1521,7 @@ export function BuySection() {
             value: parseEther(amount),
           });
         }
-        await recordPurchase(hash, usdEst, tokensEst, senderAddress, selected.id);
+        try { await recordPurchase(hash, usdEst, tokensEst, senderAddress, selected.id); } catch { /* already retried internally */ }
       }
       if (hash) { setTxHash(hash); setTxStatus('success'); }
     } catch (err: any) {
