@@ -1,4 +1,10 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+// Make Buffer available globally — required by @solana/spl-token in browser builds.
+// This is the most reliable approach: explicit import + assign to globalThis.
+import { Buffer as _Buffer } from 'buffer';
+if (typeof globalThis.Buffer === 'undefined') {
+  (globalThis as any).Buffer = _Buffer;
+}
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import {
@@ -1227,96 +1233,106 @@ export function BuySection() {
         const targetChainId = (activeStableChain?.chainId ?? selected.chainId) as number;
 
         // ── SOL USDC intercept (chainId=0 sentinel = Solana SPL path) ────────
-        // Does NOT use @solana/spl-token — that lib requires Node.js Buffer (breaks in browsers).
-        // Instead we build the SPL Transfer instruction manually using only @solana/web3.js,
-        // which polyfills Buffer internally and works fine in browsers.
+        // Uses @solana/spl-token for reliable instruction building.
+        // Buffer is imported explicitly at the top of this file — no polyfill needed.
         if (tokenKey === 'USDC' && stableChainId === 'sol') {
           if (!solConnected) {
-            throw new Error('Connect your Solana wallet (Phantom) first to send USDC on Solana');
+            throw new Error('Connect your Solana wallet (Phantom or Solflare) first to send USDC on Solana');
           }
-          const { PublicKey, Transaction, TransactionInstruction } = await import('@solana/web3.js');
 
-          // Use browser-safe RPC (Ankr public endpoints allow CORS, official Solana RPCs block browsers)
-          const conn_pre = await getSolanaConnection(); // auto-detects mainnet/devnet + Alchemy
-          const SOL_RPC  = (conn_pre as any)._rpcEndpoint as string ?? '';
-          const isDevnet = SOL_RPC.includes('devnet');
+          const { PublicKey, Transaction }    = await import('@solana/web3.js');
+          const {
+            getAssociatedTokenAddress,
+            createAssociatedTokenAccountInstruction,
+            createTransferInstruction,
+            TOKEN_PROGRAM_ID,
+            ASSOCIATED_TOKEN_PROGRAM_ID,
+          } = await import('@solana/spl-token');
 
-          // Program IDs (constants — no Buffer needed)
-          const TOKEN_PROGRAM = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
-          const ATA_PROGRAM   = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJe1bwd');
-          const USDC_MINT     = new PublicKey(
+          // Browser-safe RPC — auto-detects devnet vs mainnet via Phantom network property
+          const conn     = await getSolanaConnection();
+          const rpcUrl   = (conn as any)._rpcEndpoint as string ?? '';
+          const isDevnet = rpcUrl.includes('devnet');
+
+          // USDC mint address
+          const USDC_MINT = new PublicKey(
             isDevnet
               ? '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU'  // devnet Circle USDC
               : 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'  // mainnet USDC
           );
-          const SYSTEM_PROGRAM = new PublicKey('11111111111111111111111111111111');
 
-          // Derive ATA without spl-token: findProgramAddressSync([wallet, tokenProgram, mint], ATAProgram)
-          function deriveATA(wallet: InstanceType<typeof PublicKey>, mint: InstanceType<typeof PublicKey>): InstanceType<typeof PublicKey> {
-            return PublicKey.findProgramAddressSync(
-              [wallet.toBytes(), TOKEN_PROGRAM.toBytes(), mint.toBytes()],
-              ATA_PROGRAM
-            )[0];
-          }
+          const senderPk  = new PublicKey(solAddr);
+          const recipPk   = new PublicKey(PRESALE_SOL_WALLET);
 
-          const conn         = conn_pre;
-          const senderPk     = new PublicKey(solAddr);
-          const recipPk      = new PublicKey(PRESALE_SOL_WALLET);
-          const senderATA    = deriveATA(senderPk, USDC_MINT);
-          const recipATA     = deriveATA(recipPk, USDC_MINT);
-          const usdcAmount   = BigInt(Math.round(usdEst * 1_000_000)); // 6 decimals
+          // Derive associated token accounts (ATAs)
+          const senderATA = await getAssociatedTokenAddress(USDC_MINT, senderPk,  false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
+          const recipATA  = await getAssociatedTokenAddress(USDC_MINT, recipPk,   false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
+
+          // Amount in USDC base units (6 decimals)
+          const usdcAmount = BigInt(Math.round(usdEst * 1_000_000));
 
           const tx = new Transaction();
 
-          // Create recipient ATA if missing — manual ATA create instruction (v1: empty data)
+          // Create recipient ATA if it doesn't exist yet (first time anyone sends USDC to this wallet)
           const recipATAInfo = await conn.getAccountInfo(recipATA);
           if (!recipATAInfo) {
-            tx.add(new TransactionInstruction({
-              programId: ATA_PROGRAM,
-              keys: [
-                { pubkey: senderPk,      isSigner: true,  isWritable: true  }, // payer
-                { pubkey: recipATA,      isSigner: false, isWritable: true  }, // new ATA
-                { pubkey: recipPk,       isSigner: false, isWritable: false }, // owner
-                { pubkey: USDC_MINT,     isSigner: false, isWritable: false }, // mint
-                { pubkey: SYSTEM_PROGRAM, isSigner: false, isWritable: false },
-                { pubkey: TOKEN_PROGRAM, isSigner: false, isWritable: false },
-              ],
-              data: new Uint8Array(0) as unknown as Buffer, // Uint8Array — no Buffer polyfill needed
-            }));
+            tx.add(
+              createAssociatedTokenAccountInstruction(
+                senderPk,   // payer (sender pays for ATA creation — ~0.002 SOL)
+                recipATA,   // new ATA address
+                recipPk,    // owner of the new ATA
+                USDC_MINT,  // token mint
+                TOKEN_PROGRAM_ID,
+                ASSOCIATED_TOKEN_PROGRAM_ID
+              )
+            );
           }
 
-          // SPL Token Transfer instruction: [3 (u8 index)] + [amount (u64 little-endian)]
-          // Pure Uint8Array — zero Buffer dependency, works natively in every browser
-          const ixData = new Uint8Array(9);
-          const view = new DataView(ixData.buffer);
-          view.setUint8(0, 3); // Transfer instruction index
-          view.setUint32(1, Number(usdcAmount & 0xFFFFFFFFn), true); // low 32 bits LE
-          view.setUint32(5, Number(usdcAmount >> 32n),         true); // high 32 bits LE
-          tx.add(new TransactionInstruction({
-            programId: TOKEN_PROGRAM,
-            keys: [
-              { pubkey: senderATA, isSigner: false, isWritable: true  }, // source
-              { pubkey: recipATA,  isSigner: false, isWritable: true  }, // dest
-              { pubkey: senderPk,  isSigner: true,  isWritable: false }, // authority
-            ],
-            data: ixData as unknown as Buffer,
-          }));
+          // SPL transfer instruction — battle-tested via @solana/spl-token
+          tx.add(
+            createTransferInstruction(
+              senderATA,   // source ATA
+              recipATA,    // destination ATA
+              senderPk,    // authority (must sign)
+              usdcAmount,  // amount in base units
+              [],          // multisig signers (none)
+              TOKEN_PROGRAM_ID
+            )
+          );
 
-          const { blockhash } = await conn.getLatestBlockhash('confirmed');
+          const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash('confirmed');
           tx.recentBlockhash = blockhash;
           tx.feePayer = senderPk;
 
-          // Sign and send via Phantom or Solflare
+          // Sign and broadcast via the connected Solana wallet
           const w = window as any;
           let splHash: string | undefined;
+
           if (w.phantom?.solana?.signAndSendTransaction) {
-            splHash = (await w.phantom.solana.signAndSendTransaction(tx)).signature;
+            const result = await w.phantom.solana.signAndSendTransaction(tx, { skipPreflight: false });
+            splHash = result.signature;
           } else if (w.solflare?.signAndSendTransaction) {
-            const r = await w.solflare.signAndSendTransaction(tx);
-            splHash = r.signature ?? r;
+            const result = await w.solflare.signAndSendTransaction(tx);
+            splHash = result.signature ?? result;
+          } else if (w.backpack?.solana?.signAndSendTransaction) {
+            const result = await w.backpack.solana.signAndSendTransaction(tx);
+            splHash = result.signature ?? result;
+          } else if (w.okxwallet?.solana?.signAndSendTransaction) {
+            const result = await w.okxwallet.solana.signAndSendTransaction(tx);
+            splHash = result.signature ?? result;
+          } else if (w.solana?.signAndSendTransaction) {
+            // Generic injected Solana wallet (Coin98, Bitget, etc.)
+            const result = await w.solana.signAndSendTransaction(tx);
+            splHash = result.signature ?? result;
           } else {
-            throw new Error('Use Phantom or Solflare to send USDC on Solana');
+            throw new Error('No compatible Solana wallet found. Please use Phantom, Solflare, Backpack, or OKX Wallet.');
           }
+
+          // Wait for confirmation before recording
+          if (splHash) {
+            await conn.confirmTransaction({ signature: splHash, blockhash, lastValidBlockHeight }, 'confirmed');
+          }
+
           hash = splHash ?? '';
           if (hash) await recordPurchase(hash, usdEst, tokensEst, solAddr, 'USDC');
           if (hash) { setTxHash(hash); setTxStatus('success'); }
@@ -1436,20 +1452,32 @@ export function BuySection() {
         await recordPurchase(hash, usdEst, tokensEst, senderAddress, selected.id);
       }
       if (hash) { setTxHash(hash); setTxStatus('success'); }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Transaction failed';
+    } catch (err: any) {
+      // Surface the real error — wallet errors often have message nested in err.error.message
+      const msg: string =
+        err?.error?.message ||   // Phantom wraps errors in err.error.message
+        err?.message ||
+        (typeof err === 'string' ? err : 'Transaction failed');
+
+      console.error('[Xenia buy error]', err); // full error logged for debugging
+
       const friendlyMsg =
-        (msg.includes('reject') || msg.includes('User') || msg.includes('cancel'))
+        (msg.includes('reject') || msg.includes('User') || msg.includes('cancel') || msg.includes('denied'))
           ? 'Transaction rejected — nothing was sent.'
-          : msg.includes('insufficient funds') || msg.includes('Insufficient')
-            ? 'Insufficient balance — check you have enough to cover the amount + gas.'
+          : msg.includes('insufficient funds') || msg.includes('Insufficient') || msg.includes('not enough')
+            ? 'Insufficient balance — you need enough SOL/ETH for the amount plus gas fees.'
             : msg.includes('nonce') || msg.includes('underpriced')
               ? 'Transaction stuck — try resetting your wallet nonce or try again.'
               : msg.includes('timeout') || msg.includes('Timeout')
-                ? 'Network timeout — your wallet may still process it. Check your tx history.'
-                : msg.includes('network') || msg.includes('Network')
+                ? 'Network timeout — check your wallet tx history before retrying.'
+                : msg.includes('network') || msg.includes('Network') || msg.includes('fetch')
                   ? 'Network error — check your connection and try again.'
-                  : msg.length > 120 ? msg.slice(0, 120) + '…' : msg;
+                  : msg.includes('TokenAccountNotFound') || msg.includes('token account')
+                    ? 'USDC token account not found — make sure you have USDC in your wallet.'
+                    : msg.includes('0x1') || msg.includes('custom program error')
+                      ? 'Transaction simulation failed — check you have enough USDC and SOL for fees.'
+                      : msg.length > 150 ? msg.slice(0, 150) + '…' : msg;
+
       setTxError(friendlyMsg);
       setTxStatus('error');
     }
