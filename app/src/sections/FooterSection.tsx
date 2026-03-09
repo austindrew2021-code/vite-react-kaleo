@@ -118,11 +118,11 @@ export function FooterSection() {
               The first leverage trading platform for Pump.fun memecoins. Trade with up to 100x leverage.
             </p>
             <a
-              href="mailto:hello@xeniachain.xyz"
+              href="mailto:support@xeniachain.com"
               className="text-[#A7B0B7] hover:text-[#2BFFF1] transition-colors text-sm flex items-center gap-2"
             >
               <Mail className="w-4 h-4" />
-              hello@xeniachain.xyz
+              support@xeniachain.com
             </a>
           </div>
 
