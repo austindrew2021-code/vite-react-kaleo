@@ -10,9 +10,15 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      // Polyfill Node.js Buffer for browser — required by @solana/spl-token
+      buffer: 'buffer',
     },
   },
+  define: {
+    // Expose Buffer globally so SPL token and web3.js can find it
+    'globalThis.Buffer': ['buffer', 'Buffer'],
+  },
   optimizeDeps: {
-    include: ['@supabase/supabase-js', '@stripe/stripe-js'], // helps with ESM deps
+    include: ['@supabase/supabase-js', '@stripe/stripe-js', 'buffer'],
   },
 });
