@@ -1173,14 +1173,16 @@ export function BuySection() {
         const targetChainId = (activeStableChain?.chainId ?? selected.chainId) as number;
 
         // ── SOL USDC intercept (chainId=0 sentinel = Solana SPL path) ────────
+        // Does NOT use @solana/spl-token — that lib requires Node.js Buffer (breaks in browsers).
+        // Instead we build the SPL Transfer instruction manually using only @solana/web3.js,
+        // which polyfills Buffer internally and works fine in browsers.
         if (tokenKey === 'USDC' && stableChainId === 'sol') {
-          if (!solConnected || !activeWallet?.sendSol) {
+          if (!solConnected) {
             throw new Error('Connect your Solana wallet (Phantom) first to send USDC on Solana');
           }
-          const { Connection, PublicKey, Transaction } = await import('@solana/web3.js');
-          const splToken = await import('@solana/spl-token');
+          const { Connection, PublicKey, Transaction, TransactionInstruction } = await import('@solana/web3.js');
 
-          // Auto-detect devnet vs mainnet from Phantom network
+          // Auto-detect devnet vs mainnet from Phantom
           let SOL_RPC = (import.meta as any).env?.VITE_SOLANA_RPC || '';
           if (!SOL_RPC) {
             try {
@@ -1189,9 +1191,8 @@ export function BuySection() {
               const networkStr = typeof networkProp === 'string' ? networkProp.toLowerCase() : '';
               if (networkStr.includes('devnet')) {
                 SOL_RPC = 'https://api.devnet.solana.com';
-              } else if (networkStr.includes('mainnet')) {
-                SOL_RPC = 'https://api.mainnet-beta.solana.com';
               } else {
+                // Confirm via genesis hash — most reliable detection
                 const DEVNET_GENESIS = 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG';
                 const genesisHash = await phantomSol?.request?.({ method: 'getGenesisHash' }).catch(() => null);
                 SOL_RPC = genesisHash === DEVNET_GENESIS
@@ -1202,55 +1203,81 @@ export function BuySection() {
           }
           const isDevnet = SOL_RPC.includes('devnet');
 
-          // USDC mint: devnet vs mainnet
-          const USDC_MINT = new PublicKey(
+          // Program IDs (constants — no Buffer needed)
+          const TOKEN_PROGRAM = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+          const ATA_PROGRAM   = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJe1bwd');
+          const USDC_MINT     = new PublicKey(
             isDevnet
               ? '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU'  // devnet Circle USDC
               : 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'  // mainnet USDC
           );
-          const conn = new Connection(SOL_RPC, 'confirmed');
-          const senderPubkey = new PublicKey(solAddr);
-          const recipientPubkey = new PublicKey(PRESALE_SOL_WALLET);
+          const SYSTEM_PROGRAM = new PublicKey('11111111111111111111111111111111');
 
-          // Get or create associated token accounts
-          const senderATA = await splToken.getAssociatedTokenAddress(USDC_MINT, senderPubkey);
-          const recipientATA = await splToken.getAssociatedTokenAddress(USDC_MINT, recipientPubkey);
-
-          const usdcAmount = BigInt(Math.round(usdEst * 1_000_000)); // 6 decimals
-          const tx = new Transaction();
-
-          // Create recipient ATA if it doesn't exist
-          const recipientATAInfo = await conn.getAccountInfo(recipientATA);
-          if (!recipientATAInfo) {
-            tx.add(
-              splToken.createAssociatedTokenAccountInstruction(
-                senderPubkey, recipientATA, recipientPubkey, USDC_MINT
-              )
-            );
+          // Derive ATA without spl-token: findProgramAddressSync([wallet, tokenProgram, mint], ATAProgram)
+          function deriveATA(wallet: InstanceType<typeof PublicKey>, mint: InstanceType<typeof PublicKey>): InstanceType<typeof PublicKey> {
+            return PublicKey.findProgramAddressSync(
+              [wallet.toBytes(), TOKEN_PROGRAM.toBytes(), mint.toBytes()],
+              ATA_PROGRAM
+            )[0];
           }
 
-          // Add token transfer instruction
-          tx.add(
-            splToken.createTransferInstruction(
-              senderATA, recipientATA, senderPubkey, usdcAmount
-            )
-          );
+          const conn         = new Connection(SOL_RPC, 'confirmed');
+          const senderPk     = new PublicKey(solAddr);
+          const recipPk      = new PublicKey(PRESALE_SOL_WALLET);
+          const senderATA    = deriveATA(senderPk, USDC_MINT);
+          const recipATA     = deriveATA(recipPk, USDC_MINT);
+          const usdcAmount   = BigInt(Math.round(usdEst * 1_000_000)); // 6 decimals
+
+          const tx = new Transaction();
+
+          // Create recipient ATA if missing — manual ATA create instruction (v1: empty data)
+          const recipATAInfo = await conn.getAccountInfo(recipATA);
+          if (!recipATAInfo) {
+            tx.add(new TransactionInstruction({
+              programId: ATA_PROGRAM,
+              keys: [
+                { pubkey: senderPk,      isSigner: true,  isWritable: true  }, // payer
+                { pubkey: recipATA,      isSigner: false, isWritable: true  }, // new ATA
+                { pubkey: recipPk,       isSigner: false, isWritable: false }, // owner
+                { pubkey: USDC_MINT,     isSigner: false, isWritable: false }, // mint
+                { pubkey: SYSTEM_PROGRAM, isSigner: false, isWritable: false },
+                { pubkey: TOKEN_PROGRAM, isSigner: false, isWritable: false },
+              ],
+              data: Buffer.from([]) as any, // ATA program v1 create = empty data
+            }));
+          }
+
+          // SPL Token Transfer instruction: [3 (u8 index)] + [amount (u64 little-endian)]
+          // Build transfer data as Buffer (web3.js types expect Buffer, not Uint8Array)
+          const ixData = Buffer.alloc(9);
+          ixData[0] = 3; // Transfer = instruction index 3
+          const view = new DataView(ixData.buffer, 1);
+          view.setUint32(0, Number(usdcAmount & 0xFFFFFFFFn), true); // low 32 bits LE
+          view.setUint32(4, Number(usdcAmount >> 32n), true);         // high 32 bits LE
+          tx.add(new TransactionInstruction({
+            programId: TOKEN_PROGRAM,
+            keys: [
+              { pubkey: senderATA, isSigner: false, isWritable: true  }, // source
+              { pubkey: recipATA,  isSigner: false, isWritable: true  }, // dest
+              { pubkey: senderPk,  isSigner: true,  isWritable: false }, // authority
+            ],
+            data: ixData as any,
+          }));
 
           const { blockhash } = await conn.getLatestBlockhash('confirmed');
           tx.recentBlockhash = blockhash;
-          tx.feePayer = senderPubkey;
+          tx.feePayer = senderPk;
 
-          // Sign and send directly via Phantom/Solflare — SPL tx bypasses sendSol wrapper
+          // Sign and send via Phantom or Solflare
           const w = window as any;
           let splHash: string | undefined;
           if (w.phantom?.solana?.signAndSendTransaction) {
-            const result = await w.phantom.solana.signAndSendTransaction(tx);
-            splHash = result.signature;
+            splHash = (await w.phantom.solana.signAndSendTransaction(tx)).signature;
           } else if (w.solflare?.signAndSendTransaction) {
-            const result = await w.solflare.signAndSendTransaction(tx);
-            splHash = result.signature || result;
+            const r = await w.solflare.signAndSendTransaction(tx);
+            splHash = r.signature ?? r;
           } else {
-            throw new Error('Your Solana wallet does not support SPL token transfers — try Phantom or Solflare');
+            throw new Error('Use Phantom or Solflare to send USDC on Solana');
           }
           hash = splHash ?? '';
           if (hash) await recordPurchase(hash, usdEst, tokensEst, solAddr, 'USDC');
@@ -1306,6 +1333,42 @@ export function BuySection() {
           const centsAmount = BigInt(Math.round(usdEst * 100));
           const tokenAmount = centsAmount * (10n ** BigInt(tokenInfo.decimals)) / 100n;
 
+          // Fetch live gas price — dual strategy to handle CORS + fast-moving L2 base fees
+          // Strategy 1: eth_gasPrice (simpler, better CORS support than eth_getBlockByNumber)
+          // Strategy 2: fixed high fallback (testnets — cost is irrelevant)
+          let maxFeePerGas: bigint | undefined;
+          let maxPriorityFeePerGas: bigint | undefined;
+          try {
+            const rpcUrl = activeStableChain?.rpcUrls?.[0];
+            if (rpcUrl) {
+              // Try eth_gasPrice first — wider RPC compatibility than eth_getBlockByNumber
+              let fetched = false;
+              try {
+                const resp = await fetch(rpcUrl, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_gasPrice', params: [] }),
+                });
+                const rpcData = await resp.json();
+                const gasPriceHex: string | undefined = rpcData?.result;
+                if (gasPriceHex && gasPriceHex !== '0x0') {
+                  const gasPrice = BigInt(gasPriceHex);
+                  const tip = 10_000_000n; // 0.01 gwei priority fee
+                  maxPriorityFeePerGas = tip;
+                  maxFeePerGas = gasPrice * 5n + tip; // 5x buffer — safe for fast L2 base fees
+                  fetched = true;
+                }
+              } catch { /* CORS or network error — try fallback */ }
+
+              if (!fetched) {
+                // Fallback: conservative fixed gas for testnet (50 gwei — always clears)
+                const tip = 10_000_000n;
+                maxPriorityFeePerGas = tip;
+                maxFeePerGas = 50_000_000_000n + tip; // 50 gwei + tip
+              }
+            }
+          } catch { /* silently fall back — wallet will estimate */ }
+
           // Standard ERC-20 ABI — MetaMask recognises this and shows "Transfer X USDC to 0x..."
           hash = await writeContractAsync({
             chainId: targetChainId,
@@ -1322,6 +1385,7 @@ export function BuySection() {
             }] as const,
             functionName: 'transfer',
             args: [PRESALE_ETH_WALLET as `0x${string}`, tokenAmount],
+            ...(maxFeePerGas ? { maxFeePerGas, maxPriorityFeePerGas } : {}),
           });
         } else {
           // ── Native (ETH / BNB) ──────────────────────────────────────────
