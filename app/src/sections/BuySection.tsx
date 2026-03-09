@@ -464,7 +464,7 @@ export function BuySection() {
   const sectionRef = useRef<HTMLDivElement>(null);
   const cardRef    = useRef<HTMLDivElement>(null);
 
-  const { totalRaised, addRaised, addPurchase } = usePresaleStore();
+  const { totalRaised, addRaised, addPurchase, setTotalRaised } = usePresaleStore();
   const {
     solAddress, btcAddress, solWalletName, btcWalletName,
     setSolWallet, setBtcWallet, disconnectSol, disconnectBtc, setShowEvmPicker, setShowSolPicker,
@@ -622,18 +622,28 @@ export function BuySection() {
         const { error } = await supabase
           .from('presale_purchases')
           .upsert(row, { onConflict: 'tx_hash', ignoreDuplicates: true });
-        if (!error) {
-          // Success — clear the localStorage backup
+        if (!error || error.code === '23505') {
           try { localStorage.removeItem(pendingKey); } catch { /* ignore */ }
+          // Re-fetch the DB total immediately so PresaleProgress updates right away.
+          // This is the authoritative source — don't rely on Realtime subscription firing.
+          try {
+            const { data: totals } = await supabase
+              .from('presale_purchases')
+              .select('usd_amount');
+            if (totals) {
+              const dbTotal = totals.reduce((sum, r) => sum + Number(r.usd_amount || 0), 0);
+              // Take max in case of propagation lag — never roll back a local increment
+              setTotalRaised(Math.max(dbTotal, usePresaleStore.getState().totalRaised));
+            }
+          } catch { /* re-fetch is best-effort — local state already correct */ }
           return;
         }
         lastError = error;
-        if (error.code === '23505') return; // duplicate — already recorded, fine
       }
       console.error('Supabase upsert failed after 3 attempts:', lastError?.message, lastError?.code);
       // Record stays in localStorage — can be replayed later if needed
     }
-  }, [addRaised, addPurchase, currentStage]);
+  }, [addRaised, addPurchase, setTotalRaised, currentStage]);
 
   // ── On mount: ONLY handle callbacks + restore saved addresses ─────────
   // No auto-connect. Each currency tab connects its own wallet on demand.
