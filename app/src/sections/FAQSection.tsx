@@ -181,11 +181,11 @@ export function FAQSection() {
             Our team and community are ready to help. Join our channels for real-time support and updates.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
-            <a href="#" className="neon-button px-6 py-3 text-base font-semibold flex items-center gap-2 hover:gap-3">
+            <a href="https://discord.gg/CDMjY4UN8" target="_blank" rel="noopener noreferrer" className="neon-button px-6 py-3 text-base font-semibold flex items-center gap-2 hover:gap-3">
               Join Discord
               <ArrowRight className="w-5 h-5" />
             </a>
-            <a href="#" className="px-6 py-3 rounded-xl bg-white/5 border border-white/10 text-[#A7B0B7] text-base font-medium hover:border-[#2BFFF1]/50 hover:text-[#2BFFF1] transition-colors flex items-center gap-2">
+            <a href="https://t.me/heimdall_odintools_bot?start=verify_-1003779764198" target="_blank" rel="noopener noreferrer" className="px-6 py-3 rounded-xl bg-white/5 border border-white/10 text-[#A7B0B7] text-base font-medium hover:border-[#2BFFF1]/50 hover:text-[#2BFFF1] transition-colors flex items-center gap-2">
               Telegram Group
               <ArrowRight className="w-5 h-5" />
             </a>
