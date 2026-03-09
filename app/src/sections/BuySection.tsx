@@ -217,6 +217,14 @@ const STABLE_CHAINS: Record<string, {
 }[]> = {
   USDC: [
     {
+      id: 'sol', label: 'Solana', icon: '◎',
+      chainId: 0, chainName: 'Solana', chainHex: '0x0', // sentinel — not EVM
+      nativeCurrency: { name: 'SOL', symbol: 'SOL', decimals: 9 },
+      rpcUrls: ['https://api.mainnet-beta.solana.com'],
+      blockExplorer: 'https://solscan.io',
+      usdc: { address: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', decimals: 6 }, // devnet: 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU
+    },
+    {
       id: 'eth', label: 'Ethereum', icon: 'Ξ',
       chainId: sepolia.id, chainName: 'Sepolia Testnet', chainHex: '0xaa36a7',  // mainnet: 1 / 0x1
       nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
@@ -1055,9 +1063,35 @@ export function BuySection() {
     if (!activeWallet?.sendSol) throw new Error('Connect a Solana wallet first');
     const { Connection, LAMPORTS_PER_SOL } = await import('@solana/web3.js');
     const lamports = Math.round(parseFloat(amount) * LAMPORTS_PER_SOL);
-    // Mainnet RPC — override via VITE_SOLANA_RPC env var for custom endpoint
-    const SOL_RPC = (import.meta as any).env?.VITE_SOLANA_RPC
-      || 'https://api.mainnet-beta.solana.com';
+
+    // Detect devnet via 3-tier approach:
+    // Tier 1: Explicit VITE_SOLANA_RPC env var (set to https://api.devnet.solana.com for testing)
+    // Tier 2: Phantom .network property (works in Phantom v24+)
+    // Tier 3: Genesis hash probe — devnet and mainnet have distinct genesis hashes
+    let SOL_RPC = (import.meta as any).env?.VITE_SOLANA_RPC || '';
+    if (!SOL_RPC) {
+      try {
+        const phantomSol = (window as any).phantom?.solana || (window as any).solana;
+        const networkProp = phantomSol?.network || phantomSol?._network || '';
+        const networkStr = typeof networkProp === 'string' ? networkProp.toLowerCase() : '';
+        if (networkStr.includes('devnet')) {
+          SOL_RPC = 'https://api.devnet.solana.com';
+        } else if (networkStr.includes('mainnet')) {
+          SOL_RPC = 'https://api.mainnet-beta.solana.com';
+        } else {
+          // Tier 3: Ask the wallet for its genesis hash and compare to known values
+          // Mainnet: 5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d
+          // Devnet:  EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG
+          const DEVNET_GENESIS = 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG';
+          const genesisHash = await phantomSol?.request?.({ method: 'getGenesisHash' }).catch(() => null);
+          SOL_RPC = genesisHash === DEVNET_GENESIS
+            ? 'https://api.devnet.solana.com'
+            : 'https://api.mainnet-beta.solana.com';
+        }
+      } catch {
+        SOL_RPC = 'https://api.mainnet-beta.solana.com';
+      }
+    }
     const conn = new Connection(SOL_RPC, 'confirmed');
     return activeWallet.sendSol(PRESALE_SOL_WALLET, lamports, conn);
   };
@@ -1130,7 +1164,6 @@ export function BuySection() {
         // Single unified path: wagmi handles BOTH injected wallets AND WalletConnect.
         // No window.ethereum calls for tx — wagmi's connector abstraction routes correctly.
         const senderAddress = address; // wagmi is the single source of truth for EVM address
-        if (!senderAddress) throw new Error('Connect an EVM wallet first');
 
         // Resolve target chain + token contract
         const tokenKey = (selected as any).token as string | undefined;
@@ -1138,6 +1171,94 @@ export function BuySection() {
           ? (STABLE_CHAINS[tokenKey]?.find((c: any) => c.id === stableChainId) ?? STABLE_CHAINS[tokenKey]?.[0])
           : null;
         const targetChainId = (activeStableChain?.chainId ?? selected.chainId) as number;
+
+        // ── SOL USDC intercept (chainId=0 sentinel = Solana SPL path) ────────
+        if (tokenKey === 'USDC' && stableChainId === 'sol') {
+          if (!solConnected || !activeWallet?.sendSol) {
+            throw new Error('Connect your Solana wallet (Phantom) first to send USDC on Solana');
+          }
+          const { Connection, PublicKey, Transaction } = await import('@solana/web3.js');
+          const splToken = await import('@solana/spl-token');
+
+          // Auto-detect devnet vs mainnet from Phantom network
+          let SOL_RPC = (import.meta as any).env?.VITE_SOLANA_RPC || '';
+          if (!SOL_RPC) {
+            try {
+              const phantomSol = (window as any).phantom?.solana || (window as any).solana;
+              const networkProp = phantomSol?.network || phantomSol?._network || '';
+              const networkStr = typeof networkProp === 'string' ? networkProp.toLowerCase() : '';
+              if (networkStr.includes('devnet')) {
+                SOL_RPC = 'https://api.devnet.solana.com';
+              } else if (networkStr.includes('mainnet')) {
+                SOL_RPC = 'https://api.mainnet-beta.solana.com';
+              } else {
+                const DEVNET_GENESIS = 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG';
+                const genesisHash = await phantomSol?.request?.({ method: 'getGenesisHash' }).catch(() => null);
+                SOL_RPC = genesisHash === DEVNET_GENESIS
+                  ? 'https://api.devnet.solana.com'
+                  : 'https://api.mainnet-beta.solana.com';
+              }
+            } catch { SOL_RPC = 'https://api.mainnet-beta.solana.com'; }
+          }
+          const isDevnet = SOL_RPC.includes('devnet');
+
+          // USDC mint: devnet vs mainnet
+          const USDC_MINT = new PublicKey(
+            isDevnet
+              ? '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU'  // devnet Circle USDC
+              : 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'  // mainnet USDC
+          );
+          const conn = new Connection(SOL_RPC, 'confirmed');
+          const senderPubkey = new PublicKey(solAddr);
+          const recipientPubkey = new PublicKey(PRESALE_SOL_WALLET);
+
+          // Get or create associated token accounts
+          const senderATA = await splToken.getAssociatedTokenAddress(USDC_MINT, senderPubkey);
+          const recipientATA = await splToken.getAssociatedTokenAddress(USDC_MINT, recipientPubkey);
+
+          const usdcAmount = BigInt(Math.round(usdEst * 1_000_000)); // 6 decimals
+          const tx = new Transaction();
+
+          // Create recipient ATA if it doesn't exist
+          const recipientATAInfo = await conn.getAccountInfo(recipientATA);
+          if (!recipientATAInfo) {
+            tx.add(
+              splToken.createAssociatedTokenAccountInstruction(
+                senderPubkey, recipientATA, recipientPubkey, USDC_MINT
+              )
+            );
+          }
+
+          // Add token transfer instruction
+          tx.add(
+            splToken.createTransferInstruction(
+              senderATA, recipientATA, senderPubkey, usdcAmount
+            )
+          );
+
+          const { blockhash } = await conn.getLatestBlockhash('confirmed');
+          tx.recentBlockhash = blockhash;
+          tx.feePayer = senderPubkey;
+
+          // Sign and send directly via Phantom/Solflare — SPL tx bypasses sendSol wrapper
+          const w = window as any;
+          let splHash: string | undefined;
+          if (w.phantom?.solana?.signAndSendTransaction) {
+            const result = await w.phantom.solana.signAndSendTransaction(tx);
+            splHash = result.signature;
+          } else if (w.solflare?.signAndSendTransaction) {
+            const result = await w.solflare.signAndSendTransaction(tx);
+            splHash = result.signature || result;
+          } else {
+            throw new Error('Your Solana wallet does not support SPL token transfers — try Phantom or Solflare');
+          }
+          hash = splHash ?? '';
+          if (hash) await recordPurchase(hash, usdEst, tokensEst, solAddr, 'USDC');
+          if (hash) { setTxHash(hash); setTxStatus('success'); }
+          return;
+        }
+
+        if (!senderAddress) throw new Error('Connect an EVM wallet first');
         const tokenInfo = tokenKey ? getTokenInfo(tokenKey, stableChainId) : undefined;
 
         // ── Step 1: Switch chain if needed ────────────────────────────────────
@@ -1344,6 +1465,8 @@ export function BuySection() {
                     setCurrency(c.id);
                     reset();
                     localStorage.setItem('_kleo_active_currency', c.id);
+                    // Auto-select Solana chain when SOL wallet connected + USDC picked
+                    if (c.id === 'USDC' && solConnected) setStableChainId('sol');
                   }}
                   className={`py-3 px-2 rounded-xl border text-center transition-all duration-200 ${
                     currency === c.id
