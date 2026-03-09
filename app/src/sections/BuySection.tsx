@@ -585,8 +585,11 @@ export function BuySection() {
   const [manualBtcSubmitting, setManualBtcSubmitting] = useState(false);
 
   const selected = CURRENCIES.find(c => c.id === currency)!;
-  const isEvm    = selected.chain === 'evm';
-  const isBtc    = selected.chain === 'btc';
+  const isEvm      = selected.chain === 'evm';
+  const isBtc      = selected.chain === 'btc';
+  // USDC on Solana: currency tab is 'evm' but chain picker selects 'sol' → treat as Solana
+  const isSolUsdc  = isEvm && (selected as any).token === 'USDC' && stableChainId === 'sol';
+  const isSolUsdcActive = isSolUsdc; // alias for readability in JSX
 
   // ── Record purchase ────────────────────────────────────────────────────
   const recordPurchase = useCallback(async (
@@ -932,7 +935,8 @@ export function BuySection() {
   // ── Single connect function driven by selected currency tab ─────────────
   // This is the ONLY place connections are initiated. No cross-chain interference.
   const connectWallet = async () => {
-    const chain = selected.chain;
+    // SOL USDC: currency tab is EVM but Solana chain is selected — route to SOL connect
+    const chain = (isSolUsdc) ? 'sol' : selected.chain;
 
     if (chain === 'evm') {
       // ── EVM connect — mirrors Solana/Phantom deeplink pattern ─────────────
@@ -1277,17 +1281,17 @@ export function BuySection() {
                 { pubkey: SYSTEM_PROGRAM, isSigner: false, isWritable: false },
                 { pubkey: TOKEN_PROGRAM, isSigner: false, isWritable: false },
               ],
-              data: Buffer.from([]) as any, // ATA program v1 create = empty data
+              data: new Uint8Array(0) as unknown as Buffer, // Uint8Array — no Buffer polyfill needed
             }));
           }
 
           // SPL Token Transfer instruction: [3 (u8 index)] + [amount (u64 little-endian)]
-          // Build transfer data as Buffer (web3.js types expect Buffer, not Uint8Array)
-          const ixData = Buffer.alloc(9);
-          ixData[0] = 3; // Transfer = instruction index 3
-          const view = new DataView(ixData.buffer, 1);
-          view.setUint32(0, Number(usdcAmount & 0xFFFFFFFFn), true); // low 32 bits LE
-          view.setUint32(4, Number(usdcAmount >> 32n), true);         // high 32 bits LE
+          // Pure Uint8Array — zero Buffer dependency, works natively in every browser
+          const ixData = new Uint8Array(9);
+          const view = new DataView(ixData.buffer);
+          view.setUint8(0, 3); // Transfer instruction index
+          view.setUint32(1, Number(usdcAmount & 0xFFFFFFFFn), true); // low 32 bits LE
+          view.setUint32(5, Number(usdcAmount >> 32n),         true); // high 32 bits LE
           tx.add(new TransactionInstruction({
             programId: TOKEN_PROGRAM,
             keys: [
@@ -1295,7 +1299,7 @@ export function BuySection() {
               { pubkey: recipATA,  isSigner: false, isWritable: true  }, // dest
               { pubkey: senderPk,  isSigner: true,  isWritable: false }, // authority
             ],
-            data: ixData as any,
+            data: ixData as unknown as Buffer,
           }));
 
           const { blockhash } = await conn.getLatestBlockhash('confirmed');
@@ -1458,7 +1462,7 @@ export function BuySection() {
     // Use whichever wallet is connected — card payment just needs an address
     // to deliver tokens to. If none connected, we still proceed (user can
     // provide wallet after payment via the success page / email).
-    const wallet = isBtc ? btcAddr : isEvm ? (address || '') : solAddr;
+    const wallet = isBtc ? btcAddr : (isSolUsdc || !isEvm) ? solAddr : (address || '');
 
     setStripeLoading(true);
     setCardError('');
@@ -1515,7 +1519,7 @@ export function BuySection() {
     USDC: [10, 25, 50, 100], USDT: [10, 25, 50, 100],
   };
   const evmConnected = isConnected; // wagmi is the only truth; evmInjectedAddr no longer used as fallback
-  const walletReady = isBtc ? btcConnected : isEvm ? evmConnected : solConnected;
+  const walletReady = isBtc ? btcConnected : isSolUsdc ? solConnected : isEvm ? evmConnected : solConnected;
 
   // ── RENDER ─────────────────────────────────────────────────────────────
   return (
@@ -1603,7 +1607,7 @@ export function BuySection() {
 
             {/* Wallet connect section */}
             <div className="mb-5">
-              {isEvm ? (
+              {isEvm && !isSolUsdcActive ? (
                 isConnected && address ? (
                   /* Single unified connected state — wagmi is the only source of truth */
                   <div className="flex items-center justify-between bg-[#2BFFF1]/5 border border-[#2BFFF1]/20 rounded-xl px-4 py-3">
