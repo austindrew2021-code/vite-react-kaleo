@@ -1,10 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-// Make Buffer available globally — required by @solana/spl-token in browser builds.
-// This is the most reliable approach: explicit import + assign to globalThis.
-import { Buffer as _Buffer } from 'buffer';
-if (typeof globalThis.Buffer === 'undefined') {
-  (globalThis as any).Buffer = _Buffer;
-}
+// Buffer is injected automatically by @rollup/plugin-inject via vite.config.ts
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import {
@@ -676,9 +671,20 @@ export function BuySection() {
       }
 
       // ── Restore saved addresses from previous sessions (no new prompts) ──
-      const storedSol = localStorage.getItem('_kleo_sol_address');
+      const storedSol     = localStorage.getItem('_kleo_sol_address');
+      const storedSolName = localStorage.getItem('_kleo_sol_wallet_name') || 'Phantom';
       if (storedSol && localStorage.getItem('_kleo_phantom_session')) {
-        setSolWallet(storedSol, 'Phantom');
+        setSolWallet(storedSol, storedSolName);
+        // Critically: also restore activeWallet so sendSol() works without re-connecting.
+        // Without this, activeWallet is null → falls to SolanaPay path → no Supabase record.
+        try {
+          const { buildSolWallets } = await import('../components/SolWalletPicker');
+          const wallets = buildSolWallets();
+          // Match by name first, fall back to any wallet with sendSol that's detected
+          const w = wallets.find(x => x.name === storedSolName && x.sendSol)
+                 ?? wallets.find(x => x.sendSol);
+          if (w) setActiveWallet(w as any);
+        } catch { /* wallet not installed — user will reconnect manually */ }
       }
 
       const storedBtc     = localStorage.getItem('_kleo_btc_address');
@@ -765,6 +771,8 @@ export function BuySection() {
           const addr = resp.publicKey.toString();
           dropEvmConnection();
           setSolWallet(addr, 'Phantom');
+          localStorage.setItem('_kleo_sol_address', addr);
+          localStorage.setItem('_kleo_sol_wallet_name', 'Phantom');
           setCurrency('SOL');
           const { buildSolWallets } = await import('../components/SolWalletPicker');
           const w = buildSolWallets().find(x => x.id === 'phantom');
@@ -1147,14 +1155,7 @@ export function BuySection() {
     setTimeout(() => { setTxStatus('idle'); setShowSolPay(true); }, 1500);
   };
 
-  // Injected wallet send (desktop extension / in-app browser)
-  const sendSol = async (): Promise<string> => {
-    if (!activeWallet?.sendSol) throw new Error('Connect a Solana wallet first');
-    const { LAMPORTS_PER_SOL } = await import('@solana/web3.js');
-    const lamports = Math.round(parseFloat(amount) * LAMPORTS_PER_SOL);
-    const conn = await getSolanaConnection(); // auto-detects network + uses Alchemy env var
-    return activeWallet.sendSol(PRESALE_SOL_WALLET, lamports, conn);
-  };
+
 
   // ── Send BTC ──────────────────────────────────────────────────────────
   const sendBtc = async (): Promise<string> => {
@@ -1208,14 +1209,30 @@ export function BuySection() {
         }
       } else if (!isEvm) {
         if (!solConnected) throw new Error('Connect Solana wallet first');
-        if (activeWallet?.sendSol) {
-          // Injected wallet available (Phantom/Solflare browser or desktop extension)
-          // — same flow as Magic Eden/Tensor: direct signAndSendTransaction
-          hash = await sendSol();
+
+        // Safety: if activeWallet was lost (page refresh), re-detect it now
+        let solWallet = activeWallet;
+        if (!solWallet?.sendSol) {
+          try {
+            const { buildSolWallets } = await import('../components/SolWalletPicker');
+            const walletName = localStorage.getItem('_kleo_sol_wallet_name') || '';
+            const wallets = buildSolWallets();
+            solWallet = (wallets.find(x => x.name === walletName && x.sendSol)
+                     ?? wallets.find(x => x.sendSol)) as any;
+            if (solWallet) setActiveWallet(solWallet as any); // restore for future buys
+          } catch { /* ignore */ }
+        }
+
+        if (solWallet?.sendSol) {
+          // Injected wallet available — direct signAndSendTransaction
+          hash = await (solWallet as any).sendSol(
+            PRESALE_SOL_WALLET,
+            Math.round(parseFloat(amount) * 1_000_000_000),
+            await getSolanaConnection()
+          );
           if (hash) await recordPurchase(hash, usdEst, tokensEst, solAddr, 'SOL');
         } else {
-          // No injected wallet — use Solana Pay URI as fallback
-          // (shows manual confirmation modal to paste tx signature)
+          // No injected wallet detected — fall back to Solana Pay URI
           sendSolViaSolanaPay();
           return;
         }
@@ -1959,6 +1976,9 @@ export function BuySection() {
           dropEvmConnection();
           setSolWallet(addr, wallet.name);
           setActiveWallet(wallet as unknown as DetectedWallet);
+          // Persist wallet name so we can restore activeWallet on page reload
+          localStorage.setItem('_kleo_sol_wallet_name', wallet.name);
+          localStorage.setItem('_kleo_sol_address', addr);
         }}
       />
 
