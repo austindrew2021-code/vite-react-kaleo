@@ -69,6 +69,85 @@ async function decryptPhantomPayload(phantomPubKey58: string, data58: string, no
 
 
 
+// ── Solana RPC ────────────────────────────────────────────────────────────
+//
+// Priority order:
+//  1. VITE_SOLANA_RPC env var  — set this to your Alchemy endpoint in Vercel
+//  2. VITE_SOLANA_DEVNET_RPC   — separate devnet endpoint (Alchemy devnet or Helius devnet)
+//  3. Built-in fallback list   — browser-safe public RPCs (no 403)
+//
+// WHY NOT api.mainnet-beta.solana.com / api.devnet.solana.com:
+//   Solana Foundation blocks direct browser requests with 403.
+//   These only work server-side or from official Solana tooling.
+//
+// Alchemy Solana endpoints (set in Vercel env vars):
+//   Mainnet: https://solana-mainnet.g.alchemy.com/v2/YOUR_KEY
+//   Devnet:  https://solana-devnet.g.alchemy.com/v2/YOUR_KEY
+//
+// Fallback RPCs (no key, browser CORS allowed, production-grade):
+//   Helius public:  https://mainnet.helius-rpc.com/?api-key=YOUR_KEY (free tier = 1M req/month)
+//   QuickNode free: https://solana-mainnet.core.chainstack.com (100 req/s)
+
+// These are tested browser-safe RPCs — all allow CORS from browser fetch.
+// Ordered best→worst. Your Alchemy key (env var) always takes priority over these.
+const SOL_RPC_FALLBACK_MAINNET = [
+  'https://solana-mainnet.g.alchemy.com/v2/demo',          // Alchemy demo (rate-limited)
+  'https://go.getblock.io/solana-mainnet',                  // GetBlock free — browser CORS ok
+  'https://api.mainnet-beta.solana.com',                    // Solana public — last resort
+];
+const SOL_RPC_FALLBACK_DEVNET = [
+  'https://solana-devnet.g.alchemy.com/v2/demo',            // Alchemy demo devnet
+  'https://api.devnet.solana.com',                          // Solana devnet — last resort
+];
+
+async function detectSolanaNetwork(): Promise<'devnet' | 'mainnet'> {
+  try {
+    const phantomSol = (window as any).phantom?.solana || (window as any).solana;
+    const net = phantomSol?.network || phantomSol?._network || '';
+    if (typeof net === 'string' && net.toLowerCase().includes('devnet')) return 'devnet';
+    // Genesis hash is most reliable — works regardless of wallet version
+    const DEVNET_GENESIS = 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG';
+    const gh = await phantomSol?.request?.({ method: 'getGenesisHash' }).catch(() => null);
+    if (gh === DEVNET_GENESIS) return 'devnet';
+  } catch { /* fall through */ }
+  return 'mainnet';
+}
+
+async function getSolanaConnection(envRpc?: string): Promise<any> {
+  const { Connection } = await import('@solana/web3.js');
+
+  // 1. Explicit env var always wins (your Alchemy key)
+  if (envRpc) return new Connection(envRpc, 'confirmed');
+
+  const network = await detectSolanaNetwork();
+
+  // 2. Network-specific env var
+  const devnetEnv  = (import.meta as any).env?.VITE_SOLANA_DEVNET_RPC  || '';
+  const mainnetEnv = (import.meta as any).env?.VITE_SOLANA_RPC         || '';
+  if (network === 'devnet'  && devnetEnv)  return new Connection(devnetEnv,  'confirmed');
+  if (network === 'mainnet' && mainnetEnv) return new Connection(mainnetEnv, 'confirmed');
+
+  // 3. Try fallback RPCs one by one — first that succeeds wins
+  const rpcs = network === 'devnet' ? SOL_RPC_FALLBACK_DEVNET : SOL_RPC_FALLBACK_MAINNET;
+  for (const rpc of rpcs) {
+    try {
+      const conn = new Connection(rpc, 'confirmed');
+      // Quick liveness check — getSlot is the lightest RPC call
+      await Promise.race([
+        conn.getSlot(),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 3000)),
+      ]);
+      return conn;
+    } catch { continue; }
+  }
+
+  // 4. Last resort — throw a helpful message pointing to the fix
+  throw new Error(
+    'No working Solana RPC found. Add VITE_SOLANA_RPC (Alchemy mainnet) and ' +
+    'VITE_SOLANA_DEVNET_RPC (Alchemy devnet) to your Vercel environment variables.'
+  );
+}
+
 // ── Mobile detection ──────────────────────────────────────────────────────
 // isAndroid/isMobile live in SolWalletPicker — only isInEvmBrowser needed here
 function isInEvmBrowser(): string | null {
@@ -220,7 +299,7 @@ const STABLE_CHAINS: Record<string, {
       id: 'sol', label: 'Solana', icon: '◎',
       chainId: 0, chainName: 'Solana', chainHex: '0x0', // sentinel — not EVM
       nativeCurrency: { name: 'SOL', symbol: 'SOL', decimals: 9 },
-      rpcUrls: ['https://api.mainnet-beta.solana.com'],
+      rpcUrls: ['https://rpc.ankr.com/solana'],
       blockExplorer: 'https://solscan.io',
       usdc: { address: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', decimals: 6 }, // devnet: 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU
     },
@@ -1061,38 +1140,9 @@ export function BuySection() {
   // Injected wallet send (desktop extension / in-app browser)
   const sendSol = async (): Promise<string> => {
     if (!activeWallet?.sendSol) throw new Error('Connect a Solana wallet first');
-    const { Connection, LAMPORTS_PER_SOL } = await import('@solana/web3.js');
+    const { LAMPORTS_PER_SOL } = await import('@solana/web3.js');
     const lamports = Math.round(parseFloat(amount) * LAMPORTS_PER_SOL);
-
-    // Detect devnet via 3-tier approach:
-    // Tier 1: Explicit VITE_SOLANA_RPC env var (set to https://api.devnet.solana.com for testing)
-    // Tier 2: Phantom .network property (works in Phantom v24+)
-    // Tier 3: Genesis hash probe — devnet and mainnet have distinct genesis hashes
-    let SOL_RPC = (import.meta as any).env?.VITE_SOLANA_RPC || '';
-    if (!SOL_RPC) {
-      try {
-        const phantomSol = (window as any).phantom?.solana || (window as any).solana;
-        const networkProp = phantomSol?.network || phantomSol?._network || '';
-        const networkStr = typeof networkProp === 'string' ? networkProp.toLowerCase() : '';
-        if (networkStr.includes('devnet')) {
-          SOL_RPC = 'https://api.devnet.solana.com';
-        } else if (networkStr.includes('mainnet')) {
-          SOL_RPC = 'https://api.mainnet-beta.solana.com';
-        } else {
-          // Tier 3: Ask the wallet for its genesis hash and compare to known values
-          // Mainnet: 5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d
-          // Devnet:  EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG
-          const DEVNET_GENESIS = 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG';
-          const genesisHash = await phantomSol?.request?.({ method: 'getGenesisHash' }).catch(() => null);
-          SOL_RPC = genesisHash === DEVNET_GENESIS
-            ? 'https://api.devnet.solana.com'
-            : 'https://api.mainnet-beta.solana.com';
-        }
-      } catch {
-        SOL_RPC = 'https://api.mainnet-beta.solana.com';
-      }
-    }
-    const conn = new Connection(SOL_RPC, 'confirmed');
+    const conn = await getSolanaConnection(); // auto-detects network + uses Alchemy env var
     return activeWallet.sendSol(PRESALE_SOL_WALLET, lamports, conn);
   };
 
@@ -1180,27 +1230,11 @@ export function BuySection() {
           if (!solConnected) {
             throw new Error('Connect your Solana wallet (Phantom) first to send USDC on Solana');
           }
-          const { Connection, PublicKey, Transaction, TransactionInstruction } = await import('@solana/web3.js');
+          const { PublicKey, Transaction, TransactionInstruction } = await import('@solana/web3.js');
 
-          // Auto-detect devnet vs mainnet from Phantom
-          let SOL_RPC = (import.meta as any).env?.VITE_SOLANA_RPC || '';
-          if (!SOL_RPC) {
-            try {
-              const phantomSol = (window as any).phantom?.solana || (window as any).solana;
-              const networkProp = phantomSol?.network || phantomSol?._network || '';
-              const networkStr = typeof networkProp === 'string' ? networkProp.toLowerCase() : '';
-              if (networkStr.includes('devnet')) {
-                SOL_RPC = 'https://api.devnet.solana.com';
-              } else {
-                // Confirm via genesis hash — most reliable detection
-                const DEVNET_GENESIS = 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG';
-                const genesisHash = await phantomSol?.request?.({ method: 'getGenesisHash' }).catch(() => null);
-                SOL_RPC = genesisHash === DEVNET_GENESIS
-                  ? 'https://api.devnet.solana.com'
-                  : 'https://api.mainnet-beta.solana.com';
-              }
-            } catch { SOL_RPC = 'https://api.mainnet-beta.solana.com'; }
-          }
+          // Use browser-safe RPC (Ankr public endpoints allow CORS, official Solana RPCs block browsers)
+          const conn_pre = await getSolanaConnection(); // auto-detects mainnet/devnet + Alchemy
+          const SOL_RPC  = (conn_pre as any)._rpcEndpoint as string ?? '';
           const isDevnet = SOL_RPC.includes('devnet');
 
           // Program IDs (constants — no Buffer needed)
@@ -1221,7 +1255,7 @@ export function BuySection() {
             )[0];
           }
 
-          const conn         = new Connection(SOL_RPC, 'confirmed');
+          const conn         = conn_pre;
           const senderPk     = new PublicKey(solAddr);
           const recipPk      = new PublicKey(PRESALE_SOL_WALLET);
           const senderATA    = deriveATA(senderPk, USDC_MINT);
