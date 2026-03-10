@@ -63,22 +63,26 @@ export function buildSolWallets(): SolWalletDef[] {
   const w = window as any;
 
   return [
-    // ── MetaMask (Solana) ──────────────────────────────────────────────────
-    // MetaMask Solana injects window.solana with isMetaMask:true.
-    // When Phantom is ALSO installed it overwrites window.solana, so we check:
-    //   1. window.solana.providers[] — coexistence array when multiple wallets present
-    //   2. window.solana directly    — if MetaMask won the injection race
-    // NO deeplink — metamask.app.link redirects back to the site on desktop,
-    // causing what looks like a page refresh. Instead show a setup tip.
+    // ── MetaMask (Solana via Wallet Standard) ─────────────────────────────
+    // CRITICAL: MetaMask Solana does NOT inject window.solana.
+    // It registers via the Wallet Standard (window['wallet-standard:register-wallet']).
+    // We must use getWallets() from @wallet-standard/app to find it.
+    // Synchronous detection is attempted first; async discovery happens in useEffect.
+    // The connect/send functions resolve the wallet lazily so they work even if
+    // the wallet registers slightly after buildSolWallets() is called.
     (() => {
-      const allProviders: any[] = [
-        ...(Array.isArray(w.solana?.providers) ? w.solana.providers : []),
-        // Also check window.phantom?.solana?.providers if phantom wraps others
-        ...(Array.isArray(w.phantom?.solana?.providers) ? w.phantom.solana.providers : []),
-        // Direct check — MetaMask may have won the race
-        ...(w.solana?.isMetaMask ? [w.solana] : []),
-      ];
-      const mmSol = allProviders.find((p: any) => p?.isMetaMask) ?? null;
+      // Try to find MetaMask synchronously via Wallet Standard wallets already registered
+      let mmWallet: any = null;
+      try {
+        // @wallet-standard/app getWallets() returns all currently registered wallets
+        const { getWallets } = require('@wallet-standard/app');
+        const { get } = getWallets();
+        mmWallet = get().find((wlt: any) =>
+          wlt.name?.toLowerCase().includes('metamask') &&
+          wlt.chains?.some((c: string) => c.startsWith('solana:'))
+        ) ?? null;
+      } catch { /* package not available — will resolve lazily */ }
+
       const mmIcon = (
         <svg viewBox="0 0 40 40" className="w-7 h-7" fill="none">
           <rect width="40" height="40" rx="11" fill="#1A1A1A"/>
@@ -92,43 +96,59 @@ export function buildSolWallets(): SolWalletDef[] {
           <path d="M22.3 28l3.3 1.6-.5-3.8-2.8 2.2z" fill="#E27625" stroke="#E27625" strokeWidth=".3" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       );
-      if (mmSol) {
-        // MetaMask Solana detected — wire up connect + send
-        return {
-          id: 'metamask-sol', name: 'MetaMask', desc: 'SOL · ETH · 100+ networks',
-          accent: '#F6851B',
-          icon: mmIcon,
-          connect: async () => {
-            // sol_requestAccounts is the only safe method — .connect() navigates the page
-            const accounts = await mmSol.request({ method: 'sol_requestAccounts' });
-            const addr = Array.isArray(accounts) ? accounts[0] : accounts?.publicKey;
-            if (!addr) throw new Error('No account returned from MetaMask Solana');
-            return typeof addr === 'string' ? addr : addr.toString();
-          },
-          sendSol: async (to: string, lamports: number, conn: unknown) => {
-            const pk = mmSol.publicKey?.toString();
-            if (!pk) throw new Error('MetaMask Solana not connected');
-            const tx = await buildSolTx(pk, to, lamports, conn);
-            const result = await mmSol.signAndSendTransaction(tx);
-            return result?.signature ?? result;
-          },
-        };
+
+      // Helper to resolve the MetaMask Wallet Standard wallet at call time
+      // (handles the case where it registers after buildSolWallets runs)
+      async function getMMWallet(): Promise<any> {
+        if (mmWallet) return mmWallet;
+        const { getWallets } = await import('@wallet-standard/app');
+        const { get } = getWallets();
+        const found = get().find((wlt: any) =>
+          wlt.name?.toLowerCase().includes('metamask') &&
+          wlt.chains?.some((c: string) => c.startsWith('solana:'))
+        );
+        if (!found) throw new Error('MetaMask Solana not found via Wallet Standard');
+        return found;
       }
-      // Not detected — mobile gets a deeplink to open inside MetaMask browser,
-      // desktop gets a setup tip with no navigation (deeplink on desktop bounces back).
+
       return {
-        id: 'metamask-sol', name: 'MetaMask', desc: 'SOL · ETH · 100+ networks',
+        id: 'metamask-sol',
+        name: 'MetaMask',
+        desc: 'SOL · ETH · 100+ networks',
         accent: '#F6851B',
         icon: mmIcon,
-        // Mobile deeplink: opens xeniachain.com INSIDE MetaMask's built-in browser
-        // where MetaMask Solana is available natively — user can then buy with SOL.
-        // Uses full URL (not just host) so MetaMask loads the exact page + state.
-        deeplink: (url: string) =>
-          isAndroid()
-            ? `https://metamask.app.link/dapp/${new URL(url).host}`
-            : `https://metamask.app.link/dapp/${new URL(url).host}`,
-        // Desktop tip instead of navigation
-        desktopTip: 'Open MetaMask → Settings → Experimental → Enable Solana, then refresh.',
+        // Only show connect if MetaMask was detected synchronously OR we're on desktop
+        // On mobile with no detection → deeplink instead
+        ...(mmWallet ? {
+          connect: async () => {
+            const wallet = await getMMWallet();
+            const connectFeature = wallet.features?.['standard:connect'];
+            if (!connectFeature) throw new Error('MetaMask missing standard:connect feature');
+            const { accounts } = await connectFeature.connect();
+            if (!accounts?.length) throw new Error('No accounts returned');
+            return accounts[0].address;
+          },
+          sendSol: async (to: string, lamports: number, conn: unknown) => {
+            const wallet = await getMMWallet();
+            const solAccounts = wallet.accounts?.filter((a: any) =>
+              a.chains?.some((c: string) => c.startsWith('solana:'))
+            );
+            const account = solAccounts?.[0];
+            if (!account) throw new Error('No Solana account in MetaMask');
+            const pk = account.address;
+            const { VersionedTransaction } = await import('@solana/web3.js');
+            const legacyTx = await buildSolTx(pk, to, lamports, conn);
+            const vTx = new VersionedTransaction(legacyTx.compileMessage());
+            const signFeature = wallet.features?.['solana:signAndSendTransaction'];
+            if (!signFeature) throw new Error('MetaMask missing solana:signAndSendTransaction');
+            const results = await signFeature.signAndSendTransaction({ account, transaction: vTx, chain: 'solana:mainnet' });
+            return results?.[0]?.signature ?? results?.[0];
+          },
+        } : {
+          // Not detected synchronously — mobile deeplink, desktop tip
+          deeplink: (url: string) => `https://metamask.app.link/dapp/${new URL(url).host}`,
+          desktopTip: 'Update MetaMask to the latest version. Solana support requires v12.18+ (extension) or v7.57+ (mobile).',
+        }),
       };
     })() as any,
 
