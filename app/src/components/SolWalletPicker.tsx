@@ -114,13 +114,21 @@ export function buildSolWallets(): SolWalletDef[] {
           },
         };
       }
-      // Not detected — show setup tip, NO deeplink (deeplink causes page refresh on desktop)
+      // Not detected — mobile gets a deeplink to open inside MetaMask browser,
+      // desktop gets a setup tip with no navigation (deeplink on desktop bounces back).
       return {
         id: 'metamask-sol', name: 'MetaMask', desc: 'SOL · ETH · 100+ networks',
         accent: '#F6851B',
         icon: mmIcon,
-        // desktopTip shown in the UI — no deeplink, no navigation
-        desktopTip: 'MetaMask → Settings → Experimental → Enable Solana, then refresh this page.',
+        // Mobile deeplink: opens xeniachain.com INSIDE MetaMask's built-in browser
+        // where MetaMask Solana is available natively — user can then buy with SOL.
+        // Uses full URL (not just host) so MetaMask loads the exact page + state.
+        deeplink: (url: string) =>
+          isAndroid()
+            ? `https://metamask.app.link/dapp/${new URL(url).host}`
+            : `https://metamask.app.link/dapp/${new URL(url).host}`,
+        // Desktop tip instead of navigation
+        desktopTip: 'Open MetaMask → Settings → Experimental → Enable Solana, then refresh.',
       };
     })() as any,
 
@@ -678,11 +686,11 @@ export function SolWalletPicker({ onConnect }: Props) {
                       return (
                         <button
                           key={w.id}
-                          onClick={() => (mobile && w.deeplink) ? handleDeeplink(w) : undefined}
+                          onClick={() => { if (mobile && w.deeplink) handleDeeplink(w); }}
                           onMouseEnter={() => setHoverId(w.id)}
                           onMouseLeave={() => setHoverId(null)}
-                          className={`w-full flex flex-col rounded-xl px-2.5 py-2 text-left active:scale-[0.97] ${(!mobile || !w.deeplink) ? 'cursor-default' : ''}`}
-                          style={hov && mobile && w.deeplink ? hoverCard(w.accent) : baseCard}
+                          className={`w-full flex flex-col rounded-xl px-2.5 py-2 text-left active:scale-[0.97] ${!mobile ? 'cursor-default' : ''}`}
+                          style={hov && mobile ? hoverCard(w.accent) : baseCard}
                         >
                           <div className="flex items-center gap-3 w-full">
                             <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden"
