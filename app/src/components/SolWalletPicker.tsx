@@ -61,6 +61,43 @@ export function buildSolWallets(): SolWalletDef[] {
   const w = window as any;
 
   return [
+    // ── MetaMask (Solana) ──────────────────────────────────────────────────
+    // MetaMask injects window.solana with isMetaMask:true when Solana is enabled
+    {
+      id: 'metamask-sol', name: 'MetaMask', desc: 'SOL · ETH · 100+ networks',
+      accent: '#F6851B',
+      ...(w.solana?.isMetaMask ? {
+        connect: async () => {
+          const r = await w.solana.connect();
+          return r.publicKey?.toString() ?? w.solana.publicKey?.toString();
+        },
+        sendSol: async (to: string, lamports: number, conn: unknown) => {
+          const pk = w.solana.publicKey.toString();
+          const tx = await buildSolTx(pk, to, lamports, conn);
+          return (await w.solana.signAndSendTransaction(tx)).signature;
+        },
+      } : {}),
+      deeplink: (url: string) => {
+        const enc = encodeURIComponent(url);
+        return isAndroid()
+          ? `https://metamask.app.link/dapp/${enc}`
+          : `https://metamask.io/download`;
+      },
+      icon: (
+        <svg viewBox="0 0 40 40" className="w-7 h-7" fill="none">
+          <rect width="40" height="40" rx="11" fill="#1A1A1A"/>
+          <path d="M31.5 9L21.8 16.1l1.8-4.3L31.5 9z" fill="#E17726" stroke="#E17726" strokeWidth=".3" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M8.5 9l9.6 7.2-1.7-4.3L8.5 9z" fill="#E27625" stroke="#E27625" strokeWidth=".3" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M28.2 25.6l-2.6 4 5.6 1.5 1.6-5.4-4.6-.1z" fill="#E27625" stroke="#E27625" strokeWidth=".3" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M7.2 25.7l1.6 5.4 5.6-1.5-2.6-4-4.6.1z" fill="#E27625" stroke="#E27625" strokeWidth=".3" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M14.1 19.7l-1.5 2.3 5.4.2-.2-5.8-3.7 3.3z" fill="#E27625" stroke="#E27625" strokeWidth=".3" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M25.9 19.7l-3.8-3.4-.2 5.9 5.4-.2-1.4-2.3z" fill="#E27625" stroke="#E27625" strokeWidth=".3" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M14.4 29.6l3.3-1.6-2.8-2.2-.5 3.8z" fill="#E27625" stroke="#E27625" strokeWidth=".3" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M22.3 28l3.3 1.6-.5-3.8-2.8 2.2z" fill="#E27625" stroke="#E27625" strokeWidth=".3" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      ),
+    },
+
     // ── Phantom ────────────────────────────────────────────────────────────
     {
       id: 'phantom', name: 'Phantom', desc: 'SOL · ETH · BTC · Polygon',
