@@ -15,6 +15,8 @@ export interface SolWalletDef {
   sendSol?: (to: string, lamports: number, conn: unknown) => Promise<string>;
   // Deeplink for when wallet is NOT installed (mobile)
   deeplink?: (url: string) => string;
+  // Shown on desktop instead of a deeplink redirect when wallet can't be auto-opened
+  desktopTip?: string;
   icon: React.ReactNode;
 }
 
@@ -77,12 +79,13 @@ export function buildSolWallets(): SolWalletDef[] {
           return (await w.solana.signAndSendTransaction(tx)).signature;
         },
       } : {}),
+      // MetaMask mobile: metamask.app.link/dapp/<host> opens the dapp inside MetaMask browser
+      // Desktop non-detected: show "enable Solana in settings" tip instead of redirecting
       deeplink: (url: string) => {
-        const enc = encodeURIComponent(url);
-        return isAndroid()
-          ? `https://metamask.app.link/dapp/${enc}`
-          : `https://metamask.io/download`;
+        const host = new URL(url).host;
+        return `https://metamask.app.link/dapp/${host}`;
       },
+      desktopTip: 'Enable Solana in MetaMask → Settings → Experimental, then refresh.',
       icon: (
         <svg viewBox="0 0 40 40" className="w-7 h-7" fill="none">
           <rect width="40" height="40" rx="11" fill="#1A1A1A"/>
@@ -655,23 +658,30 @@ export function SolWalletPicker({ onConnect }: Props) {
                           onClick={() => mobile ? handleDeeplink(w) : undefined}
                           onMouseEnter={() => setHoverId(w.id)}
                           onMouseLeave={() => setHoverId(null)}
-                          className={`w-full flex items-center gap-3 rounded-xl px-2.5 py-2 text-left active:scale-[0.97] ${!mobile ? 'cursor-default opacity-40' : ''}`}
+                          className={`w-full flex flex-col rounded-xl px-2.5 py-2 text-left active:scale-[0.97] ${!mobile ? 'cursor-default' : ''}`}
                           style={hov && mobile ? hoverCard(w.accent) : baseCard}
-                          title={!mobile ? `${w.name} — mobile only` : undefined}
                         >
-                          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden"
-                            style={{ background: 'rgba(255,255,255,0.04)' }}>
-                            {w.icon}
+                          <div className="flex items-center gap-3 w-full">
+                            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden"
+                              style={{ background: 'rgba(255,255,255,0.04)' }}>
+                              {w.icon}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <span className="text-[#C9CDD4] font-semibold text-[13px]">{w.name}</span>
+                            </div>
+                            {mobile && (
+                              <span className="flex-shrink-0 font-semibold text-xs transition-opacity"
+                                style={{ color: w.accent, opacity: hov ? 1 : 0.2 }}>→</span>
+                            )}
+                            {!mobile && !w.desktopTip && (
+                              <span className="flex-shrink-0 text-[10px]" style={{ color: '#4B5563' }}>mobile</span>
+                            )}
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <span className="text-[#C9CDD4] font-semibold text-[13px]">{w.name}</span>
-                          </div>
-                          {mobile && (
-                            <span className="flex-shrink-0 font-semibold text-xs transition-opacity"
-                              style={{ color: w.accent, opacity: hov ? 1 : 0.2 }}>→</span>
-                          )}
-                          {!mobile && (
-                            <span className="flex-shrink-0 text-[10px]" style={{ color: '#4B5563' }}>mobile</span>
+                          {/* Desktop tip — shown instead of a broken redirect */}
+                          {!mobile && w.desktopTip && (
+                            <p className="text-[11px] mt-1.5 ml-11 leading-snug" style={{ color: '#6B7280' }}>
+                              {w.desktopTip}
+                            </p>
                           )}
                         </button>
                       );
