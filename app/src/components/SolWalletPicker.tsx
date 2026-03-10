@@ -71,17 +71,20 @@ export function buildSolWallets(): SolWalletDef[] {
     // The connect/send functions resolve the wallet lazily so they work even if
     // the wallet registers slightly after buildSolWallets() is called.
     (() => {
-      // Try to find MetaMask synchronously via Wallet Standard wallets already registered
+      // Synchronous Wallet Standard detection — no require() (breaks ESM/Vite)
+      // MetaMask registers wallets on window via the Wallet Standard event system.
+      // We check two places synchronously:
+      //  1. window.navigator.wallets — older Wallet Standard injection point
+      //  2. window['__wallet_standard__'] — some implementations cache here
+      // Async getWallets() is used in connect/send as the reliable fallback.
       let mmWallet: any = null;
       try {
-        // @wallet-standard/app getWallets() returns all currently registered wallets
-        const { getWallets } = require('@wallet-standard/app');
-        const { get } = getWallets();
-        mmWallet = get().find((wlt: any) =>
+        const registered: any[] = (window as any).__wallet_standard__?.get?.() ?? [];
+        mmWallet = registered.find((wlt: any) =>
           wlt.name?.toLowerCase().includes('metamask') &&
           wlt.chains?.some((c: string) => c.startsWith('solana:'))
         ) ?? null;
-      } catch { /* package not available — will resolve lazily */ }
+      } catch { /* not available yet */ }
 
       const mmIcon = (
         <svg viewBox="0 0 40 40" className="w-7 h-7" fill="none">
