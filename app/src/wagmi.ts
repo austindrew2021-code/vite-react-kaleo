@@ -29,11 +29,7 @@ import {
   coin98Wallet,
 } from '@rainbow-me/rainbowkit/wallets';
 import { createConfig, http, fallback } from 'wagmi';
-import {
-  sepolia, bscTestnet,
-  arbitrumSepolia, baseSepolia, polygonAmoy,
-  polygon, arbitrum, base, mainnet,
-} from 'wagmi/chains';
+import { mainnet, bsc, polygon, arbitrum, base } from 'wagmi/chains';
 
 // ── Pre-flight: clear wagmi reconnect storage in SOL/BTC wallet browsers ──
 // wagmi v2 stores session state under keys starting with "wagmi" and reads
@@ -133,53 +129,35 @@ const connectors = connectorsForWallets(
 export const config = createConfig({
   connectors,
   chains: [
-    bscTestnet,      // 97      default WC chain
-    sepolia,         // 11155111
-    arbitrumSepolia, // 421614
-    baseSepolia,     // 84532
-    polygonAmoy,     // 80002
-    mainnet,         // 1       fallback for wallets on mainnet
-    polygon,         // 137
-    arbitrum,        // 42161
-    base,            // 8453
+    mainnet,   // 1
+    bsc,       // 56
+    polygon,   // 137
+    arbitrum,  // 42161
+    base,      // 8453
   ],
   transports: {
-    [bscTestnet.id]:      fallback([
-      http('https://bsc-testnet-rpc.publicnode.com'),
-      http('https://bsc-testnet.public.blastapi.io'),
-      http('https://data-seed-prebsc-1-s1.binance.org:8545'),
-    ]),
-    [sepolia.id]:         fallback([
-      http('https://ethereum-sepolia-rpc.publicnode.com'),
-      http('https://sepolia.gateway.tenderly.co'),
-      http('https://rpc.sepolia.org'),
-    ]),
-    [arbitrumSepolia.id]: fallback([
-      http('https://sepolia-rollup.arbitrum.io/rpc'),
-      http('https://arbitrum-sepolia.public.blastapi.io'),
-    ]),
-    [baseSepolia.id]:     fallback([
-      http('https://sepolia.base.org'),
-      http('https://base-sepolia.public.blastapi.io'),
-    ]),
-    [polygonAmoy.id]:     fallback([
-      http('https://rpc-amoy.polygon.technology'),
-      http('https://polygon-amoy.public.blastapi.io'),
-    ]),
     [mainnet.id]:  fallback([
+      http('https://eth-mainnet.g.alchemy.com/v2/7iiXgQQtGUhyi7a-fC0Sd'),
       http('https://eth.llamarpc.com'),
       http('https://ethereum.publicnode.com'),
-      http('https://rpc.ankr.com/eth'),
+    ]),
+    [bsc.id]:      fallback([
+      http('https://bnb-mainnet.g.alchemy.com/v2/7iiXgQQtGUhyi7a-fC0Sd'),
+      http('https://bsc-dataseed.binance.org'),
+      http('https://bsc-dataseed1.binance.org'),
     ]),
     [polygon.id]:  fallback([
+      http('https://polygon-mainnet.g.alchemy.com/v2/7iiXgQQtGUhyi7a-fC0Sd'),
       http('https://polygon-rpc.com'),
       http('https://polygon.llamarpc.com'),
     ]),
     [arbitrum.id]: fallback([
+      http('https://arb-mainnet.g.alchemy.com/v2/7iiXgQQtGUhyi7a-fC0Sd'),
       http('https://arb1.arbitrum.io/rpc'),
       http('https://arbitrum.llamarpc.com'),
     ]),
     [base.id]:     fallback([
+      http('https://base-mainnet.g.alchemy.com/v2/7iiXgQQtGUhyi7a-fC0Sd'),
       http('https://mainnet.base.org'),
       http('https://base.llamarpc.com'),
     ]),
@@ -189,4 +167,4 @@ export const config = createConfig({
   pollingInterval: 12_000,  // poll every 12s (vs default 4s) — reduces RPC calls by 3x
 });
 
-export { sepolia, bscTestnet, arbitrumSepolia, baseSepolia, polygonAmoy };
+export { mainnet, bsc, polygon, arbitrum, base };
