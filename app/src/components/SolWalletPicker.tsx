@@ -63,60 +63,11 @@ export function buildSolWallets(): SolWalletDef[] {
   const w = window as any;
 
   return [
-    // ── MetaMask (Solana via Wallet Standard) ─────────────────────────────
-    // CRITICAL: MetaMask Solana does NOT inject window.solana.
-    // It registers via the Wallet Standard (window['wallet-standard:register-wallet']).
-    // We must use getWallets() from @wallet-standard/app to find it.
-    // Synchronous detection is attempted first; async discovery happens in useEffect.
-    // The connect/send functions resolve the wallet lazily so they work even if
-    // the wallet registers slightly after buildSolWallets() is called.
-    (() => {
-      const mmIcon = (
-        <svg viewBox="0 0 40 40" className="w-7 h-7" fill="none">
-          <rect width="40" height="40" rx="11" fill="#1A1A1A"/>
-          <path d="M31.5 9L21.8 16.1l1.8-4.3L31.5 9z" fill="#E17726" stroke="#E17726" strokeWidth=".3" strokeLinecap="round" strokeLinejoin="round"/>
-          <path d="M8.5 9l9.6 7.2-1.7-4.3L8.5 9z" fill="#E27625" stroke="#E27625" strokeWidth=".3" strokeLinecap="round" strokeLinejoin="round"/>
-          <path d="M28.2 25.6l-2.6 4 5.6 1.5 1.6-5.4-4.6-.1z" fill="#E27625" stroke="#E27625" strokeWidth=".3" strokeLinecap="round" strokeLinejoin="round"/>
-          <path d="M7.2 25.7l1.6 5.4 5.6-1.5-2.6-4-4.6.1z" fill="#E27625" stroke="#E27625" strokeWidth=".3" strokeLinecap="round" strokeLinejoin="round"/>
-          <path d="M14.1 19.7l-1.5 2.3 5.4.2-.2-5.8-3.7 3.3z" fill="#E27625" stroke="#E27625" strokeWidth=".3" strokeLinecap="round" strokeLinejoin="round"/>
-          <path d="M25.9 19.7l-3.8-3.4-.2 5.9 5.4-.2-1.4-2.3z" fill="#E27625" stroke="#E27625" strokeWidth=".3" strokeLinecap="round" strokeLinejoin="round"/>
-          <path d="M14.4 29.6l3.3-1.6-2.8-2.2-.5 3.8z" fill="#E27625" stroke="#E27625" strokeWidth=".3" strokeLinecap="round" strokeLinejoin="round"/>
-          <path d="M22.3 28l3.3 1.6-.5-3.8-2.8 2.2z" fill="#E27625" stroke="#E27625" strokeWidth=".3" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      );
-
-      // When site loads inside MetaMask's browser (via deeplink), window.solana
-      // is injected by MetaMask and isMetaMask === true. Use that directly.
-      // Outside MetaMask browser: show deeplink (mobile) or tip (desktop).
-      const solProvider = (window as any).solana?.isMetaMask ? (window as any).solana : null;
-
-      return {
-        id: 'metamask-sol',
-        name: 'MetaMask',
-        desc: 'SOL · ETH · 100+ networks',
-        accent: '#F6851B',
-        icon: mmIcon,
-        ...(solProvider ? {
-          connect: async () => {
-            // Inside MetaMask browser — use standard Solana provider
-            const result = await solProvider.connect();
-            return result?.publicKey?.toString() ?? solProvider.publicKey?.toString();
-          },
-          sendSol: async (to: string, lamports: number, conn: unknown) => {
-            const pk = solProvider.publicKey?.toString();
-            if (!pk) throw new Error('MetaMask Solana not connected');
-            const tx = await buildSolTx(pk, to, lamports, conn);
-            const result = await solProvider.signAndSendTransaction(tx);
-            return result?.signature ?? result;
-          },
-        } : {
-          deeplink: (url: string) => `https://metamask.app.link/dapp/${new URL(url).host}`,
-          desktopTip: 'Open this site inside the MetaMask app browser, or use Phantom / Solflare instead.',
-        }),
-      };
-    })() as any,
-
     // ── Phantom ────────────────────────────────────────────────────────────
+    // MetaMask is intentionally excluded from this SOL picker.
+    // MetaMask does not inject a Solana provider into dapp browsers on mobile,
+    // and desktop Wallet Standard support requires @solana/wallet-adapter.
+    // MetaMask users can buy using ETH or BNB instead — fully supported via EVM.
     {
       id: 'phantom', name: 'Phantom', desc: 'SOL · ETH · BTC · Polygon',
       accent: '#9B8CFF',
@@ -571,6 +522,21 @@ export function SolWalletPicker({ onConnect }: Props) {
             </svg>
             <p style={{ color: 'rgba(153,140,255,0.85)', fontSize: '11px', lineHeight: '1.45' }}>
               Opens inside your wallet's browser — connected automatically.
+            </p>
+          </div>
+        )}
+
+        {/* MetaMask info banner — shown when MetaMask is the only/primary EVM wallet */}
+        {(window as any).ethereum?.isMetaMask && !(window as any).phantom?.solana && (
+          <div className="mx-4 mb-2 px-3 py-2.5 rounded-xl flex items-start gap-2.5 flex-shrink-0"
+            style={{ background: 'rgba(246,133,27,0.08)', border: '1px solid rgba(246,133,27,0.2)' }}>
+            <svg className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" viewBox="0 0 40 40" fill="none">
+              <path d="M31.5 9L21.8 16.1l1.8-4.3L31.5 9z" fill="#E17726"/>
+              <path d="M8.5 9l9.6 7.2-1.7-4.3L8.5 9z" fill="#E27625"/>
+              <path d="M20 22l-5-8h10l-5 8z" fill="#E27625"/>
+            </svg>
+            <p style={{ color: 'rgba(246,133,27,0.9)', fontSize: '11px', lineHeight: '1.5' }}>
+              <strong>MetaMask detected.</strong> To buy with MetaMask, select ETH or BNB — MetaMask works perfectly for those. SOL requires Phantom or Solflare.
             </p>
           </div>
         )}
