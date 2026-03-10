@@ -103,17 +103,31 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
     if (!anyConnected || !activeAddress || !supabase) return;
 
     const fetchHistory = async () => {
-      const addrLower = activeAddress.toLowerCase();
-      const isEvm = activeAddress.startsWith('0x');
-      const query = supabase
+      // Build a set of ALL wallet addresses that may have been used to purchase.
+      // Phantom injects both SOL and EVM — so a user can buy with ETH while
+      // solAddress is also set. We must query ALL connected addresses, not just activeAddress.
+      const addrCandidates = new Set<string>();
+      if (address)     { addrCandidates.add(address.toLowerCase()); }       // EVM (wagmi)
+      if (solAddress)  { addrCandidates.add(solAddress);                     // SOL exact
+                         addrCandidates.add(solAddress.toLowerCase()); }     // SOL lowercase (legacy)
+      if (btcAddress)  { addrCandidates.add(btcAddress);
+                         addrCandidates.add(btcAddress.toLowerCase()); }
+      if (activeAddress && !addrCandidates.has(activeAddress)) {
+        addrCandidates.add(activeAddress);
+        addrCandidates.add(activeAddress.toLowerCase());
+      }
+
+      const candidates = [...addrCandidates].filter(Boolean);
+      if (candidates.length === 0) return;
+
+      // Build OR filter: wallet_address.eq.ADDR1,wallet_address.eq.ADDR2,...
+      const orFilter = candidates.map(a => `wallet_address.eq.${a}`).join(',');
+
+      const { data, error } = await supabase
         .from('presale_purchases')
         .select('tokens, usd_amount, payment_method, stage, tx_hash, created_at')
+        .or(orFilter)
         .order('created_at', { ascending: false });
-
-      // EVM → lowercase match. SOL/BTC → exact or lowercase (handles legacy records)
-      const { data, error } = isEvm
-        ? await query.eq('wallet_address', addrLower)
-        : await query.or(`wallet_address.eq.${activeAddress},wallet_address.eq.${addrLower}`);
 
       if (error) { console.error('Supabase history fetch:', error); return; }
 
