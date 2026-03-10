@@ -854,8 +854,33 @@ export function BuySection() {
         }
 
       } else if (isMetaMaskBrowser || isEvmBrowser) {
-        // Restore last used currency
         const walletName = isInEvmBrowser() || 'Wallet';
+
+        // ── MetaMask browser: check if user came here to buy SOL ─────────
+        // When someone taps MetaMask in the SOL picker, we deeplink into MetaMask's
+        // browser. In that case window.solana.isMetaMask is true — treat it as a SOL
+        // session and auto-connect SOL, NOT ETH. This prevents the "keeps connecting
+        // Ethereum" problem that happens when MetaMask browser triggers EVM auto-connect.
+        const mmSolProvider = (window as any).solana?.isMetaMask ? (window as any).solana : null;
+        if (mmSolProvider) {
+          try {
+            const result = await mmSolProvider.connect();
+            const addr = result?.publicKey?.toString() ?? mmSolProvider.publicKey?.toString();
+            if (addr) {
+              dropEvmConnection();
+              setSolWallet(addr, 'MetaMask');
+              localStorage.setItem('_kleo_sol_address', addr);
+              localStorage.setItem('_kleo_sol_wallet_name', 'MetaMask');
+              setCurrency('SOL');
+              const { buildSolWallets } = await import('../components/SolWalletPicker');
+              const w = buildSolWallets().find(x => x.id === 'metamask-sol');
+              if (w) setActiveWallet(w as unknown as DetectedWallet);
+              return; // done — skip EVM connect below
+            }
+          } catch { /* fall through to EVM connect */ }
+        }
+
+        // Restore last used currency for normal EVM session
         const savedCurrency = localStorage.getItem('_kleo_active_currency');
         if (savedCurrency && CURRENCIES.find(c => c.id === savedCurrency)) {
           setCurrency(savedCurrency);
