@@ -64,23 +64,28 @@ export function buildSolWallets(): SolWalletDef[] {
 
   return [
     // ── MetaMask (Solana) ──────────────────────────────────────────────────
-    // Capture provider ref immediately — other wallets may overwrite window.solana later
-    {
-      id: 'metamask-sol', name: 'MetaMask', desc: 'SOL · ETH · 100+ networks',
-      accent: '#F6851B',
-      ...(w.solana?.isMetaMask ? (() => {
-        const mmSol = w.solana; // capture now
-        return {
+    // MetaMask injects window.solana BUT Phantom overwrites it when both are installed.
+    // So we search ALL provider arrays for a MetaMask Solana provider:
+    //   window.solana.providers[]  — multi-wallet coexistence array
+    //   window.solana itself       — if MetaMask won the injection race
+    // Detection must happen before the spread so mmSol is available in closures.
+    (() => {
+      const providers: any[] = [
+        ...(Array.isArray(w.solana?.providers) ? w.solana.providers : []),
+        ...(w.solana?.isMetaMask ? [w.solana] : []),
+      ];
+      const mmSol = providers.find((p: any) => p?.isMetaMask) ?? null;
+      return {
+        id: 'metamask-sol', name: 'MetaMask', desc: 'SOL · ETH · 100+ networks',
+        accent: '#F6851B',
+        ...(mmSol ? {
           connect: async () => {
-            // MetaMask Solana uses request({method:'sol_requestAccounts'}) not .connect()
-            // Calling .connect() directly causes a page navigation — must use request()
-            try {
-              const accounts = await mmSol.request({ method: 'sol_requestAccounts' });
-              const addr = Array.isArray(accounts) ? accounts[0] : accounts?.publicKey;
-              if (addr) return typeof addr === 'string' ? addr : addr.toString();
-            } catch { /* method not available — try standard provider */ }
-            const r = await mmSol.connect();
-            return r?.publicKey?.toString() ?? mmSol.publicKey?.toString();
+            // Use sol_requestAccounts — the only safe MetaMask Solana connect method.
+            // NEVER call .connect() — it navigates the page instead of resolving.
+            const accounts = await mmSol.request({ method: 'sol_requestAccounts' });
+            const addr = Array.isArray(accounts) ? accounts[0] : accounts?.publicKey;
+            if (!addr) throw new Error('No account returned from MetaMask Solana');
+            return typeof addr === 'string' ? addr : addr.toString();
           },
           sendSol: async (to: string, lamports: number, conn: unknown) => {
             const pk = mmSol.publicKey?.toString();
@@ -89,27 +94,27 @@ export function buildSolWallets(): SolWalletDef[] {
             const result = await mmSol.signAndSendTransaction(tx);
             return result?.signature ?? result;
           },
-        };
-      })() : {}),
-      deeplink: (url: string) => {
-        const host = new URL(url).host;
-        return `https://metamask.app.link/dapp/${host}`;
-      },
-      desktopTip: 'Enable Solana in MetaMask → Settings → Experimental, then refresh.',
-      icon: (
-        <svg viewBox="0 0 40 40" className="w-7 h-7" fill="none">
-          <rect width="40" height="40" rx="11" fill="#1A1A1A"/>
-          <path d="M31.5 9L21.8 16.1l1.8-4.3L31.5 9z" fill="#E17726" stroke="#E17726" strokeWidth=".3" strokeLinecap="round" strokeLinejoin="round"/>
-          <path d="M8.5 9l9.6 7.2-1.7-4.3L8.5 9z" fill="#E27625" stroke="#E27625" strokeWidth=".3" strokeLinecap="round" strokeLinejoin="round"/>
-          <path d="M28.2 25.6l-2.6 4 5.6 1.5 1.6-5.4-4.6-.1z" fill="#E27625" stroke="#E27625" strokeWidth=".3" strokeLinecap="round" strokeLinejoin="round"/>
-          <path d="M7.2 25.7l1.6 5.4 5.6-1.5-2.6-4-4.6.1z" fill="#E27625" stroke="#E27625" strokeWidth=".3" strokeLinecap="round" strokeLinejoin="round"/>
-          <path d="M14.1 19.7l-1.5 2.3 5.4.2-.2-5.8-3.7 3.3z" fill="#E27625" stroke="#E27625" strokeWidth=".3" strokeLinecap="round" strokeLinejoin="round"/>
-          <path d="M25.9 19.7l-3.8-3.4-.2 5.9 5.4-.2-1.4-2.3z" fill="#E27625" stroke="#E27625" strokeWidth=".3" strokeLinecap="round" strokeLinejoin="round"/>
-          <path d="M14.4 29.6l3.3-1.6-2.8-2.2-.5 3.8z" fill="#E27625" stroke="#E27625" strokeWidth=".3" strokeLinecap="round" strokeLinejoin="round"/>
-          <path d="M22.3 28l3.3 1.6-.5-3.8-2.8 2.2z" fill="#E27625" stroke="#E27625" strokeWidth=".3" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      ),
-    },
+        } : {}),
+        deeplink: (url: string) => {
+          const host = new URL(url).host;
+          return `https://metamask.app.link/dapp/${host}`;
+        },
+        desktopTip: 'Enable Solana in MetaMask → Settings → Experimental, then refresh.',
+        icon: (
+          <svg viewBox="0 0 40 40" className="w-7 h-7" fill="none">
+            <rect width="40" height="40" rx="11" fill="#1A1A1A"/>
+            <path d="M31.5 9L21.8 16.1l1.8-4.3L31.5 9z" fill="#E17726" stroke="#E17726" strokeWidth=".3" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M8.5 9l9.6 7.2-1.7-4.3L8.5 9z" fill="#E27625" stroke="#E27625" strokeWidth=".3" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M28.2 25.6l-2.6 4 5.6 1.5 1.6-5.4-4.6-.1z" fill="#E27625" stroke="#E27625" strokeWidth=".3" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M7.2 25.7l1.6 5.4 5.6-1.5-2.6-4-4.6.1z" fill="#E27625" stroke="#E27625" strokeWidth=".3" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M14.1 19.7l-1.5 2.3 5.4.2-.2-5.8-3.7 3.3z" fill="#E27625" stroke="#E27625" strokeWidth=".3" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M25.9 19.7l-3.8-3.4-.2 5.9 5.4-.2-1.4-2.3z" fill="#E27625" stroke="#E27625" strokeWidth=".3" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M14.4 29.6l3.3-1.6-2.8-2.2-.5 3.8z" fill="#E27625" stroke="#E27625" strokeWidth=".3" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M22.3 28l3.3 1.6-.5-3.8-2.8 2.2z" fill="#E27625" stroke="#E27625" strokeWidth=".3" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        ),
+      };
+    })() as any,
 
     // ── Phantom ────────────────────────────────────────────────────────────
     {
