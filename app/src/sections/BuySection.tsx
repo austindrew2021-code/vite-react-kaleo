@@ -1472,38 +1472,59 @@ export function BuySection() {
           const centsAmount = BigInt(Math.round(usdEst * 100));
           const tokenAmount = centsAmount * (10n ** BigInt(tokenInfo.decimals)) / 100n;
 
-          // Fetch live gas price — dual strategy to handle CORS + fast-moving L2 base fees
-          // Strategy 1: eth_gasPrice (simpler, better CORS support than eth_getBlockByNumber)
-          // Strategy 2: fixed high fallback (testnets — cost is irrelevant)
+          // Fetch live gas prices from the chain's own RPC.
+          // Uses eth_feeHistory to get the real tip AND base fee — works on all EIP-1559 chains.
+          // Falls back to eth_gasPrice (legacy) for BSC which doesn't support feeHistory.
           let maxFeePerGas: bigint | undefined;
           let maxPriorityFeePerGas: bigint | undefined;
           try {
             const rpcUrl = activeStableChain?.rpcUrls?.[0];
             if (rpcUrl) {
-              // Try eth_gasPrice first — wider RPC compatibility than eth_getBlockByNumber
-              let fetched = false;
-              try {
-                const resp = await fetch(rpcUrl, {
+              const rpcPost = async (method: string, params: any[]) => {
+                const r = await fetch(rpcUrl, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_gasPrice', params: [] }),
+                  body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
                 });
-                const rpcData = await resp.json();
-                const gasPriceHex: string | undefined = rpcData?.result;
-                if (gasPriceHex && gasPriceHex !== '0x0') {
-                  const gasPrice = BigInt(gasPriceHex);
-                  const tip = 10_000_000n; // 0.01 gwei priority fee
+                return (await r.json())?.result;
+              };
+
+              let fetched = false;
+
+              // Strategy 1: eth_feeHistory — EIP-1559 chains (Arbitrum, Polygon, Ethereum, Base)
+              // Returns actual baseFee + real tip percentiles from recent blocks
+              try {
+                const feeHist = await rpcPost('eth_feeHistory', ['0x5', 'latest', [50]]);
+                const baseFeeHex = feeHist?.baseFeePerGas?.slice(-1)?.[0]; // next block base fee
+                const tipHex     = feeHist?.reward?.flat()?.[0];           // 50th percentile tip
+                if (baseFeeHex && tipHex) {
+                  const baseFee = BigInt(baseFeeHex);
+                  const tip     = BigInt(tipHex);
+                  // 2× base fee buffer + real tip — always clears even during spikes
                   maxPriorityFeePerGas = tip;
-                  maxFeePerGas = gasPrice * 5n + tip; // 5x buffer — safe for fast L2 base fees
+                  maxFeePerGas         = baseFee * 2n + tip;
                   fetched = true;
                 }
-              } catch { /* CORS or network error — try fallback */ }
+              } catch { /* chain may not support feeHistory */ }
 
+              // Strategy 2: eth_gasPrice — legacy chains (BSC, older L2s)
               if (!fetched) {
-                // Fallback: conservative fixed gas for testnet (50 gwei — always clears)
-                const tip = 10_000_000n;
-                maxPriorityFeePerGas = tip;
-                maxFeePerGas = 50_000_000_000n + tip; // 50 gwei + tip
+                try {
+                  const gasPriceHex = await rpcPost('eth_gasPrice', []);
+                  if (gasPriceHex && gasPriceHex !== '0x0') {
+                    const gasPrice = BigInt(gasPriceHex);
+                    // For legacy chains: maxFee = maxPriority = gasPrice * 1.5 (matches wallet behaviour)
+                    maxPriorityFeePerGas = gasPrice;
+                    maxFeePerGas         = gasPrice + gasPrice / 2n; // 1.5×
+                    fetched = true;
+                  }
+                } catch { /* CORS or network error */ }
+              }
+
+              // Strategy 3: let the wallet estimate (no override) — only if both RPC calls failed
+              if (!fetched) {
+                maxFeePerGas = undefined;
+                maxPriorityFeePerGas = undefined;
               }
             }
           } catch { /* silently fall back — wallet will estimate */ }
