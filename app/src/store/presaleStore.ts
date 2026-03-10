@@ -83,6 +83,10 @@ interface PresaleState {
 
   reset: () => void;
   resetTx: () => void;
+
+  // Bumped after every purchase so PresaleProgress knows to re-fetch history immediately
+  lastPurchaseTs: number;
+  bumpPurchaseTs: () => void;
 }
 
 export const usePresaleStore = create<PresaleState>()(
@@ -108,6 +112,9 @@ export const usePresaleStore = create<PresaleState>()(
 
       reset: () => set({ usdAmount: '', tokenAmount: '' }),
       resetTx: () => set({ txStatus: 'idle', txError: null }),
+
+      lastPurchaseTs: 0,
+      bumpPurchaseTs: () => set({ lastPurchaseTs: Date.now() }),
     }),
     {
       name: 'xenia-presale-v1',
