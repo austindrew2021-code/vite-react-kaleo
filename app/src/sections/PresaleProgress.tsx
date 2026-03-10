@@ -77,7 +77,7 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
     fetchAndMergeTotal();
 
     // Poll every 30s as backup for real-time subscription gaps
-    const pollInterval = setInterval(fetchAndMergeTotal, 30_000);
+    const pollInterval = setInterval(fetchAndMergeTotal, 10_000); // every 10s — catches gaps in realtime
 
     // Real-time: listen for INSERT and UPDATE (upsert can fire either)
     const globalChannel = supabase
