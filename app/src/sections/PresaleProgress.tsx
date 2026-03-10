@@ -31,7 +31,7 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
   // use solAddress — so SOL takes priority over EVM when both are set.
   const activeAddress = solAddress || btcAddress || address || '';
   const anyConnected = isConnected || !!solAddress || !!btcAddress;
-  const { totalRaised, purchases, setTotalRaised } = usePresaleStore();
+  const { totalRaised, purchases, setTotalRaised, lastPurchaseTs } = usePresaleStore();
 
   const currentStage = getCurrentStage(totalRaised);
   const stageProgress = getStageProgress(totalRaised);
@@ -96,13 +96,13 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
     };
   }, []);
 
-  // ── Fetch user purchase history from Supabase (persistent, cross-device) ──
+  // ── Fetch user purchase history — polling only (no Realtime needed) ──────
+  // Triggered immediately when lastPurchaseTs bumps (post-purchase) and every 10s.
+  // No Supabase Realtime subscription required — works on free tier.
   useEffect(() => {
     if (!anyConnected || !activeAddress || !supabase) return;
 
     const fetchHistory = async () => {
-      // SOL/BTC addresses are stored as-is (base58, case-sensitive).
-      // EVM addresses are stored lowercased. Query for both variants.
       const addrLower = activeAddress.toLowerCase();
       const isEvm = activeAddress.startsWith('0x');
       const query = supabase
@@ -110,7 +110,7 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
         .select('tokens, usd_amount, payment_method, stage, tx_hash, created_at')
         .order('created_at', { ascending: false });
 
-      // For EVM use lowercase; for SOL/BTC query exact address
+      // EVM → lowercase match. SOL/BTC → exact or lowercase (handles legacy records)
       const { data, error } = isEvm
         ? await query.eq('wallet_address', addrLower)
         : await query.or(`wallet_address.eq.${activeAddress},wallet_address.eq.${addrLower}`);
@@ -126,23 +126,11 @@ export function PresaleProgress({ direction }: PresaleProgressProps) {
     };
 
     fetchHistory();
+    const poll = setInterval(fetchHistory, 10_000);
+    return () => clearInterval(poll);
 
-    const channel = supabase
-      .channel('presale-updates')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'presale_purchases' }, (payload) => {
-        if (payload.new.wallet_address?.toLowerCase() === activeAddress.toLowerCase()) {
-          setSupabaseTokens(prev => prev + Number(payload.new.tokens || 0));
-          setSupabaseUsd(prev => prev + Number(payload.new.usd_amount || 0));
-          setSupabaseCount(prev => prev + 1);
-          setSupabasePurchases(prev => [payload.new as any, ...prev]);
-        }
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [address, isConnected, solAddress, btcAddress, activeAddress, anyConnected]);
+  // lastPurchaseTs changes every time a purchase is recorded → triggers immediate re-fetch
+  }, [address, isConnected, solAddress, btcAddress, activeAddress, anyConnected, lastPurchaseTs]);
 
   useEffect(() => {
     gsap.fromTo(
