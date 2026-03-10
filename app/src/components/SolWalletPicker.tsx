@@ -464,9 +464,9 @@ export function SolWalletPicker({ onConnect }: Props) {
 
   if (!showSolPicker) return null;
 
-  // Split wallets: installed (have connect fn) vs deeplink-only
+  // Split wallets: installed (have connect fn) vs deeplink-only vs tip-only
   const installed = wallets.filter(w => !!w.connect);
-  const deeplinkOnly = wallets.filter(w => !w.connect && !!w.deeplink);
+  const deeplinkOnly = wallets.filter(w => !w.connect && (!!w.deeplink || !!(w as any).desktopTip));
 
   const filterWallets = (list: SolWalletDef[]) =>
     search
