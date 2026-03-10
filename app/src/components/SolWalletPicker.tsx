@@ -64,23 +64,33 @@ export function buildSolWallets(): SolWalletDef[] {
 
   return [
     // ── MetaMask (Solana) ──────────────────────────────────────────────────
-    // MetaMask injects window.solana with isMetaMask:true when Solana is enabled
+    // Capture provider ref immediately — other wallets may overwrite window.solana later
     {
       id: 'metamask-sol', name: 'MetaMask', desc: 'SOL · ETH · 100+ networks',
       accent: '#F6851B',
-      ...(w.solana?.isMetaMask ? {
-        connect: async () => {
-          const r = await w.solana.connect();
-          return r.publicKey?.toString() ?? w.solana.publicKey?.toString();
-        },
-        sendSol: async (to: string, lamports: number, conn: unknown) => {
-          const pk = w.solana.publicKey.toString();
-          const tx = await buildSolTx(pk, to, lamports, conn);
-          return (await w.solana.signAndSendTransaction(tx)).signature;
-        },
-      } : {}),
-      // MetaMask mobile: metamask.app.link/dapp/<host> opens the dapp inside MetaMask browser
-      // Desktop non-detected: show "enable Solana in settings" tip instead of redirecting
+      ...(w.solana?.isMetaMask ? (() => {
+        const mmSol = w.solana; // capture now
+        return {
+          connect: async () => {
+            // MetaMask Solana uses request({method:'sol_requestAccounts'}) not .connect()
+            // Calling .connect() directly causes a page navigation — must use request()
+            try {
+              const accounts = await mmSol.request({ method: 'sol_requestAccounts' });
+              const addr = Array.isArray(accounts) ? accounts[0] : accounts?.publicKey;
+              if (addr) return typeof addr === 'string' ? addr : addr.toString();
+            } catch { /* method not available — try standard provider */ }
+            const r = await mmSol.connect();
+            return r?.publicKey?.toString() ?? mmSol.publicKey?.toString();
+          },
+          sendSol: async (to: string, lamports: number, conn: unknown) => {
+            const pk = mmSol.publicKey?.toString();
+            if (!pk) throw new Error('MetaMask Solana not connected');
+            const tx = await buildSolTx(pk, to, lamports, conn);
+            const result = await mmSol.signAndSendTransaction(tx);
+            return result?.signature ?? result;
+          },
+        };
+      })() : {}),
       deeplink: (url: string) => {
         const host = new URL(url).host;
         return `https://metamask.app.link/dapp/${host}`;
