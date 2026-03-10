@@ -464,7 +464,7 @@ export function BuySection() {
   const sectionRef = useRef<HTMLDivElement>(null);
   const cardRef    = useRef<HTMLDivElement>(null);
 
-  const { totalRaised, addRaised, addPurchase, setTotalRaised } = usePresaleStore();
+  const { totalRaised, addRaised, addPurchase, setTotalRaised, bumpPurchaseTs } = usePresaleStore();
   const {
     solAddress, btcAddress, solWalletName, btcWalletName,
     setSolWallet, setBtcWallet, disconnectSol, disconnectBtc, setShowEvmPicker, setShowSolPicker,
@@ -626,6 +626,8 @@ export function BuySection() {
           try { localStorage.removeItem(pendingKey); } catch { /* ignore */ }
           // Re-fetch the DB total immediately so PresaleProgress updates right away.
           // This is the authoritative source — don't rely on Realtime subscription firing.
+          // Signal all components to re-fetch their data immediately
+          bumpPurchaseTs();
           try {
             const { data: totals } = await supabase
               .from('presale_purchases')
@@ -643,7 +645,7 @@ export function BuySection() {
       console.error('Supabase upsert failed after 3 attempts:', lastError?.message, lastError?.code);
       // Record stays in localStorage — can be replayed later if needed
     }
-  }, [addRaised, addPurchase, setTotalRaised, currentStage]);
+  }, [addRaised, addPurchase, setTotalRaised, bumpPurchaseTs, currentStage]);
 
   // ── On mount: ONLY handle callbacks + restore saved addresses ─────────
   // No auto-connect. Each currency tab connects its own wallet on demand.
