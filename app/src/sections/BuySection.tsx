@@ -10,7 +10,7 @@ import { createClient } from '@supabase/supabase-js';
 import { useAccount, useSendTransaction, useDisconnect, useSwitchChain, useWriteContract, useConnect, useChainId, useConnections } from 'wagmi';
 import { injected } from 'wagmi/connectors';
 import { parseEther } from 'viem';
-import { sepolia, bscTestnet, arbitrumSepolia, baseSepolia, polygonAmoy } from 'wagmi/chains';
+import { mainnet, bsc, arbitrum, base, polygon } from 'wagmi/chains';
 import { usePresaleStore, getCurrentStage, LISTING_PRICE_USD, useWalletStore } from '../store/presaleStore';
 import { BtcDiagnostic } from '../components/BtcDiagnostic';
 import { SolWalletPicker } from '../components/SolWalletPicker';
@@ -302,89 +302,89 @@ const STABLE_CHAINS: Record<string, {
       nativeCurrency: { name: 'SOL', symbol: 'SOL', decimals: 9 },
       rpcUrls: ['https://rpc.ankr.com/solana'],
       blockExplorer: 'https://solscan.io',
-      usdc: { address: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', decimals: 6 }, // devnet: 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU
+      usdc: { address: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', decimals: 6 },
     },
     {
       id: 'eth', label: 'Ethereum', icon: 'Ξ',
-      chainId: sepolia.id, chainName: 'Sepolia Testnet', chainHex: '0xaa36a7',  // mainnet: 1 / 0x1
+      chainId: mainnet.id, chainName: 'Ethereum', chainHex: '0x1',
       nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
-      rpcUrls: ['https://ethereum-sepolia-rpc.publicnode.com'],                   // mainnet: https://eth.llamarpc.com
-      blockExplorer: 'https://sepolia.etherscan.io',
-      usdc: { address: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238', decimals: 6 }, // mainnet: 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
+      rpcUrls: ['https://eth-mainnet.g.alchemy.com/v2/7iiXgQQtGUhyi7a-fC0Sd'],
+      blockExplorer: 'https://etherscan.io',
+      usdc: { address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', decimals: 6 },
     },
     {
       id: 'bnb', label: 'BNB Chain', icon: '◆',
-      chainId: bscTestnet.id, chainName: 'BSC Testnet', chainHex: '0x61',        // mainnet: 56 / 0x38
-      nativeCurrency: { name: 'tBNB', symbol: 'tBNB', decimals: 18 },
-      rpcUrls: ['https://bsc-testnet-rpc.publicnode.com'],                        // mainnet: https://bsc-dataseed.binance.org
-      blockExplorer: 'https://testnet.bscscan.com',
-      usdc: { address: '0x64544969ed7EBf5f083679233325356EbE738930', decimals: 18 }, // mainnet: 0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d
+      chainId: bsc.id, chainName: 'BNB Chain', chainHex: '0x38',
+      nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
+      rpcUrls: ['https://bnb-mainnet.g.alchemy.com/v2/7iiXgQQtGUhyi7a-fC0Sd'],
+      blockExplorer: 'https://bscscan.com',
+      usdc: { address: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d', decimals: 18 },
     },
     {
-      id: 'polygon', label: 'Polygon Amoy', icon: '⬡',
-      chainId: polygonAmoy.id, chainName: 'Polygon Amoy Testnet', chainHex: '0x13882',
-      nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 },
-      rpcUrls: ['https://rpc-amoy.polygon.technology'],
-      blockExplorer: 'https://www.oklink.com/amoy',
-      usdc: { address: '0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582', decimals: 6 }, // mainnet: 0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359
+      id: 'polygon', label: 'Polygon', icon: '⬡',
+      chainId: polygon.id, chainName: 'Polygon', chainHex: '0x89',
+      nativeCurrency: { name: 'POL', symbol: 'POL', decimals: 18 },
+      rpcUrls: ['https://polygon-mainnet.g.alchemy.com/v2/7iiXgQQtGUhyi7a-fC0Sd'],
+      blockExplorer: 'https://polygonscan.com',
+      usdc: { address: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', decimals: 6 },
     },
     {
       id: 'arbitrum', label: 'Arbitrum', icon: '🔵',
-      chainId: arbitrumSepolia.id, chainName: 'Arbitrum Sepolia', chainHex: '0x66eee',
+      chainId: arbitrum.id, chainName: 'Arbitrum One', chainHex: '0xa4b1',
       nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
-      rpcUrls: ['https://sepolia-rollup.arbitrum.io/rpc'],
-      blockExplorer: 'https://sepolia.arbiscan.io',
-      usdc: { address: '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d', decimals: 6 }, // mainnet: 0xaf88d065e77c8cC2239327C5EDb3A432268e5831
+      rpcUrls: ['https://arb-mainnet.g.alchemy.com/v2/7iiXgQQtGUhyi7a-fC0Sd'],
+      blockExplorer: 'https://arbiscan.io',
+      usdc: { address: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831', decimals: 6 },
     },
     {
       id: 'base', label: 'Base', icon: '🔷',
-      chainId: baseSepolia.id, chainName: 'Base Sepolia', chainHex: '0x14a34',
+      chainId: base.id, chainName: 'Base', chainHex: '0x2105',
       nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
-      rpcUrls: ['https://sepolia.base.org'],
-      blockExplorer: 'https://sepolia.basescan.org',
-      usdc: { address: '0x036CbD53842c5426634e7929541eC2318f3dCF7e', decimals: 6 }, // mainnet: 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
+      rpcUrls: ['https://base-mainnet.g.alchemy.com/v2/7iiXgQQtGUhyi7a-fC0Sd'],
+      blockExplorer: 'https://basescan.org',
+      usdc: { address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', decimals: 6 },
     },
   ],
   USDT: [
     {
       id: 'eth', label: 'Ethereum', icon: 'Ξ',
-      chainId: sepolia.id, chainName: 'Sepolia Testnet', chainHex: '0xaa36a7',  // mainnet: 1
+      chainId: mainnet.id, chainName: 'Ethereum', chainHex: '0x1',
       nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
-      rpcUrls: ['https://ethereum-sepolia-rpc.publicnode.com'],
-      blockExplorer: 'https://sepolia.etherscan.io',
-      usdt: { address: '0x7169D38820dfd117C3FA1f22a697dBA58d90BA06', decimals: 6 }, // mainnet: 0xdAC17F958D2ee523a2206206994597C13D831ec7
+      rpcUrls: ['https://eth-mainnet.g.alchemy.com/v2/7iiXgQQtGUhyi7a-fC0Sd'],
+      blockExplorer: 'https://etherscan.io',
+      usdt: { address: '0xdAC17F958D2ee523a2206206994597C13D831ec7', decimals: 6 },
     },
     {
       id: 'bnb', label: 'BNB Chain', icon: '◆',
-      chainId: bscTestnet.id, chainName: 'BSC Testnet', chainHex: '0x61',        // mainnet: 56
-      nativeCurrency: { name: 'tBNB', symbol: 'tBNB', decimals: 18 },
-      rpcUrls: ['https://bsc-testnet-rpc.publicnode.com'],
-      blockExplorer: 'https://testnet.bscscan.com',
-      usdt: { address: '0x337610d27c682E347C9cD60BD4b3b107C9d34dDd', decimals: 18 }, // mainnet: 0x55d398326f99059fF775485246999027B3197955
+      chainId: bsc.id, chainName: 'BNB Chain', chainHex: '0x38',
+      nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
+      rpcUrls: ['https://bnb-mainnet.g.alchemy.com/v2/7iiXgQQtGUhyi7a-fC0Sd'],
+      blockExplorer: 'https://bscscan.com',
+      usdt: { address: '0x55d398326f99059fF775485246999027B3197955', decimals: 18 },
     },
     {
-      id: 'polygon', label: 'Polygon Amoy', icon: '⬡',
-      chainId: polygonAmoy.id, chainName: 'Polygon Amoy Testnet', chainHex: '0x13882',
-      nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 },
-      rpcUrls: ['https://rpc-amoy.polygon.technology'],
-      blockExplorer: 'https://www.oklink.com/amoy',
-      usdt: { address: '0xAcDe43b9E5F72A4F554D4346E69e8e7Ac8BE9dc8', decimals: 6 }, // mainnet: 0xc2132D05D31c914a87C6611C10748AEb04B58e8F
+      id: 'polygon', label: 'Polygon', icon: '⬡',
+      chainId: polygon.id, chainName: 'Polygon', chainHex: '0x89',
+      nativeCurrency: { name: 'POL', symbol: 'POL', decimals: 18 },
+      rpcUrls: ['https://polygon-mainnet.g.alchemy.com/v2/7iiXgQQtGUhyi7a-fC0Sd'],
+      blockExplorer: 'https://polygonscan.com',
+      usdt: { address: '0xc2132D05D31c914a87C6611C10748AEb04B58e8F', decimals: 6 },
     },
     {
       id: 'arbitrum', label: 'Arbitrum', icon: '🔵',
-      chainId: arbitrumSepolia.id, chainName: 'Arbitrum Sepolia', chainHex: '0x66eee',
+      chainId: arbitrum.id, chainName: 'Arbitrum One', chainHex: '0xa4b1',
       nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
-      rpcUrls: ['https://sepolia-rollup.arbitrum.io/rpc'],
-      blockExplorer: 'https://sepolia.arbiscan.io',
-      usdt: { address: '0x4d7d2eA3E72533e62cA0e7c31A0a82E0bDC0CAb8', decimals: 6 }, // mainnet: 0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9
+      rpcUrls: ['https://arb-mainnet.g.alchemy.com/v2/7iiXgQQtGUhyi7a-fC0Sd'],
+      blockExplorer: 'https://arbiscan.io',
+      usdt: { address: '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9', decimals: 6 },
     },
     {
       id: 'base', label: 'Base', icon: '🔷',
-      chainId: baseSepolia.id, chainName: 'Base Sepolia', chainHex: '0x14a34',
+      chainId: base.id, chainName: 'Base', chainHex: '0x2105',
       nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
-      rpcUrls: ['https://sepolia.base.org'],
-      blockExplorer: 'https://sepolia.basescan.org',
-      usdt: { address: '0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb', decimals: 6 }, // Base mainnet: no official USDT — use USDC instead
+      rpcUrls: ['https://base-mainnet.g.alchemy.com/v2/7iiXgQQtGUhyi7a-fC0Sd'],
+      blockExplorer: 'https://basescan.org',
+      usdt: { address: '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9', decimals: 6 },
     },
   ],
 };
@@ -402,8 +402,8 @@ function getTokenInfo(token: string, stableChainId: string): TokenInfo | undefin
 
 const CURRENCIES = [
   { id: 'SOL',  label: 'Solana',   symbol: 'SOL',  icon: '◎', color: 'text-purple-400', chain: 'sol' },
-  { id: 'ETH',  label: 'Ethereum', symbol: 'ETH',  icon: 'Ξ', color: 'text-blue-400',   chain: 'evm', chainId: sepolia.id },
-  { id: 'BNB',  label: 'BNB',      symbol: 'BNB',  icon: '◆', color: 'text-yellow-400', chain: 'evm', chainId: bscTestnet.id },
+  { id: 'ETH',  label: 'Ethereum', symbol: 'ETH',  icon: 'Ξ', color: 'text-blue-400',   chain: 'evm', chainId: mainnet.id },
+  { id: 'BNB',  label: 'BNB',      symbol: 'BNB',  icon: '◆', color: 'text-yellow-400', chain: 'evm', chainId: bsc.id },
   { id: 'USDC', label: 'USDC',     symbol: 'USDC', icon: '$', color: 'text-green-400',  chain: 'evm', token: 'USDC' },
   { id: 'USDT', label: 'USDT',     symbol: 'USDT', icon: '₮', color: 'text-teal-400',   chain: 'evm', token: 'USDT' },
   { id: 'BTC',  label: 'Bitcoin',  symbol: 'BTC',  icon: '₿', color: 'text-orange-400', chain: 'btc' },
@@ -1627,17 +1627,11 @@ export function BuySection() {
 
   // Map every chain ID to its correct block explorer
   const EXPLORER: Record<number, string> = {
-    [sepolia.id]:         'https://sepolia.etherscan.io/tx/',
-    [bscTestnet.id]:      'https://testnet.bscscan.com/tx/',
-    [arbitrumSepolia.id]: 'https://sepolia.arbiscan.io/tx/',
-    [baseSepolia.id]:     'https://sepolia.basescan.org/tx/',
-    [polygonAmoy.id]:     'https://www.oklink.com/amoy/tx/',
-    // mainnet fallbacks (for when users are already on mainnet)
-    1:     'https://etherscan.io/tx/',
-    56:    'https://bscscan.com/tx/',
-    137:   'https://polygonscan.com/tx/',
-    42161: 'https://arbiscan.io/tx/',
-    8453:  'https://basescan.org/tx/',
+    [mainnet.id]:  'https://etherscan.io/tx/',
+    [bsc.id]:      'https://bscscan.com/tx/',
+    [polygon.id]:  'https://polygonscan.com/tx/',
+    [arbitrum.id]: 'https://arbiscan.io/tx/',
+    [base.id]:     'https://basescan.org/tx/',
   };
   const evmExplorerBase = EXPLORER[currentChainId ?? 0] ?? 'https://etherscan.io/tx/';
   const explorerUrl = txHash
