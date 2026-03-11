@@ -39,7 +39,7 @@ const faqCategories = [
       },
       {
         q: 'What are the tokenomics?',
-        a: 'Total supply is 1,000,000,000 XEN. Allocation: 22.5% Presale (225M tokens), 20% Liquidity & Exchange Listings (200M), 15% Ecosystem & Platform Rewards (150M), 15% Team & Advisors (150M, 12-month cliff then 24-month vest), 10% Marketing & Partnerships (100M), 17.5% reserved for Community & Future Growth. Listing price: $0.05/XEN on Solana DEXs.',
+        a: 'Total supply is 1,000,000,000 XEN. Allocation: 22.45% Presale (224.5M tokens), 20% Liquidity & Exchange Listings (200M), 15% Ecosystem & Platform Rewards (150M), 15% Team & Advisors (150M, 12-month cliff then 24-month vest), 10% Marketing & Partnerships (100M), 17.5% reserved for Community & Future Growth. Listing price: $0.05/XEN on Solana DEXs.',
       },
       {
         q: 'Is there a vesting period for team tokens?',
