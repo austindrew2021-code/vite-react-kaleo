@@ -1,6 +1,20 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+// ── One-time localStorage cleanup ────────────────────────────────────────
+// Clears stale test data cached in wallet in-app browsers (Phantom, Solflare etc).
+// Runs once on module load. Safe to run on every page load — just removes old keys.
+(function clearStaleCache() {
+  try {
+    // Remove old persist key (had test totalRaised baked in)
+    localStorage.removeItem('xenia-presale-v1');
+    // Remove any pending purchase backup keys from test runs
+    Object.keys(localStorage)
+      .filter(k => k.startsWith('_xen_pending_'))
+      .forEach(k => localStorage.removeItem(k));
+  } catch { /* localStorage blocked in some wallet browsers — safe to ignore */ }
+})();
+
 // ── Listing price at public launch ──────────────────────────────────────
 export const LISTING_PRICE_USD = 0.05; // USD per XEN at launch
 
@@ -117,10 +131,11 @@ export const usePresaleStore = create<PresaleState>()(
       bumpPurchaseTs: () => set({ lastPurchaseTs: Date.now() }),
     }),
     {
-      name: 'xenia-presale-v1',
-      partialize: (state) => ({
-        totalRaised: state.totalRaised,
-        purchases: state.purchases,
+      name: 'xenia-presale-v2', // bumped to clear stale test data in wallet browsers
+      partialize: (_state) => ({
+        // Intentionally persist nothing — totalRaised and purchases always
+        // fetch fresh from Supabase. Persisting them caused wallet browsers
+        // to show stale test amounts even after the DB was wiped.
       }),
     }
   )
