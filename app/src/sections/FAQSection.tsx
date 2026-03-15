@@ -185,7 +185,7 @@ export function FAQSection() {
               Join Discord
               <ArrowRight className="w-5 h-5" />
             </a>
-            <a href="https://t.me/heimdall_odintools_bot?start=verify_-1003779764198" target="_blank" rel="noopener noreferrer" className="px-6 py-3 rounded-xl bg-white/5 border border-white/10 text-[#A7B0B7] text-base font-medium hover:border-[#2BFFF1]/50 hover:text-[#2BFFF1] transition-colors flex items-center gap-2">
+            <a href="https://t.me/XENIA_CHAIN" target="_blank" rel="noopener noreferrer" className="px-6 py-3 rounded-xl bg-white/5 border border-white/10 text-[#A7B0B7] text-base font-medium hover:border-[#2BFFF1]/50 hover:text-[#2BFFF1] transition-colors flex items-center gap-2">
               Telegram Group
               <ArrowRight className="w-5 h-5" />
             </a>
