@@ -19,7 +19,7 @@ const resourceLinks = [
 const communityLinks = [
   { label: 'Twitter / X', href: 'https://x.com/XeniaChain', icon: Twitter },
   { label: 'Discord', href: 'https://discord.gg/CDMjY4UN8', icon: MessageCircle },
-  { label: 'Telegram', href: 'https://t.me/heimdall_odintools_bot?start=verify_-1003779764198', icon: Send },
+  { label: 'Telegram', href: 'https://t.me/XENIA_CHAIN', icon: Send },
 ];
 
 export function FooterSection() {
