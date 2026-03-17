@@ -99,13 +99,19 @@ export function FeaturesGridSection() {
               </div>
 
               {/* Link */}
-              <a
-                href={feature.linkHref}
-                className="text-[#2BFFF1] font-medium flex items-center gap-2 hover:gap-3 transition-all mt-auto text-sm md:text-base"
+              <button
+                onClick={() => {
+                  if (feature.linkHref === '#leaderboard') {
+                    (window as any).__xen_showLeaderboard?.();
+                  } else if (feature.linkHref && feature.linkHref !== '#') {
+                    window.location.href = feature.linkHref;
+                  }
+                }}
+                className="text-[#2BFFF1] font-medium flex items-center gap-2 hover:gap-3 transition-all mt-auto text-sm md:text-base bg-transparent border-0 cursor-pointer p-0"
               >
                 {feature.link}
                 <ArrowRight className="w-4 h-4 md:w-5 md:h-5" />
-              </a>
+              </button>
 
               {/* Thumbnail Image */}
               <div className="grid-thumb absolute bottom-0 right-0 w-[35%] h-[35%] md:w-[40%] md:h-[40%] opacity-60 transition-all duration-300 hover:opacity-80">
