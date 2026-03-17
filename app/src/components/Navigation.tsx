@@ -12,6 +12,7 @@ const WHITEPAPER_URL = '/whitepaper';
 const navLinks = [
   { label: 'Buy', href: 'buy', isExternal: false },
   { label: 'Features', href: 'features', isExternal: false },
+  { label: 'Leaderboard', href: '#', isExternal: false, isLeaderboard: true },
   { label: 'Roadmap', href: 'roadmap', isExternal: false },
   { label: 'Whitepaper', href: WHITEPAPER_URL, isExternal: false, isPage: true },
   { label: 'FAQ', href: 'faq', isExternal: false },
@@ -136,6 +137,15 @@ export function Navigation() {
               >
                 {link.label}
               </a>
+            ) : (link as any).isLeaderboard ? (
+              <button
+                key={link.label}
+                onClick={() => { (window as any).__xen_showLeaderboard?.(); handleLinkClick(); }}
+                className="text-[#A7B0B7] hover:text-[#2BFFF1] transition-colors font-medium text-sm cursor-pointer flex items-center gap-1.5 hover:gap-2"
+              >
+                <svg className="w-3.5 h-3.5 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16 8v8m-8-5v5m4-9v9"/></svg>
+                {link.label}
+              </button>
             ) : (
               <Link
                 key={link.label}
@@ -252,6 +262,15 @@ export function Navigation() {
                 >
                   {link.label}
                 </a>
+              ) : (link as any).isLeaderboard ? (
+                <button
+                  key={link.label}
+                  onClick={() => { (window as any).__xen_showLeaderboard?.(); handleLinkClick(); setMobileOpen(false); }}
+                  className="mobile-link text-[#F4F6FA] text-4xl font-bold hover:text-[#2BFFF1] transition-colors cursor-pointer flex items-center gap-3"
+                >
+                  {link.label}
+                  <svg className="w-7 h-7 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16 8v8m-8-5v5m4-9v9"/></svg>
+                </button>
               ) : (
                 <Link
                   key={link.label}
