@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { TOTAL_PRESALE_TOKENS, LISTING_PRICE_USD } from '../store/presaleStore';
+import { LISTING_PRICE_USD } from '../store/presaleStore';
+
+const TOTAL_SUPPLY = 1_000_000_000;
 
 const supabaseUrl     = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -118,7 +120,7 @@ export function LeaderboardSection({ onBack }: Props) {
 
   const top3  = entries.slice(0, 3);
   const rest  = entries.slice(3);
-  const pctOf = (t: number) => ((t / TOTAL_PRESALE_TOKENS) * 100).toFixed(3);
+  const pctOf = (t: number) => ((t / TOTAL_SUPPLY) * 100).toFixed(3);
   const valAt = (t: number) => (t * LISTING_PRICE_USD).toLocaleString('en-US', { maximumFractionDigits: 0 });
 
   return (
@@ -292,7 +294,7 @@ export function LeaderboardSection({ onBack }: Props) {
             )}
 
             <p className="text-center text-[10px] text-[#374151] mt-6">
-              Top 50 holders shown · Wallet addresses partially masked for privacy · Values at ${LISTING_PRICE_USD}/XEN listing price
+              Top 50 holders shown · Wallet addresses partially masked · % shown of 1,000,000,000 total supply · Values at ${LISTING_PRICE_USD}/XEN listing price
             </p>
           </>
         )}
