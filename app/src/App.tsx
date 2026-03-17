@@ -27,6 +27,7 @@ const RoadmapSection     = lazy(() => import('./sections/RoadmapSection').then(m
 const WhitePaperSection  = lazy(() => import('./sections/WhitePaperSection').then(m => ({ default: m.WhitePaperSection })));
 const FAQSection         = lazy(() => import('./sections/FAQSection').then(m => ({ default: m.FAQSection })));
 const FooterSection      = lazy(() => import('./sections/FooterSection').then(m => ({ default: m.FooterSection })));
+const LeaderboardSection = lazy(() => import('./sections/LeaderboardSection').then(m => ({ default: m.LeaderboardSection })));
 
 // Minimal fallback — invisible spacer so layout doesn't jump
 const SectionFallback = () => <div style={{ minHeight: '200px' }} />;
@@ -75,6 +76,7 @@ const queryClient = new QueryClient();
 function AppContent() {
   const { address, isConnected } = useAccount();
   const [direction, setDirection] = useState<'up' | 'down' | 'neutral'>('up');
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [stripeSuccess, setStripeSuccess] = useState<string | null>(null);
   const [stripeCanceled, setStripeCanceled] = useState(false);
 
@@ -192,6 +194,20 @@ function AppContent() {
       forceUnlockScroll();
     };
   }, []);
+
+  // Expose leaderboard toggle globally so Navigation + FeaturesGrid can trigger it
+  useEffect(() => {
+    (window as any).__xen_showLeaderboard = () => setShowLeaderboard(true);
+    return () => { delete (window as any).__xen_showLeaderboard; };
+  }, []);
+
+  if (showLeaderboard) {
+    return (
+      <Suspense fallback={<div className="min-h-screen bg-[#05060B]"/>}>
+        <LeaderboardSection onBack={() => setShowLeaderboard(false)} />
+      </Suspense>
+    );
+  }
 
   return (
     <div className="relative bg-[#05060B] min-h-screen overflow-x-hidden">
