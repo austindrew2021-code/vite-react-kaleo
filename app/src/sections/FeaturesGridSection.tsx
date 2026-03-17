@@ -37,7 +37,7 @@ export function FeaturesGridSection() {
       title: 'Leverage Contests',
       description: 'All trading fees are pooled into weekly leverage trading contests. Top traders win massive prizes from the fee pool.',
       link: 'View Leaderboard',
-      linkHref: '#',
+      linkHref: '#leaderboard',
       icon: Trophy,
       image: '/thumb_security.jpg',
       className: 'grid-card-a'
