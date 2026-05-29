@@ -10,6 +10,7 @@ gsap.registerPlugin(ScrollTrigger);
 export function BuySection() {
   const sectionRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
+  const bgRef = useRef<HTMLDivElement>(null);
 
   const { ethAmount, setEthAmount, tokenAmount, setTokenAmount } = usePresaleStore();
 
@@ -38,24 +39,20 @@ export function BuySection() {
 
     if (!section || !card) return;
 
-    const ctx = gsap.context(() => {
-      gsap.fromTo(card,
-        { y: 60, opacity: 0, scale: 0.95 },
-        {
-          y: 0, opacity: 1, scale: 1,
-          duration: 0.9,
-          ease: 'power3.out',
-          scrollTrigger: {
-            trigger: section,
-            start: 'top 75%',
-            toggleActions: 'play none none none',
-            once: true,
-          }
+    gsap.fromTo(card,
+      { y: 60, opacity: 0, scale: 0.95 },
+      {
+        y: 0, opacity: 1, scale: 1,
+        duration: 0.9,
+        ease: 'power3.out',
+        scrollTrigger: {
+          trigger: section,
+          start: 'top 75%',
+          toggleActions: 'play none none none',
+          once: true,
         }
-      );
-    }, section);
-
-    return () => ctx.revert();
+      }
+    );
   }, []);
 
   const handleEthChange = (value: string) => {
@@ -101,10 +98,10 @@ export function BuySection() {
     <section
       ref={sectionRef}
       id="buy"
-      className="fade-in-section flex items-center justify-center relative overflow-hidden py-24"
+      className="fade-in-section flex items-center justify-center relative overflow-hidden py-16"
     >
       {/* Background */}
-      <div className="absolute inset-0 w-full h-full">
+      <div ref={bgRef} className="absolute inset-0 w-full h-full">
         <img
           src="/stage_city_bg_02.jpg"
           alt="Cyberpunk street"
@@ -118,7 +115,6 @@ export function BuySection() {
       <div
         ref={cardRef}
         className="glass-card relative w-[min(92vw,520px)] rounded-[28px] overflow-hidden p-8 mx-auto"
-        style={{ opacity: 0 }}
       >
         <div
           className="absolute inset-0 rounded-[28px] pointer-events-none"
@@ -232,7 +228,7 @@ export function BuySection() {
             </div>
           )}
 
-          {/* Buy Form (hidden during active tx) */}
+          {/* Buy Form */}
           {txStatus === 'idle' && (
             <>
               {/* Not on Sepolia warning */}
